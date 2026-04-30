@@ -22,4 +22,6 @@ client.once('ready', () => {
     messages(client);
 });
 
+console.log("ok");
+
 client.login(token);
