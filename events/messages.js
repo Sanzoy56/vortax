@@ -1,5 +1,5 @@
-const { Events, EmbedBuilder } = require('discord.js');
-const { logs } = require('../config.json');
+const { Events, EmbedBuilder, AuditLogEvent } = require('discord.js');
+const config = require('../config.json');
 
 module.exports = (client) => {
 
@@ -10,7 +10,7 @@ module.exports = (client) => {
         if (!oldMessage.content || !newMessage.content) return;
         if (oldMessage.content === newMessage.content) return;
 
-        const logChannel = newMessage.guild?.channels.cache.get(logs.messages);
+        const logChannel = newMessage.guild?.channels.cache.get(config.salons?.logs_messages);
         if (!logChannel) return;
 
         const createdAt = oldMessage.createdAt;
@@ -19,23 +19,9 @@ module.exports = (client) => {
 
         const formatDate = (date) =>
             date.toLocaleString('fr-FR', {
-                weekday: 'long',
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
+                weekday: 'long', day: '2-digit', month: 'long',
+                year: 'numeric', hour: '2-digit', minute: '2-digit',
             });
-
-        let modifiedBy = `${newMessage.author.tag} (${newMessage.author.id})`;
-
-        try {
-            const fetchedLogs = await newMessage.guild.fetchAuditLogs({ limit: 1, type: 72 });
-            const log = fetchedLogs.entries.first();
-            if (log && log.target.id === newMessage.author.id && Date.now() - log.createdTimestamp < 5000) {
-                modifiedBy = `${log.executor.tag} (${log.executor.id})`;
-            }
-        } catch {}
 
         const embed = new EmbedBuilder()
             .setTitle('📋 Message Modifié')
@@ -50,22 +36,12 @@ module.exports = (client) => {
                         `📅 **Date de création du message :** ${formatDate(createdAt)}`,
                         `🕐 **Heure de modification :** ${formatDate(editedAt)}`,
                         `⏳ **Durée avant modification :** ${delaySeconds} seconde(s)`,
-                        `🔧 **Modifié par :** ${modifiedBy}`,
                     ].join('\n'),
                 },
-                {
-                    name: '🖊️ Ancien message :',
-                    value: `\`\`\`\n${oldMessage.content.slice(0, 1000) || '(vide)'}\n\`\`\``,
-                },
-                {
-                    name: '🔄 Nouveau message :',
-                    value: `\`\`\`\n${newMessage.content.slice(0, 1000) || '(vide)'}\n\`\`\``,
-                },
+                { name: '🖊️ Ancien message :', value: `\`\`\`\n${oldMessage.content.slice(0, 1000) || '(vide)'}\n\`\`\`` },
+                { name: '🔄 Nouveau message :', value: `\`\`\`\n${newMessage.content.slice(0, 1000) || '(vide)'}\n\`\`\`` },
             )
-            .setFooter({
-                text: `Team jaune © 2024 - 2026 • Aujourd'hui à ${editedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-                iconURL: newMessage.guild.iconURL({ dynamic: true }),
-            })
+            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: newMessage.guild.iconURL({ dynamic: true }) })
             .setTimestamp(editedAt);
 
         await logChannel.send({ embeds: [embed] });
@@ -77,25 +53,20 @@ module.exports = (client) => {
         if (message.author?.bot) return;
         if (!message.content) return;
 
-        const logChannel = message.guild?.channels.cache.get(logs.messages);
+        const logChannel = message.guild?.channels.cache.get(config.salons?.logs_messages);
         if (!logChannel) return;
 
         const deletedAt = new Date();
 
         const formatDate = (date) =>
             date.toLocaleString('fr-FR', {
-                weekday: 'long',
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
+                weekday: 'long', day: '2-digit', month: 'long',
+                year: 'numeric', hour: '2-digit', minute: '2-digit',
             });
 
-        let deletedBy = `Inconnu`;
-
+        let deletedBy = 'Inconnu';
         try {
-            const fetchedLogs = await message.guild.fetchAuditLogs({ limit: 1, type: 72 });
+            const fetchedLogs = await message.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MessageDelete });
             const log = fetchedLogs.entries.first();
             if (log && log.target.id === message.author.id && Date.now() - log.createdTimestamp < 5000) {
                 deletedBy = `${log.executor.tag} (${log.executor.id})`;
@@ -117,18 +88,11 @@ module.exports = (client) => {
                         `🔧 **Supprimé par :** ${deletedBy}`,
                     ].join('\n'),
                 },
-                {
-                    name: '🗒️ Contenu du message :',
-                    value: `\`\`\`\n${message.content.slice(0, 1000) || '(vide)'}\n\`\`\``,
-                },
+                { name: '🗒️ Contenu du message :', value: `\`\`\`\n${message.content.slice(0, 1000) || '(vide)'}\n\`\`\`` },
             )
-            .setFooter({
-                text: `Team jaune © 2024 - 2026 • Aujourd'hui à ${deletedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`,
-                iconURL: message.guild.iconURL({ dynamic: true }),
-            })
+            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: message.guild.iconURL({ dynamic: true }) })
             .setTimestamp(deletedAt);
 
         await logChannel.send({ embeds: [embed] });
     });
-
 };
