@@ -36,6 +36,7 @@ const client = new Client({
         Partials.User,
     ]
 });
+client.setMaxListeners(20);
 
 client.commands = new Collection();
 
@@ -58,7 +59,6 @@ iq(client);
 client.once('ready', () => {
     console.log(`✅ Connecté en tant que ${client.user.tag}`);
 });
-
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     const command = client.commands.get(interaction.commandName);
