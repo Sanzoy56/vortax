@@ -76,7 +76,7 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 process.on('unhandledRejection', (error) => {
-    console.error('❌ Erreur non gérée :', error);
+    console.error('❌ Erreur non gérée : ', error);
 });
 
 client.login(token);
