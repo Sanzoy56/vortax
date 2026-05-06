@@ -167,9 +167,23 @@ const REPARTITION = {
 const dbPath     = path.join(__dirname, '../levels.json');
 const saisonPath = path.join(__dirname, '../saison.json');
 
-const getDB  = () => {
-  if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, '{}');
-  return JSON.parse(fs.readFileSync(dbPath));
+const getDB = () => {
+  if (!fs.existsSync(dbPath)) {
+    fs.writeFileSync(dbPath, '{}');
+    return {};
+  }
+  try {
+    const content = fs.readFileSync(dbPath, 'utf8').trim();
+    if (!content) {
+      fs.writeFileSync(dbPath, '{}');
+      return {};
+    }
+    return JSON.parse(content);
+  } catch (err) {
+    console.error('[DB] levels.json corrompu, reset:', err.message);
+    fs.writeFileSync(dbPath, '{}');
+    return {};
+  }
 };
 const saveDB = (data) => fs.writeFileSync(dbPath, JSON.stringify(data, null, 2));
 
@@ -179,7 +193,15 @@ const getSaison = () => {
     fs.writeFileSync(saisonPath, JSON.stringify(defaut, null, 2));
     return defaut;
   }
-  return JSON.parse(fs.readFileSync(saisonPath));
+  try {
+    const content = fs.readFileSync(saisonPath, 'utf8').trim();
+    if (!content) throw new Error('vide');
+    return JSON.parse(content);
+  } catch {
+    const defaut = { numero: 1, debut: Date.now() };
+    fs.writeFileSync(saisonPath, JSON.stringify(defaut, null, 2));
+    return defaut;
+  }
 };
 const saveSaison = (data) => fs.writeFileSync(saisonPath, JSON.stringify(data, null, 2));
 
