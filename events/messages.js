@@ -10,7 +10,7 @@ module.exports = (client) => {
         if (!oldMessage.content || !newMessage.content) return;
         if (oldMessage.content === newMessage.content) return;
 
-        const logChannel = newMessage.guild?.channels.cache.get(config.salons?.logs_messages);
+        const logChannel = newMessage.guild?.channels.cache.get(config.logs?.messages); // ✅ config.logs.messages
         if (!logChannel) return;
 
         const createdAt = oldMessage.createdAt;
@@ -53,7 +53,7 @@ module.exports = (client) => {
         if (message.author?.bot) return;
         if (!message.content) return;
 
-        const logChannel = message.guild?.channels.cache.get(config.salons?.logs_messages);
+        const logChannel = message.guild?.channels.cache.get(config.logs?.messages); // ✅ config.logs.messages
         if (!logChannel) return;
 
         const deletedAt = new Date();
