@@ -273,7 +273,6 @@ const getQuetesJour = (user) => {
 };
 
 // ========== RESET MINUIT QUETES ==========
-// Vérifie chaque minute si on a passé minuit et reset les quêtes de chaque user indépendamment
 const demarrerResetMinuitQuetes = (client) => {
   let dernierJourReset = dateAujourdhui();
 
@@ -285,7 +284,7 @@ const demarrerResetMinuitQuetes = (client) => {
     const db = getDB();
     let nb = 0;
     for (const userId of Object.keys(db)) {
-      db[userId].quetes = tirerQuetes(); // tirage aléatoire indépendant par user
+      db[userId].quetes = tirerQuetes();
       nb++;
     }
     saveDB(db);
@@ -302,8 +301,7 @@ const demarrerResetMinuitQuetes = (client) => {
 const peutUtiliserCommande = (message) => {
   const membre = message.member;
   if (membre && membre.roles.cache.some(r => ADMINS_ROLES.includes(r.id))) return true;
-  const channel = message.channel;
-  return channel.name === SALONS.commandes || channel.id === SALONS.commandes;
+  return message.channel.id === SALONS.commandes;
 };
 
 const refuserCommande = async (message) => {
@@ -404,7 +402,7 @@ module.exports = (client) => {
 
   resetSaison(client);
   setInterval(() => resetSaison(client), 60 * 60 * 1000);
-  demarrerResetMinuitQuetes(client); // ← reset quêtes à minuit pour tous les users
+  demarrerResetMinuitQuetes(client);
 
   // ========== XP PAR MESSAGE ==========
   client.on('messageCreate', async (message) => {
@@ -451,8 +449,8 @@ module.exports = (client) => {
         user.coins += COINS_PAR_MESSAGE;
         user.xp    += xpGagne;
 
-        avancerQuete(user, 'prog_xp500',  xpGagne,          message.guild, message.author.id);
-        avancerQuete(user, 'prog_xp1500', xpGagne,          message.guild, message.author.id);
+        avancerQuete(user, 'prog_xp500',  xpGagne,           message.guild, message.author.id);
+        avancerQuete(user, 'prog_xp1500', xpGagne,           message.guild, message.author.id);
         avancerQuete(user, 'prog_coins',  COINS_PAR_MESSAGE, message.guild, message.author.id);
       }
 
@@ -743,7 +741,8 @@ module.exports = (client) => {
     const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'top10.png' });
     await message.reply({ files: [attachment] });
   });
-// ========== COMMANDE ?quetes ==========
+
+  // ========== COMMANDE ?quetes ==========
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     if (!message.guild) return;
@@ -1168,7 +1167,7 @@ module.exports = (client) => {
     const attachment = new AttachmentBuilder(canvas.toBuffer(), { name: 'topmoney.png' });
     await message.reply({ files: [attachment] });
   });
- 
+
   // ========== BOUTIQUE BOOSTS (?boutique) ==========
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
@@ -1767,8 +1766,7 @@ module.exports = (client) => {
     });
   });
 
-  
-// ========== COMMANDE ?aide ==========
+  // ========== COMMANDE ?aide ==========
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     if (!message.guild) return;
@@ -1792,6 +1790,7 @@ module.exports = (client) => {
 
     await message.reply({ embeds: [embed] });
   });
+
   // ========== COMMANDE /adminexpajouter ==========
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
@@ -1851,114 +1850,6 @@ module.exports = (client) => {
 
       await interaction.reply({ embeds: [embed], ephemeral: true });
     });
-  });
-
-  // ========== /boutique-boost ==========
-  client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-    if (interaction.commandName !== 'boutique-boost') return;
-
-    await withUserLock(interaction.user.id, async () => {
-      const db   = getDB();
-      const user = getUser(db, interaction.user.id);
-      avancerQuete(user, 'spe_boutique', 1, interaction.guild, interaction.user.id);
-      saveDB(db);
-    });
-
-    const db   = getDB();
-    const user = getUser(db, interaction.user.id);
-    const now  = Date.now();
-
-    const labelBoost = (b) => {
-      const bonus    = `+${Math.round(b.bonus * 100)}%`;
-      const dureeMin = b.duree / 60000;
-      const duree    = dureeMin >= 60 ? `${dureeMin / 60}h` : `${dureeMin}min`;
-      const prix     = b.prix >= 1000 ? `${b.prix / 1000}k` : b.prix;
-      return `${bonus} - ${duree} - ${prix}`;
-    };
-
-    const boostButtons = BOOSTS.map(b =>
-      new ButtonBuilder()
-        .setCustomId(`boutique_boost_${b.id}`)
-        .setLabel(labelBoost(b))
-        .setStyle(ButtonStyle.Primary)
-    );
-    boostButtons.push(
-      new ButtonBuilder()
-        .setCustomId('boutique_boost_boite')
-        .setLabel('Boite - 50k')
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    const rows = [];
-    for (let i = 0; i < boostButtons.length; i += 5)
-      rows.push(new ActionRowBuilder().addComponents(boostButtons.slice(i, i + 5)));
-
-    const boostActifInfo = user.boostActif && user.boostActif.expireAt > now
-      ? `Boost actif : **+${Math.round(user.boostActif.bonus * 100)}% XP** - expire <t:${Math.floor(user.boostActif.expireAt / 1000)}:R>`
-      : 'Aucun boost actif';
-
-    const embed = new EmbedBuilder()
-      .setTitle('Boutique Boosts VTX')
-      .setColor(0xffd700)
-      .setDescription(
-        `Ton solde : **${user.coins.toLocaleString()} VTX-Coins**\n${boostActifInfo}\n\n` +
-        `Pour les boosts permanents : \`/boutique-roles\``
-      )
-      .addFields(
-        { name: 'Boosts XP', value: BOOSTS.map(b => `**${b.nom}** - ${b.prix.toLocaleString()} coins`).join('\n') },
-        { name: 'Boite Surprise', value: `**50 000 coins** - Gain ou malus aleatoire !\n\`?purge\` (${PURGE_PRIX.toLocaleString()} coins) pour retirer un malus.` },
-      )
-      .setFooter({ text: 'Team Vortax 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) })
-      .setTimestamp();
-
-    await interaction.reply({ embeds: [embed], components: rows });
-  });
-
-  // ========== /boutique-roles ==========
-  client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-    if (interaction.commandName !== 'boutique-roles') return;
-
-    const db            = getDB();
-    const user          = getUser(db, interaction.user.id);
-    const boostActuelId = user.boostPermanent || null;
-    const boostActuel   = BOOSTS_PERMANENTS.find(b => b.id === boostActuelId) || null;
-
-    const roleButtons = BOOSTS_PERMANENTS.map(b => {
-      const estActuel = boostActuelId === b.id;
-      const label     = `${b.nom} - +${Math.round(b.bonus * 100)}% - ${(b.prix / 1000000).toFixed(0)}M`;
-      return new ButtonBuilder()
-        .setCustomId(`perm_achat_${b.id}`)
-        .setLabel(label)
-        .setStyle(estActuel ? ButtonStyle.Success : ButtonStyle.Primary)
-        .setDisabled(estActuel);
-    });
-
-    const rows = [];
-    for (let i = 0; i < roleButtons.length; i += 5)
-      rows.push(new ActionRowBuilder().addComponents(roleButtons.slice(i, i + 5)));
-
-    const lignes = BOOSTS_PERMANENTS.map(b => {
-      const estActuel = boostActuelId === b.id;
-      const statut    = estActuel ? '**Equipe**' : 'Disponible';
-      return `${statut} ${b.nom} - **+${Math.round(b.bonus * 100)}% XP** permanent - ${b.prix.toLocaleString()} coins`;
-    }).join('\n');
-
-    const embed = new EmbedBuilder()
-      .setTitle('Boutique Roles - Boosts Permanents')
-      .setColor(0xa855f7)
-      .setDescription(
-        `Ton solde : **${user.coins.toLocaleString()} VTX-Coins**\n` +
-        `Boost actuel : **${boostActuel ? boostActuel.nom + ` (+${Math.round(boostActuel.bonus * 100)}% XP)` : 'Aucun'}**\n\n` +
-        lignes + '\n\n' +
-        `Tu ne peux avoir qu\'**un seul** boost permanent a la fois.\n` +
-        `En acheter un nouveau met l\'ancien dans ton inventaire - utilise **?use** pour le reequiper.`
-      )
-      .setFooter({ text: 'Team Vortax 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) })
-      .setTimestamp();
-
-    await interaction.reply({ embeds: [embed], components: rows });
   });
 
   // ========== BOUTONS /boutique-roles ==========
@@ -2065,6 +1956,7 @@ module.exports = (client) => {
       await interaction.reply({ content: msg, ephemeral: true });
     }
   };
+
   // ========== COMMANDE ?rob ==========
   client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
@@ -2074,7 +1966,6 @@ module.exports = (client) => {
 
     const EXEMPTS = [
       '1405637417272086588', // Vortax
-      // ton ID ici
     ];
 
     const cible = message.mentions.users.first();
@@ -2082,80 +1973,78 @@ module.exports = (client) => {
     if (cible.id === message.author.id) return message.reply('Tu ne peux pas te voler toi-meme.');
     if (cible.bot)                      return message.reply('Tu ne peux pas voler un bot.');
 
-    await withUserLock(message.author.id, async () => {
-      await withUserLock(cible.id, async () => {
-        const db      = getDB();
-        const voleur  = getUser(db, message.author.id);
-        const victime = getUser(db, cible.id);
-        const now     = Date.now();
+    const lockKey = [message.author.id, cible.id].sort().join('_');
+    await withUserLock(lockKey, async () => {
+      const db      = getDB();
+      const voleur  = getUser(db, message.author.id);
+      const victime = getUser(db, cible.id);
+      const now     = Date.now();
 
-        const membreVoleur   = await message.guild.members.fetch(message.author.id).catch(() => null);
-        const voleurEstAdmin = membreVoleur?.roles.cache.some(r => ADMINS_ROLES.includes(r.id));
-        const voleurExempt   = EXEMPTS.includes(message.author.id) || voleurEstAdmin;
+      const membreVoleur   = await message.guild.members.fetch(message.author.id).catch(() => null);
+      const voleurEstAdmin = membreVoleur?.roles.cache.some(r => ADMINS_ROLES.includes(r.id));
+      const voleurExempt   = EXEMPTS.includes(message.author.id) || voleurEstAdmin;
 
-        const membreCible    = await message.guild.members.fetch(cible.id).catch(() => null);
-        const cibleEstAdmin  = membreCible?.roles.cache.some(r => ADMINS_ROLES.includes(r.id));
-        const cibleEstExempt = EXEMPTS.includes(cible.id) || cibleEstAdmin;
+      const membreCible    = await message.guild.members.fetch(cible.id).catch(() => null);
+      const cibleEstAdmin  = membreCible?.roles.cache.some(r => ADMINS_ROLES.includes(r.id));
+      const cibleEstExempt = EXEMPTS.includes(cible.id) || cibleEstAdmin;
 
-        if (cibleEstExempt && !voleurExempt)
-          return message.reply(`<@${cible.id}> ne peut pas être volé. 🛡️`);
+      if (cibleEstExempt && !voleurExempt)
+        return message.reply(`<@${cible.id}> ne peut pas être volé. 🛡️`);
 
-        if (!voleurExempt && voleur.dernierRob && now - voleur.dernierRob < ROB_COOLDOWN_MS) {
-          const resteMs = ROB_COOLDOWN_MS - (now - voleur.dernierRob);
-          return message.reply(`Tu dois attendre encore <t:${Math.floor((now + resteMs) / 1000)}:R> avant de pouvoir voler a nouveau.`);
-        }
+      if (!voleurExempt && voleur.dernierRob && now - voleur.dernierRob < ROB_COOLDOWN_MS) {
+        const resteMs = ROB_COOLDOWN_MS - (now - voleur.dernierRob);
+        return message.reply(`Tu dois attendre encore <t:${Math.floor((now + resteMs) / 1000)}:R> avant de pouvoir voler a nouveau.`);
+      }
 
-        if (victime.coins <= 0)
-          return message.reply(`Impossible de voler <@${cible.id}>, il n'a pas un seul VTX-Coin !`);
+      if (victime.coins <= 0)
+        return message.reply(`Impossible de voler <@${cible.id}>, il n'a pas un seul VTX-Coin !`);
 
-        if (victime.shieldActif && victime.shieldActif > now) {
-          if (!voleurExempt) voleur.dernierRob = now;
-          saveDB(db);
-          return message.reply(`<@${cible.id}> est protege par un **Bouclier Anti-Rob** ! Tu repars les mains vides${!voleurExempt ? ' et ton cooldown est reinitialise' : ''}.`);
-        }
-
+      if (victime.shieldActif && victime.shieldActif > now) {
         if (!voleurExempt) voleur.dernierRob = now;
-
-        if (Math.random() < ROB_ECHEC_CHANCE) {
-          const perte  = Math.min(ROB_PENALITE, voleur.coins);
-          voleur.coins = Math.max(0, voleur.coins - perte);
-          saveDB(db);
-          return message.reply(
-            `Le vol a echoue ! Tu t'es fait attraper et tu as perdu **${perte.toLocaleString()} VTX-Coins**.\n` +
-            `Ton solde : **${voleur.coins.toLocaleString()} VTX-Coins**`
-          );
-        }
-
-        const pct   = 0.05 + Math.random() * 0.10;
-        let montant = Math.floor(victime.coins * pct);
-        montant     = Math.min(montant, Math.floor(victime.coins * 0.75));
-        montant     = Math.min(montant, 500000);
-
-        if (voleur.lameProchaineRob) {
-          montant = Math.min(montant * 2, Math.floor(victime.coins * 0.75));
-          voleur.lameProchaineRob = false;
-        }
-
-        victime.coins -= montant;
-        voleur.coins  += montant;
         saveDB(db);
+        return message.reply(`<@${cible.id}> est protege par un **Bouclier Anti-Rob** ! Tu repars les mains vides${!voleurExempt ? ' et ton cooldown est reinitialise' : ''}.`);
+      }
 
-        const embed = new EmbedBuilder()
-          .setTitle('Vol reussi !')
-          .setColor(0xe74c3c)
-          .setDescription(
-            `<@${message.author.id}> a vole **${montant.toLocaleString()} VTX-Coins** a <@${cible.id}> !\n\n` +
-            `Ton solde : **${voleur.coins.toLocaleString()}**\n` +
-            `Solde de <@${cible.id}> : **${victime.coins.toLocaleString()}**`
-          )
-          .setFooter({ text: voleurExempt ? 'Aucun cooldown appliqué' : 'Prochain rob disponible dans 4h' })
-          .setTimestamp();
+      if (!voleurExempt) voleur.dernierRob = now;
 
-        await message.reply({ embeds: [embed] });
-      });
+      if (Math.random() < ROB_ECHEC_CHANCE) {
+        const perte  = Math.min(ROB_PENALITE, voleur.coins);
+        voleur.coins = Math.max(0, voleur.coins - perte);
+        saveDB(db);
+        return message.reply(
+          `Le vol a echoue ! Tu t'es fait attraper et tu as perdu **${perte.toLocaleString()} VTX-Coins**.\n` +
+          `Ton solde : **${voleur.coins.toLocaleString()} VTX-Coins**`
+        );
+      }
+
+      const pct   = 0.05 + Math.random() * 0.10;
+      let montant = Math.floor(victime.coins * pct);
+      montant     = Math.min(montant, Math.floor(victime.coins * 0.75));
+      montant     = Math.min(montant, 500000);
+
+      if (voleur.lameProchaineRob) {
+        montant = Math.min(montant * 2, Math.floor(victime.coins * 0.75));
+        voleur.lameProchaineRob = false;
+      }
+
+      victime.coins -= montant;
+      voleur.coins  += montant;
+      saveDB(db);
+
+      const embed = new EmbedBuilder()
+        .setTitle('Vol reussi !')
+        .setColor(0xe74c3c)
+        .setDescription(
+          `<@${message.author.id}> a vole **${montant.toLocaleString()} VTX-Coins** a <@${cible.id}> !\n\n` +
+          `Ton solde : **${voleur.coins.toLocaleString()}**\n` +
+          `Solde de <@${cible.id}> : **${victime.coins.toLocaleString()}**`
+        )
+        .setFooter({ text: voleurExempt ? 'Aucun cooldown appliqué' : 'Prochain rob disponible dans 4h' })
+        .setTimestamp();
+
+      await message.reply({ embeds: [embed] });
     });
   });
-
 
   // ========== COMMANDE /adminexpremove ==========
   client.on('interactionCreate', async (interaction) => {
@@ -2217,30 +2106,32 @@ module.exports = (client) => {
       await interaction.reply({ embeds: [embed], ephemeral: true });
     });
   });
+
   // ========== COMMANDE ?donner ==========
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (!message.guild) return;
-  if (!message.content.toLowerCase().startsWith('?donner')) return;
-  if (!peutUtiliserCommande(message)) return refuserCommande(message);
+  client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+    if (!message.guild) return;
+    if (!message.content.toLowerCase().startsWith('?donner')) return;
+    if (!peutUtiliserCommande(message)) return refuserCommande(message);
 
-  const args    = message.content.split(/\s+/);
-  const cible   = message.mentions.users.first();
-  const montant = parseInt(args[2]);
+    const args    = message.content.split(/\s+/);
+    const cible   = message.mentions.users.first();
+    const montant = parseInt(args[2]);
 
-  if (!cible)
-    return message.reply('Mentionne quelqu\'un ! Ex : `?donner @pseudo 500`');
-  if (cible.id === message.author.id)
-    return message.reply('Tu ne peux pas te donner des coins à toi-même.');
-  if (cible.bot)
-    return message.reply('Tu ne peux pas donner des coins à un bot.');
-  if (!montant || montant <= 0 || isNaN(montant))
-    return message.reply('Indique un montant valide ! Ex : `?donner @pseudo 500`');
+    if (!cible)
+      return message.reply('Mentionne quelqu\'un ! Ex : `?donner @pseudo 500`');
+    if (cible.id === message.author.id)
+      return message.reply('Tu ne peux pas te donner des coins à toi-même.');
+    if (cible.bot)
+      return message.reply('Tu ne peux pas donner des coins à un bot.');
+    if (!montant || montant <= 0 || isNaN(montant))
+      return message.reply('Indique un montant valide ! Ex : `?donner @pseudo 500`');
 
-  await withUserLock(message.author.id, async () => {
-    await withUserLock(cible.id, async () => {
-      const db      = getDB();
-      const donneur = getUser(db, message.author.id);
+    // Utilise un lockKey combiné pour éviter les conflits entre les deux utilisateurs
+    const lockKey = [message.author.id, cible.id].sort().join('_');
+    await withUserLock(lockKey, async () => {
+      const db       = getDB();
+      const donneur  = getUser(db, message.author.id);
       const receveur = getUser(db, cible.id);
 
       if (donneur.coins < montant)
@@ -2264,6 +2155,5 @@ client.on('messageCreate', async (message) => {
       await message.reply({ embeds: [embed] });
     });
   });
-});
-};
 
+}; // ← fin du module.exports
