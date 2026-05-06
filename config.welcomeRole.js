@@ -1,0 +1,3 @@
+const MEMBRE_ROLE_ID = '1362730545695559840';
+// ...
+await fetchedMember.roles.add(MEMBRE_ROLE_ID)

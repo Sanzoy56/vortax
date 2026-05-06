@@ -16,7 +16,9 @@ const snipe      = require('./events/snipe.js');
 const levels     = require('./events/levels.js');
 const meteo      = require('./events/meteo.js');
 const iq         = require('./events/iq.js');
-
+const suggestion = require('./events/suggestion.js'); // ← faute corrigée
+const { checkYoutube, CHECK_INTERVAL } = require('./youtube.js'); // ← ajout
+const giveaway = require('./giveaway.js');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -36,8 +38,8 @@ const client = new Client({
         Partials.User,
     ]
 });
-client.setMaxListeners(20);
 
+client.setMaxListeners(20);
 client.commands = new Collection();
 
 ticket(client);
@@ -55,10 +57,14 @@ snipe(client);
 levels(client);
 meteo(client);
 iq(client);
-
+suggestion(client);
+giveaway(client);
 client.once('ready', () => {
     console.log(`✅ Connecté en tant que ${client.user.tag}`);
+    checkYoutube(client); // premier check au démarrage
+    setInterval(() => checkYoutube(client), CHECK_INTERVAL); // toutes les 5 min
 });
+
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
     const command = client.commands.get(interaction.commandName);

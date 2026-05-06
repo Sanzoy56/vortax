@@ -160,6 +160,34 @@ const commands = [
         .setDescription('Ouvre la boutique des boosts XP permanents')
         .toJSON(),
 
+    // ← Giveaway ajouté
+    new SlashCommandBuilder()
+        .setName('giveaway')
+        .setDescription('Lancer un giveaway')
+        .setDefaultMemberPermissions(0)
+        .addStringOption(opt =>
+            opt.setName('lot')
+                .setDescription('Ce qu\'on gagne')
+                .setRequired(true)
+        )
+        .addStringOption(opt =>
+            opt.setName('durée')
+                .setDescription('Durée : 10m, 2h, 1d')
+                .setRequired(true)
+        )
+        .addIntegerOption(opt =>
+            opt.setName('gagnants')
+                .setDescription('Nombre de gagnants')
+                .setRequired(true)
+                .setMinValue(1)
+        )
+        .addRoleOption(opt =>
+            opt.setName('role')
+                .setDescription('Rôle requis pour participer (optionnel)')
+                .setRequired(false)
+        )
+        .toJSON(),
+
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
