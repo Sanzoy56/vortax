@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
-const { token } = require('./config.json');
+const { token } = require('./token.json');
 
 const ticket     = require('./ticket.js');
 const messages   = require('./events/messages');
