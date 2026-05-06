@@ -2217,5 +2217,53 @@ module.exports = (client) => {
       await interaction.reply({ embeds: [embed], ephemeral: true });
     });
   });
+  // ========== COMMANDE ?donner ==========
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+  if (!message.guild) return;
+  if (!message.content.toLowerCase().startsWith('?donner')) return;
+  if (!peutUtiliserCommande(message)) return refuserCommande(message);
+
+  const args    = message.content.split(/\s+/);
+  const cible   = message.mentions.users.first();
+  const montant = parseInt(args[2]);
+
+  if (!cible)
+    return message.reply('Mentionne quelqu\'un ! Ex : `?donner @pseudo 500`');
+  if (cible.id === message.author.id)
+    return message.reply('Tu ne peux pas te donner des coins à toi-même.');
+  if (cible.bot)
+    return message.reply('Tu ne peux pas donner des coins à un bot.');
+  if (!montant || montant <= 0 || isNaN(montant))
+    return message.reply('Indique un montant valide ! Ex : `?donner @pseudo 500`');
+
+  await withUserLock(message.author.id, async () => {
+    await withUserLock(cible.id, async () => {
+      const db      = getDB();
+      const donneur = getUser(db, message.author.id);
+      const receveur = getUser(db, cible.id);
+
+      if (donneur.coins < montant)
+        return message.reply(`Tu n'as pas assez de coins ! Ton solde : **${donneur.coins.toLocaleString()} VTX-Coins**`);
+
+      donneur.coins  -= montant;
+      receveur.coins += montant;
+      saveDB(db);
+
+      const embed = new EmbedBuilder()
+        .setTitle('Don effectué !')
+        .setColor(0x2ecc71)
+        .setDescription(
+          `<@${message.author.id}> a donné **${montant.toLocaleString()} VTX-Coins** à <@${cible.id}> !\n\n` +
+          `Ton solde : **${donneur.coins.toLocaleString()} VTX-Coins**\n` +
+          `Solde de <@${cible.id}> : **${receveur.coins.toLocaleString()} VTX-Coins**`
+        )
+        .setFooter({ text: 'Team Vortax 2024 - 2026', iconURL: message.guild.iconURL({ dynamic: true }) })
+        .setTimestamp();
+
+      await message.reply({ embeds: [embed] });
+    });
+  });
+});
 };
 
