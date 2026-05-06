@@ -231,7 +231,7 @@ const pendingWrites = new Map();
 const withUserLock = (userId, fn) => {
   const prev = pendingWrites.get(userId) || Promise.resolve();
   const next = prev.then(() => fn()).catch((err) => {
-    console.error(`[Lock] Erreur userId=${userId}:`, err);
+    console.error(`[Lock] Erreur userId=${userId}:`, err.stack || err);
   });
   pendingWrites.set(userId, next);
   next.finally(() => {
@@ -1874,6 +1874,96 @@ module.exports = (client) => {
     });
   });
 
+  // ========== COMMANDE /boutique-boost ==========
+  client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName !== 'boutique-boost') return;
+
+    const db   = getDB();
+    const user = getUser(db, interaction.user.id);
+
+    const labelBoost = (b) => {
+      const bonus    = `+${Math.round(b.bonus * 100)}%`;
+      const dureeMin = b.duree / 60000;
+      const duree    = dureeMin >= 60 ? `${dureeMin / 60}h` : `${dureeMin}min`;
+      const prix     = b.prix >= 1000 ? `${b.prix / 1000}k` : b.prix;
+      return `${bonus} - ${duree} - ${prix}`;
+    };
+
+    const boostButtons = BOOSTS.map(b =>
+      new ButtonBuilder()
+        .setCustomId(`boutique_boost_${b.id}`)
+        .setLabel(labelBoost(b))
+        .setStyle(ButtonStyle.Primary)
+    );
+    boostButtons.push(
+      new ButtonBuilder()
+        .setCustomId('boutique_boost_boite')
+        .setLabel('Boite - 50k')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    const rows = [];
+    for (let i = 0; i < boostButtons.length; i += 5)
+      rows.push(new ActionRowBuilder().addComponents(boostButtons.slice(i, i + 5)));
+
+    const embed = new EmbedBuilder()
+      .setTitle('Boutique Boosts VTX')
+      .setColor(0xffd700)
+      .setDescription(
+        `Ton solde : **${user.coins.toLocaleString()} VTX-Coins**\n` +
+        `> Tu peux aussi acheter des items avec **?items**`
+      )
+      .addFields(
+        { name: 'Boosts XP disponibles', value: BOOSTS.map(b => `**${b.nom}** - ${b.prix.toLocaleString()} VTX-Coins`).join('\n') },
+        { name: 'Boite Surprise',        value: `**50 000 VTX-Coins** - Gain ou malus aleatoire !\nUtilise **?purge** (${PURGE_PRIX.toLocaleString()} coins) pour retirer un malus.` },
+      )
+      .setFooter({ text: 'Team Vortax 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) })
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
+  });
+
+  // ========== COMMANDE /boutique-roles ==========
+  client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName !== 'boutique-roles') return;
+
+    const db   = getDB();
+    const user = getUser(db, interaction.user.id);
+
+    const buttons = BOOSTS_PERMANENTS.map(b =>
+      new ButtonBuilder()
+        .setCustomId(`perm_achat_${b.id}`)
+        .setLabel(`${b.nom} - ${(b.prix / 1000000).toFixed(0)}M coins`)
+        .setStyle(ButtonStyle.Primary)
+    );
+
+    const rows = [];
+    for (let i = 0; i < buttons.length; i += 5)
+      rows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
+
+    const boostActuel = BOOSTS_PERMANENTS.find(b => b.id === user.boostPermanent);
+
+    const embed = new EmbedBuilder()
+      .setTitle('Boutique Boosts Permanents VTX')
+      .setColor(0x5865f2)
+      .setDescription(
+        `Ton solde : **${user.coins.toLocaleString()} VTX-Coins**\n` +
+        `Boost actuel : **${boostActuel ? boostActuel.nom + ` (+${Math.round(boostActuel.bonus * 100)}%)` : 'Aucun'}**`
+      )
+      .addFields({
+        name: 'Boosts disponibles',
+        value: BOOSTS_PERMANENTS.map(b =>
+          `**${b.nom}** — +${Math.round(b.bonus * 100)}% XP permanent — ${b.prix.toLocaleString()} coins`
+        ).join('\n'),
+      })
+      .setFooter({ text: 'Team Vortax 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) })
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
+  });
+
   // ========== BOUTONS /boutique-roles ==========
   client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
@@ -2149,7 +2239,6 @@ module.exports = (client) => {
     if (!montant || montant <= 0 || isNaN(montant))
       return message.reply('Indique un montant valide ! Ex : `?donner @pseudo 500`');
 
-    // Utilise un lockKey combiné pour éviter les conflits entre les deux utilisateurs
     const lockKey = [message.author.id, cible.id].sort().join('_');
     await withUserLock(lockKey, async () => {
       const db       = getDB();
