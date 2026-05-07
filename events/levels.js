@@ -16,10 +16,10 @@ const SALONS = {
 
 const ADMINS_ROLES = ['1473460100210360370', '1491458130322919435', '1361408552664568100'];
 
-const XP_PAR_MESSAGE      = 50;
-const XP_VOCAL_PAR_MINUTE = 30;
-const COINS_PAR_MESSAGE   = 115;
-const MESSAGE_COOLDOWN_MS = 60 * 1000;
+const XP_PAR_MESSAGE      = 120;  // était 50
+const XP_VOCAL_PAR_MINUTE = 60;   // était 30
+const COINS_PAR_MESSAGE   = 115;  // inchangé
+const MESSAGE_COOLDOWN_MS = 45 * 1000; // était 60s, réduit à 45s
 const PURGE_PRIX          = 30000;
 const ROB_COOLDOWN_MS     = 4 * 60 * 60 * 1000;
 const ROB_ECHEC_CHANCE    = 0.30;
@@ -118,40 +118,34 @@ const BOITE_RECOMPENSES = [
 ];
 
 const TOUTES_QUETES = [
-  { id: 'msg_10',        nom: 'Bavard du jour',       desc: 'Envoyer 10 messages',                         cat: 'Messages',    cible: 10,   xp: 200,  coins: 800   },
-  { id: 'msg_25',        nom: 'Moulin a paroles',      desc: 'Envoyer 25 messages',                         cat: 'Messages',    cible: 25,   xp: 400,  coins: 1500  },
-  { id: 'msg_50',        nom: 'Intarissable',          desc: 'Envoyer 50 messages',                         cat: 'Messages',    cible: 50,   xp: 700,  coins: 3000  },
-  { id: 'msg_100',       nom: 'Machine a ecrire',      desc: 'Envoyer 100 messages',                        cat: 'Messages',    cible: 100,  xp: 1200, coins: 5000  },
-  { id: 'msg_long',      nom: 'Long discours',         desc: 'Envoyer 5 messages de +200 caracteres',       cat: 'Messages',    cible: 5,    xp: 500,  coins: 2000  },
-  { id: 'msg_reply',     nom: 'Reactif',               desc: 'Repondre a 10 messages',                      cat: 'Messages',    cible: 10,   xp: 300,  coins: 1200  },
-  { id: 'voc_15',        nom: 'Present',               desc: 'Rester 15 min en vocal',                      cat: 'Vocal',       cible: 15,   xp: 300,  coins: 1200  },
-  { id: 'voc_30',        nom: 'Sociable',              desc: 'Rester 30 min en vocal',                      cat: 'Vocal',       cible: 30,   xp: 500,  coins: 2000  },
-  { id: 'voc_60',        nom: 'Marathon vocal',        desc: 'Rester 1h en vocal',                          cat: 'Vocal',       cible: 60,   xp: 900,  coins: 3500  },
-  { id: 'voc_120',       nom: 'Accro au micro',        desc: 'Rester 2h en vocal',                          cat: 'Vocal',       cible: 120,  xp: 1500, coins: 6000  },
-  { id: 'voc_group',     nom: 'Animateur',             desc: 'Etre dans un vocal avec 3+ personnes 20 min', cat: 'Vocal',       cible: 20,   xp: 600,  coins: 2500  },
-  { id: 'soc_react10',   nom: 'Reactionneur',          desc: 'Mettre 10 reactions',                         cat: 'Social',      cible: 10,   xp: 200,  coins: 800   },
-  { id: 'soc_react30',   nom: 'Expressif',             desc: 'Mettre 30 reactions',                         cat: 'Social',      cible: 30,   xp: 500,  coins: 2000  },
-  { id: 'soc_recu5',     nom: 'Apprecie',              desc: 'Recevoir 5 reactions',                        cat: 'Social',      cible: 5,    xp: 300,  coins: 1200  },
-  { id: 'soc_recu15',    nom: 'Populaire',             desc: 'Recevoir 15 reactions',                       cat: 'Social',      cible: 15,   xp: 600,  coins: 2500  },
-  { id: 'soc_repOr',     nom: 'Repondre a un Or',      desc: 'Repondre a un membre Or',                     cat: 'Social',      cible: 1,    xp: 400,  coins: 1500  },
-  { id: 'soc_repVortax', nom: 'Repondre a Vortax',     desc: 'Repondre directement a Vortax',               cat: 'Social',      cible: 1,    xp: 1000, coins: 4000  },
-  { id: 'soc_welcome',   nom: 'Accueil chaleureux',    desc: 'Souhaiter la bienvenue a 1 nouveau',          cat: 'Social',      cible: 1,    xp: 200,  coins: 800   },
-  { id: 'prog_boost',    nom: 'Booste',                desc: 'Activer un boost',                            cat: 'Progression', cible: 1,    xp: 200,  coins: 800   },
-  { id: 'prog_boite',    nom: 'Joueur',                desc: 'Ouvrir une boite surprise',                   cat: 'Progression', cible: 1,    xp: 300,  coins: 1200  },
-  { id: 'prog_streak',   nom: 'Fidele',                desc: "Maintenir son streak aujourd'hui",            cat: 'Progression', cible: 1,    xp: 150,  coins: 600   },
-  { id: 'prog_xp500',    nom: 'Accumulateur',          desc: "Gagner 500 XP aujourd'hui",                   cat: 'Progression', cible: 500,  xp: 400,  coins: 1500  },
-  { id: 'prog_xp1500',   nom: 'XP addict',             desc: "Gagner 1500 XP aujourd'hui",                  cat: 'Progression', cible: 1500, xp: 800,  coins: 3000  },
-  { id: 'prog_coins',    nom: 'Econome',               desc: "Gagner 5 000 coins aujourd'hui",              cat: 'Progression', cible: 5000, xp: 500,  coins: 0     },
-  { id: 'evt_matin',     nom: 'Matinal',               desc: 'Envoyer un message avant 9h',                 cat: 'Evenement',   cible: 1,    xp: 200,  coins: 800   },
-  { id: 'evt_nuit',      nom: 'Noctambule',            desc: 'Envoyer un message apres minuit',             cat: 'Evenement',   cible: 1,    xp: 200,  coins: 800   },
-  { id: 'evt_vendredi',  nom: 'Vendredi soir',         desc: 'Envoyer 10 messages un vendredi apres 20h',   cat: 'Evenement',   cible: 10,   xp: 400,  coins: 1500  },
-  { id: 'evt_weekend',   nom: 'Actif du weekend',      desc: 'Envoyer 20 messages un samedi ou dimanche',   cat: 'Evenement',   cible: 20,   xp: 500,  coins: 2000  },
-  { id: 'evt_lundi',     nom: 'Courageux',             desc: 'Envoyer un message un lundi avant 9h',        cat: 'Evenement',   cible: 1,    xp: 300,  coins: 1200  },
-  { id: 'spe_profil',    nom: 'Curieux',               desc: 'Utiliser la commande ?profil',                cat: 'Speciale',    cible: 1,    xp: 100,  coins: 400   },
-  { id: 'spe_boutique',  nom: 'Commercant',            desc: 'Ouvrir la boutique',                          cat: 'Speciale',    cible: 1,    xp: 100,  coins: 400   },
-  { id: 'spe_quetes',    nom: 'Organise',              desc: 'Consulter ses quetes',                        cat: 'Speciale',    cible: 1,    xp: 50,   coins: 200   },
-  { id: 'spe_combo',     nom: 'Combo',                 desc: 'Envoyer 10 msgs ET rester 30 min en vocal',   cat: 'Speciale',    cible: 1,    xp: 800,  coins: 3000  },
-  { id: 'spe_silence',   nom: 'Silencieux efficace',   desc: 'Rester 30 min en vocal sans ecrire',          cat: 'Speciale',    cible: 30,   xp: 500,  coins: 2000  },
+  // ── FACILES ──────────────────────────────────────────────
+  { id: 'msg_5',        nom: 'Bavard',             desc: 'Envoyer 5 messages',                        cat: 'Facile',    cible: 5,   xp: 100,  coins: 400  },
+  { id: 'msg_10',       nom: 'Causant',            desc: 'Envoyer 10 messages',                       cat: 'Facile',    cible: 10,  xp: 150,  coins: 600  },
+  { id: 'voc_10',       nom: 'Present',            desc: 'Rester 10 min en vocal',                    cat: 'Facile',    cible: 10,  xp: 150,  coins: 600  },
+  { id: 'evt_matin',    nom: 'Matinal',            desc: 'Envoyer un message avant 9h',               cat: 'Facile',    cible: 1,   xp: 100,  coins: 400  },
+  { id: 'evt_nuit',     nom: 'Noctambule',         desc: 'Envoyer un message apres minuit',           cat: 'Facile',    cible: 1,   xp: 100,  coins: 400  },
+  { id: 'spe_profil',   nom: 'Curieux',            desc: 'Utiliser la commande ?profil',              cat: 'Facile',    cible: 1,   xp: 80,   coins: 300  },
+  { id: 'spe_boutique', nom: 'Commercant',         desc: 'Ouvrir la boutique',                        cat: 'Facile',    cible: 1,   xp: 80,   coins: 300  },
+  { id: 'msg_reply',    nom: 'Reactif',            desc: 'Repondre a 5 messages',                     cat: 'Facile',    cible: 5,   xp: 120,  coins: 450  },
+
+  // ── MOYENNES ─────────────────────────────────────────────
+  { id: 'msg_30',       nom: 'Intarissable',       desc: 'Envoyer 30 messages',                       cat: 'Moyenne',   cible: 30,  xp: 400,  coins: 1500 },
+  { id: 'voc_30',       nom: 'Sociable',           desc: 'Rester 30 min en vocal',                    cat: 'Moyenne',   cible: 30,  xp: 450,  coins: 1800 },
+  { id: 'prog_boost',   nom: 'Booste',             desc: 'Activer un boost',                          cat: 'Moyenne',   cible: 1,   xp: 300,  coins: 1200 },
+  { id: 'prog_xp500',   nom: 'Accumulateur',       desc: "Gagner 500 XP aujourd'hui",                 cat: 'Moyenne',   cible: 500, xp: 400,  coins: 1500 },
+  { id: 'evt_vendredi', nom: 'Vendredi soir',      desc: 'Envoyer 10 messages un vendredi apres 20h', cat: 'Moyenne',   cible: 10,  xp: 350,  coins: 1400 },
+  { id: 'evt_weekend',  nom: 'Actif du weekend',   desc: 'Envoyer 20 messages un samedi ou dimanche', cat: 'Moyenne',   cible: 20,  xp: 400,  coins: 1600 },
+  { id: 'soc_react10',  nom: 'Expressif',          desc: 'Mettre 10 reactions',                       cat: 'Moyenne',   cible: 10,  xp: 300,  coins: 1200 },
+  { id: 'prog_streak',  nom: 'Fidele',             desc: "Maintenir son streak aujourd'hui",          cat: 'Moyenne',   cible: 1,   xp: 250,  coins: 1000 },
+
+  // ── DIFFICILES ───────────────────────────────────────────
+  { id: 'msg_75',        nom: 'Machine a ecrire',  desc: 'Envoyer 75 messages',                              cat: 'Difficile', cible: 75,  xp: 900,  coins: 3500 },
+  { id: 'voc_90',        nom: 'Accro au micro',    desc: 'Rester 1h30 en vocal',                             cat: 'Difficile', cible: 90,  xp: 1000, coins: 4000 },
+  { id: 'prog_xp2000',   nom: 'XP addict',         desc: "Gagner 2000 XP aujourd'hui",                       cat: 'Difficile', cible: 2000,xp: 1000, coins: 4000 },
+  { id: 'soc_repVortax', nom: 'Repondre a Vortax', desc: 'Repondre directement a Vortax',                    cat: 'Difficile', cible: 1,   xp: 1200, coins: 5000 },
+  { id: 'spe_combo',     nom: 'Combo',             desc: 'Envoyer 30 msgs ET rester 45 min en vocal',        cat: 'Difficile', cible: 1,   xp: 1500, coins: 6000 },
+  { id: 'voc_group',     nom: 'Animateur',         desc: 'Etre dans un vocal avec 3+ personnes pendant 1h',  cat: 'Difficile', cible: 60,  xp: 1200, coins: 5000 },
+  { id: 'prog_coins',    nom: 'Econome',           desc: "Gagner 10 000 coins aujourd'hui",                  cat: 'Difficile', cible: 10000,xp: 800, coins: 0    },
 ];
 
 const REPARTITION = {
@@ -244,11 +238,11 @@ const messageCooldowns = new Map();
 
 // ========== HELPERS ==========
 const xpPourNiveau = (niveau) => {
-  if (niveau < 10)  return 1500  + niveau * 300;
-  if (niveau < 20)  return 4500  + niveau * 500;
-  if (niveau < 50)  return 10000 + niveau * 1000;
-  if (niveau < 100) return 25000 + niveau * 2000;
-  return 50000 + niveau * 4000;
+  if (niveau < 10)  return 800   + niveau * 100;
+  if (niveau < 20)  return 2000  + niveau * 200;
+  if (niveau < 50)  return 5000  + niveau * 400;
+  if (niveau < 100) return 12000 + niveau * 800;
+  return 25000 + niveau * 1500;
 };
 
 const getStreakBonus = (streak) => {
@@ -1805,7 +1799,7 @@ module.exports = (client) => {
         { name: 'Rob',         value: '`?rob @membre` - Voler entre 5% et 15% des coins (max 75%, cooldown 4h)\n30% de chances d\'echouer -> tu perds **' + ROB_PENALITE.toLocaleString() + ' coins**' },
         { name: 'Malus',       value: '`?purge` - Supprimer ton malus actif (' + PURGE_PRIX.toLocaleString() + ' VTX-Coins)' },
         { name: 'Divertissement', value: '`?iq` - Teste ton QI du jour (reset a minuit)\n`?meteo <ville>` - Affiche la meteo d\'une ville' },
-        { name: 'Infos',       value: `Tu gagnes **${XP_PAR_MESSAGE} XP** et **${COINS_PAR_MESSAGE} VTX-Coins** par message (1 fois/minute max).\nTu gagnes **${XP_VOCAL_PAR_MINUTE} XP/min** en vocal (2+ personnes, sans mute).\nTon streak augmente ton XP jusqu'a +20% !` },
+        { name: 'Infos', value: `Tu gagnes **${XP_PAR_MESSAGE} XP** et **${COINS_PAR_MESSAGE} VTX-Coins** par message (1 fois/45 secondes max).\nTu gagnes **${XP_VOCAL_PAR_MINUTE} XP/min** en vocal (2+ personnes, sans mute).\nTon streak augmente ton XP jusqu'a +20% !` },
       )
       .setFooter({ text: 'Team Vortax 2024 - 2026', iconURL: message.guild.iconURL({ dynamic: true }) })
       .setTimestamp();

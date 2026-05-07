@@ -1,11 +1,56 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, AttachmentBuilder } = require('discord.js');
 const config = require('./config.json');
+const token = require('./token.json');
 
 // ========== IDs ==========
 const STAFF_ROLE_ID       = config.roles?.modoPerm ?? '';
-const CATEGORIE_ID        = '1416145060285648966'; // Catégorie des tickets
-const LOGS_TICKETS_ID     = '1416181684679741521'; // Salon logs des tickets
-const LOGS_TRANSCRIPT_ID  = '1473347420648771598'; // Salon logs des transcripts
+const CATEGORIE_ID        = '1416145060285648966';
+const LOGS_TICKETS_ID     = '1416181684679741521';
+const LOGS_TRANSCRIPT_ID  = '1473347420648771598';
+
+// ========== HISTORIQUE IA ==========
+const ticketHistories = new Map();
+
+// ========== GROK IA ==========
+const askGrok = async (history, ticketType) => {
+  const typeContext = ticketType === 'recrutement'
+    ? 'Il s\'agit d\'un ticket de candidature staff. Aide le membre à préparer sa candidature.'
+    : 'Il s\'agit d\'un ticket de question ou signalement. Aide le membre à résoudre son problème.';
+
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token.apiGrok}`,
+      },
+      body: JSON.stringify({
+        model: 'grok-3-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Tu es un assistant support du serveur Discord "Team Vortax". ${typeContext} Réponds en français. Si tu ne peux pas aider, termine par [NEED_STAFF].`,
+          },
+          ...history,
+        ],
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.error) throw new Error(`Grok API: ${data.error.message}`);
+    if (!data.choices?.[0]?.message?.content) throw new Error('Réponse Grok invalide');
+
+    const text = data.choices[0].message.content;
+    const needsStaff = text.includes('[NEED_STAFF]');
+    const answer = text.replace('[NEED_STAFF]', '').trim();
+    return { answer, needsStaff };
+
+  } catch (err) {
+    console.error('[Grok ERREUR]', err);
+    throw err;
+  }
+};
 
 // ========== GENERATEUR DE TRANSCRIPT HTML ==========
 const genererTranscript = async (channel, fermeParMembre) => {
@@ -148,7 +193,6 @@ ${lignesMsgs}
 
 // ========== HELPER LOG ACTION TICKET ==========
 const logTicket = async (guild, emoji, titre, couleur, fields) => {
-  // Utilise l'ID défini en constante (LOGS_TICKETS_ID)
   const salon = guild.channels.cache.get(LOGS_TICKETS_ID);
   if (!salon) return;
   const embed = new EmbedBuilder()
@@ -162,194 +206,353 @@ const logTicket = async (guild, emoji, titre, couleur, fields) => {
 
 module.exports = (client) => {
 
-    client.on('messageCreate', async (message) => {
-        if (message.content === '!ticket') {
-            const embed = new EmbedBuilder()
-                .setTitle('Team Vortax - Support')
-                .setDescription(`__Contacter le Support de Team Vortax__
+  // ========== COMMANDES TEXTE ==========
+  client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+    if (!message.member) return;
+
+    const msgChannel = message.channel;
+
+    // ----- Panneau ticket -----
+    if (message.content.trim() === '!ticket') {
+      const embed = new EmbedBuilder()
+        .setTitle('Team Vortax - Support')
+        .setDescription(`__Contacter le Support de Team Vortax__
                 
-Il y a 2 catégories de tickets mis à votre disposition :
+Il y a 3 catégories de tickets mis à votre disposition :
 
-🛡️ **Les tickets Gestion Staff** : Pour rejoindre notre équipe de modération, veuillez ouvrir un ticket ci-dessous.
+🛡️ **Gestion Staff** : Pour rejoindre notre équipe de modération.
 
-❓ **Les tickets Question / Signalement** : Pour poser une question ou signaler un membre envers l'équipe du staff.
+❓ **Question / Signalement** : Pour poser une question ou signaler un membre.
+
+🤖 **Assistance IA** : Obtenez une réponse instantanée de notre assistant IA. Le staff sera alerté si nécessaire.
 
 ⚠️ Les tickets troll sont interdits et très fortement sanctionnés.`)
-                .setColor(0x2B2D31)
-                .setFooter({ text: '— Support Team Vortax' });
+        .setColor(0x2B2D31)
+        .setFooter({ text: '— Support Team Vortax' });
 
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('ticket_staff')
-                        .setLabel('Gestion Staff')
-                        .setEmoji('🛡️')
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('ticket_question')
-                        .setLabel('Question / Signalement')
-                        .setEmoji('❓')
-                        .setStyle(ButtonStyle.Secondary)
-                );
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('ticket_staff')
+            .setLabel('Gestion Staff')
+            .setEmoji('🛡️')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId('ticket_question')
+            .setLabel('Question / Signalement')
+            .setEmoji('❓')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId('ticket_ia')
+            .setLabel('Assistance IA')
+            .setEmoji('🤖')
+            .setStyle(ButtonStyle.Primary),
+        );
 
-            await message.channel.send({ embeds: [embed], components: [row] });
+      await msgChannel.send({ embeds: [embed], components: [row] });
+      return;
+    }
+
+    // ----- Fermer ticket -----
+    if (message.content.trim() === '-fermer') {
+      const isTicket = msgChannel.name.startsWith('question-') || msgChannel.name.startsWith('recrutement-') || msgChannel.name.startsWith('ia-');
+      if (!isTicket) return message.reply({ content: '❌ Cette commande ne peut être utilisée que dans un ticket.' });
+
+      const isStaff = message.member.roles.cache.has(STAFF_ROLE_ID);
+      if (!isStaff) {
+        return message.reply({ content: '❌ Tu ne peux pas fermer ce ticket. Seul le staff est autorisé.', fetchReply: true })
+          .then(reply => {
+            setTimeout(() => { reply.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
+          });
+      }
+
+      await message.reply({ content: '📄 Génération du transcript en cours...' });
+      ticketHistories.delete(msgChannel.id);
+
+      try {
+        const html    = await genererTranscript(msgChannel, message.member);
+        const buffer  = Buffer.from(html, 'utf-8');
+        const fichier = new AttachmentBuilder(buffer, { name: `transcript-${msgChannel.name}.html` });
+
+        const logsChannel = message.guild.channels.cache.get(LOGS_TRANSCRIPT_ID);
+        if (logsChannel) {
+          const logEmbed = new EmbedBuilder()
+            .setTitle('📄 Transcript de ticket')
+            .setColor(0x5865f2)
+            .addFields(
+              { name: '🎫 Ticket',    value: `\`${msgChannel.name}\``, inline: true },
+              { name: '🔒 Fermé par', value: `${message.member}`,      inline: true },
+              { name: '📅 Date',      value: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }), inline: true },
+            )
+            .setFooter({ text: 'Team Vortax — Système de tickets' })
+            .setTimestamp();
+          await logsChannel.send({ embeds: [logEmbed], files: [fichier] });
+        }
+      } catch (err) {
+        console.error('[Transcript] Erreur :', err);
+      }
+
+      await logTicket(message.guild, '🔒', 'Ticket fermé', 0xe74c3c, [
+        { name: '🎫 Ticket',    value: `\`${msgChannel.name}\``, inline: true },
+        { name: '👤 Fermé par', value: `${message.member}`,      inline: true },
+      ]);
+
+      await msgChannel.permissionOverwrites.set([
+        { id: msgChannel.guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+        { id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+      ]);
+
+      const fermerEmbed = new EmbedBuilder()
+        .setTitle('🔒 Ticket fermé')
+        .setDescription('Ce ticket a été fermé par le staff.\nUtilisez `-delete` pour supprimer définitivement le salon.')
+        .setColor(0xFF0000)
+        .setTimestamp();
+      await msgChannel.send({ embeds: [fermerEmbed] });
+      return;
+    }
+
+    // ----- Supprimer ticket -----
+    if (message.content.trim() === '-delete') {
+      const isTicket = msgChannel.name.startsWith('question-') || msgChannel.name.startsWith('recrutement-') || msgChannel.name.startsWith('ia-');
+      if (!isTicket) return message.reply('❌ Cette commande ne peut être utilisée que dans un ticket.');
+
+      const isStaff = message.member.roles.cache.has(STAFF_ROLE_ID);
+      if (!isStaff) {
+        return message.reply({ content: '❌ Tu ne peux pas supprimer ce ticket. Seul le staff est autorisé.', fetchReply: true })
+          .then(reply => {
+            setTimeout(() => { reply.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
+          });
+      }
+
+      ticketHistories.delete(msgChannel.id);
+
+      await logTicket(message.guild, '🗑️', 'Ticket supprimé', 0x992d22, [
+        { name: '🎫 Ticket',       value: `\`${msgChannel.name}\``, inline: true },
+        { name: '👤 Supprimé par', value: `${message.member}`,      inline: true },
+      ]);
+
+      const deleteEmbed = new EmbedBuilder()
+        .setTitle('🗑️ Suppression du ticket')
+        .setDescription('Ce salon sera supprimé dans **5 secondes**...')
+        .setColor(0xFF0000);
+      await msgChannel.send({ embeds: [deleteEmbed] });
+      setTimeout(async () => { await msgChannel.delete().catch(console.error); }, 5000);
+      return;
+    }
+
+    // ========== IA — Réponse automatique dans les tickets IA ==========
+    if (!msgChannel.name.startsWith('ia-')) return;
+    if (message.content.trim().startsWith('-')) return;
+
+    // ✅ CORRECTION : on ne filtre plus les membres staff
+    // Le staff peut écrire librement dans le ticket sans déclencher l'IA
+    // MAIS si c'est le membre du ticket qui écrit (même s'il est staff), l'IA doit répondre.
+    // On récupère d'abord le state pour savoir si l'IA est active.
+
+    let state = ticketHistories.get(msgChannel.id);
+    if (!state) {
+      // Le bot a probablement redémarré, on réinitialise le state
+      state = { messages: [], iaActive: true };
+      ticketHistories.set(msgChannel.id, state);
+    }
+
+    // Si l'IA est désactivée (staff déjà notifié), on ignore tout
+    if (!state.iaActive) return;
+
+    // ✅ On compare par ID Discord, fiable même si le pseudo contient des caractères spéciaux
+    const isStaffMember = message.member.roles.cache.has(STAFF_ROLE_ID);
+    const isTicketOwner = message.author.id === state.ownerId;
+
+    // Si c'est un staff qui n'est PAS le créateur du ticket → il intervient manuellement, on ignore
+    if (isStaffMember && !isTicketOwner) return;
+
+    // ✅ Ici : c'est le créateur du ticket (staff ou non), l'IA répond
+    state.messages.push({ role: 'user', content: message.content });
+    ticketHistories.set(msgChannel.id, state);
+
+    try {
+      await msgChannel.sendTyping();
+      const { answer, needsStaff } = await askGrok(state.messages, 'ia');
+      state.messages.push({ role: 'assistant', content: answer });
+      ticketHistories.set(msgChannel.id, state);
+
+      if (needsStaff) {
+        state.iaActive = false;
+        ticketHistories.set(msgChannel.id, state);
+        const staffEmbed = new EmbedBuilder()
+          .setDescription(`${answer}\n\n> ⚠️ Je ne suis pas en mesure de résoudre ce problème seul. Le staff a été notifié et va prendre le relais !`)
+          .setColor(0xFFA500)
+          .setFooter({ text: '🤖 Assistance IA — Team Vortax' });
+        await msgChannel.send({ content: `<@&${STAFF_ROLE_ID}>`, embeds: [staffEmbed] });
+      } else {
+        const iaEmbed = new EmbedBuilder()
+          .setDescription(answer)
+          .setColor(0x5865f2)
+          .setFooter({ text: '🤖 Assistance IA — Team Vortax' });
+        await msgChannel.send({ embeds: [iaEmbed] });
+      }
+    } catch (err) {
+      console.error('[IA Ticket] Erreur Grok :', err);
+      await msgChannel.send({ content: `⚠️ Une erreur est survenue avec l'IA. <@&${STAFF_ROLE_ID}> merci d'intervenir.` });
+    }
+  });
+
+  // ========== INTERACTIONS (boutons + modals) ==========
+  client.on('interactionCreate', async (interaction) => {
+
+    // ========== BOUTONS ==========
+    if (interaction.isButton()) {
+      const { customId, member, guild } = interaction;
+
+      if (customId === 'ticket_staff' || customId === 'ticket_question') {
+        const modal = new ModalBuilder()
+          .setCustomId(`modal_${customId}`)
+          .setTitle(customId === 'ticket_staff' ? 'Gestion Staff' : 'Question / Signalement');
+        const raisonInput = new TextInputBuilder()
+          .setCustomId('raison')
+          .setLabel('Quelle est la raison de votre ticket ?')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Décrivez votre demande ici...')
+          .setRequired(true)
+          .setMaxLength(500);
+        modal.addComponents(new ActionRowBuilder().addComponents(raisonInput));
+        await interaction.showModal(modal);
+        return;
+      }
+
+      if (customId === 'ticket_ia') {
+        const existing = guild.channels.cache.find(c => c.name === `ia-${member.user.username}`);
+        if (existing) {
+          return interaction.reply({ content: `❌ Tu as déjà un ticket IA ouvert : ${existing}`, flags: 64 });
+        }
+        const modal = new ModalBuilder()
+          .setCustomId('modal_ticket_ia')
+          .setTitle('Assistance IA');
+        const raisonInput = new TextInputBuilder()
+          .setCustomId('raison')
+          .setLabel('Quelle est votre question ?')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Posez votre question, l\'IA vous répondra immédiatement...')
+          .setRequired(true)
+          .setMaxLength(500);
+        modal.addComponents(new ActionRowBuilder().addComponents(raisonInput));
+        await interaction.showModal(modal);
+        return;
+      }
+    }
+
+    // ========== MODALS ==========
+    if (interaction.isModalSubmit()) {
+      const { customId, member, guild } = interaction;
+
+      // ----- Tickets Staff / Question -----
+      if (customId === 'modal_ticket_staff' || customId === 'modal_ticket_question') {
+        await interaction.deferReply({ flags: 64 });
+
+        const raison     = interaction.fields.getTextInputValue('raison');
+        const isStaff    = customId === 'modal_ticket_staff';
+        const nomSalon   = isStaff ? `recrutement-${member.user.username}` : `question-${member.user.username}`;
+        const typeTicket = isStaff ? '🛡️ Gestion Staff' : '❓ Question / Signalement';
+
+        const salon = await guild.channels.create({
+          name: nomSalon,
+          parent: CATEGORIE_ID,
+          permissionOverwrites: [
+            { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+            { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+            { id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+          ],
+        });
+
+        const now       = new Date();
+        const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const ticketEmbed = new EmbedBuilder()
+          .setTitle(typeTicket)
+          .setDescription(`Salut ${member} ! Un <@&${STAFF_ROLE_ID}> va te répondre dans les minutes qui suivent !\nPour fermer le ticket, utilise \`-fermer\` ou \`-delete\` pour le supprimer\n\n**Raison**\n\`\`\`${raison}\`\`\``)
+          .setColor(0x2B2D31)
+          .setFooter({ text: `Team Vortax - Support • ${dateHeure}` });
+
+        await salon.send({ content: `${member} <@&${STAFF_ROLE_ID}>`, embeds: [ticketEmbed] });
+        await interaction.editReply({ content: `✅ Ton ticket a été créé : ${salon}` });
+
+        await logTicket(guild, '📬', 'Ticket ouvert', 0x2ecc71, [
+          { name: '🎫 Ticket',     value: `\`${nomSalon}\``, inline: true },
+          { name: '👤 Ouvert par', value: `${member}`,        inline: true },
+          { name: '📂 Type',       value: typeTicket,          inline: true },
+          { name: '📝 Raison',     value: raison.length > 200 ? raison.slice(0, 200) + '...' : raison, inline: false },
+        ]);
+      }
+
+      // ----- Ticket IA -----
+      if (customId === 'modal_ticket_ia') {
+        await interaction.deferReply({ flags: 64 });
+
+        const raison   = interaction.fields.getTextInputValue('raison');
+        const nomSalon = `ia-${member.user.username}`;
+
+        const salon = await guild.channels.create({
+          name: nomSalon,
+          parent: CATEGORIE_ID,
+          permissionOverwrites: [
+            { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+            { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+            { id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+          ],
+        });
+
+        const now       = new Date();
+        const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        const accueilEmbed = new EmbedBuilder()
+          .setTitle('🤖 Assistance IA — Team Vortax')
+          .setDescription(`Salut ${member} ! Je suis l'assistant IA de **Team Vortax**.\n\nJe vais faire de mon mieux pour répondre à ta question. Si je ne suis pas en mesure de t'aider, je contacterai automatiquement le staff.\n\n**Ta question :**\n\`\`\`${raison}\`\`\`\n> 💬 Réponds directement ici, je t'écoute !`)
+          .setColor(0x5865f2)
+          .setFooter({ text: `Team Vortax - Assistance IA • ${dateHeure}` });
+
+        await salon.send({ content: `${member}`, embeds: [accueilEmbed] });
+        await interaction.editReply({ content: `✅ Ton ticket IA a été créé : ${salon}` });
+
+        ticketHistories.set(salon.id, {
+          messages: [{ role: 'user', content: raison }],
+          iaActive: true,
+          ownerId: member.id,
+        });
+
+        try {
+          await salon.sendTyping();
+          const { answer, needsStaff } = await askGrok([{ role: 'user', content: raison }], 'ia');
+
+          const state = ticketHistories.get(salon.id);
+          state.messages.push({ role: 'assistant', content: answer });
+          ticketHistories.set(salon.id, state);
+
+          if (needsStaff) {
+            state.iaActive = false;
+            ticketHistories.set(salon.id, state);
+            const staffEmbed = new EmbedBuilder()
+              .setDescription(`${answer}\n\n> ⚠️ Cette question nécessite l'intervention du staff. Ils ont été notifiés !`)
+              .setColor(0xFFA500)
+              .setFooter({ text: '🤖 Assistance IA — Team Vortax' });
+            await salon.send({ content: `<@&${STAFF_ROLE_ID}>`, embeds: [staffEmbed] });
+          } else {
+            const iaEmbed = new EmbedBuilder()
+              .setDescription(answer)
+              .setColor(0x5865f2)
+              .setFooter({ text: '🤖 Assistance IA — Team Vortax' });
+            await salon.send({ embeds: [iaEmbed] });
+          }
+        } catch (err) {
+          console.error('[IA Ticket] Erreur Grok :', err);
+          await salon.send({ content: `⚠️ L'IA rencontre un problème. <@&${STAFF_ROLE_ID}> merci d'intervenir.` });
         }
 
-        if (message.content === '-fermer') {
-            const channel = message.channel;
-            if (!channel.name.startsWith('question-') && !channel.name.startsWith('recrutement-'))
-                return message.reply({ content: '❌ Cette commande ne peut être utilisée que dans un ticket.' });
-
-            const isStaff = message.member.roles.cache.has(STAFF_ROLE_ID);
-
-            // ✅ Si le membre n'est pas staff : message éphémère (visible uniquement par lui)
-            if (!isStaff) {
-                return message.reply({
-                    content: '❌ Tu ne peux pas fermer ce ticket. Seul le staff est autorisé à fermer les tickets.',
-                    // Les messages de commande ne supportent pas nativement ephemeral,
-                    // on supprime le message automatiquement après 5s pour simuler l'effet
-                    fetchReply: true,
-                }).then(reply => {
-                    setTimeout(() => {
-                        reply.delete().catch(() => {});
-                        message.delete().catch(() => {});
-                    }, 5000);
-                });
-            }
-
-            await message.reply({ content: '📄 Génération du transcript en cours...' });
-            try {
-                const html    = await genererTranscript(channel, message.member);
-                const buffer  = Buffer.from(html, 'utf-8');
-                const fichier = new AttachmentBuilder(buffer, { name: `transcript-${channel.name}.html` });
-
-                // ✅ Utilise LOGS_TRANSCRIPT_ID pour les transcripts
-                const logsChannel = message.guild.channels.cache.get(LOGS_TRANSCRIPT_ID);
-                if (logsChannel) {
-                    const logEmbed = new EmbedBuilder()
-                        .setTitle('📄 Transcript de ticket')
-                        .setColor(0x5865f2)
-                        .addFields(
-                            { name: '🎫 Ticket',    value: `\`${channel.name}\``, inline: true },
-                            { name: '🔒 Fermé par', value: `${message.member}`,   inline: true },
-                            { name: '📅 Date',      value: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }), inline: true },
-                        )
-                        .setFooter({ text: 'Team Vortax — Système de tickets' })
-                        .setTimestamp();
-                    await logsChannel.send({ embeds: [logEmbed], files: [fichier] });
-                }
-            } catch (err) {
-                console.error('[Transcript] Erreur :', err);
-            }
-
-            // ✅ Log dans LOGS_TICKETS_ID via la fonction logTicket
-            await logTicket(message.guild, '🔒', 'Ticket fermé', 0xe74c3c, [
-                { name: '🎫 Ticket',    value: `\`${channel.name}\``, inline: true },
-                { name: '👤 Fermé par', value: `${message.member}`,   inline: true },
-            ]);
-
-            await channel.permissionOverwrites.set([
-                { id: channel.guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-                { id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-            ]);
-            const fermerEmbed = new EmbedBuilder()
-                .setTitle('🔒 Ticket fermé')
-                .setDescription('Ce ticket a été fermé par le staff.\nUtilisez `-delete` pour supprimer définitivement le salon.')
-                .setColor(0xFF0000)
-                .setTimestamp();
-            await channel.send({ embeds: [fermerEmbed] });
-        }
-
-        if (message.content === '-delete') {
-            const channel = message.channel;
-            if (!channel.name.startsWith('question-') && !channel.name.startsWith('recrutement-'))
-                return message.reply('❌ Cette commande ne peut être utilisée que dans un ticket.');
-
-            const isStaff = message.member.roles.cache.has(STAFF_ROLE_ID);
-
-            // ✅ Si le membre n'est pas staff : message éphémère (visible uniquement par lui)
-            if (!isStaff) {
-                return message.reply({
-                    content: '❌ Tu ne peux pas supprimer ce ticket. Seul le staff est autorisé à supprimer les tickets.',
-                    fetchReply: true,
-                }).then(reply => {
-                    setTimeout(() => {
-                        reply.delete().catch(() => {});
-                        message.delete().catch(() => {});
-                    }, 5000);
-                });
-            }
-
-            await logTicket(message.guild, '🗑️', 'Ticket supprimé', 0x992d22, [
-                { name: '🎫 Ticket',       value: `\`${channel.name}\``, inline: true },
-                { name: '👤 Supprimé par', value: `${message.member}`,   inline: true },
-            ]);
-            const deleteEmbed = new EmbedBuilder()
-                .setTitle('🗑️ Suppression du ticket')
-                .setDescription('Ce salon sera supprimé dans **5 secondes**...')
-                .setColor(0xFF0000);
-            await channel.send({ embeds: [deleteEmbed] });
-            setTimeout(async () => {
-                await channel.delete().catch(console.error);
-            }, 5000);
-        }
-    });
-
-    client.on('interactionCreate', async (interaction) => {
-        if (interaction.isButton()) {
-            const { customId, member, guild, channel } = interaction;
-            if (customId === 'ticket_staff' || customId === 'ticket_question') {
-                const modal = new ModalBuilder()
-                    .setCustomId(`modal_${customId}`)
-                    .setTitle(customId === 'ticket_staff' ? 'Gestion Staff' : 'Question / Signalement');
-                const raisonInput = new TextInputBuilder()
-                    .setCustomId('raison')
-                    .setLabel('Quelle est la raison de votre ticket ?')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('Décrivez votre demande ici...')
-                    .setRequired(true)
-                    .setMaxLength(500);
-                modal.addComponents(new ActionRowBuilder().addComponents(raisonInput));
-                await interaction.showModal(modal);
-            }
-        }
-
-        if (interaction.isModalSubmit()) {
-            const { customId, member, guild } = interaction;
-            if (customId === 'modal_ticket_staff' || customId === 'modal_ticket_question') {
-                const raison     = interaction.fields.getTextInputValue('raison');
-                const isStaff    = customId === 'modal_ticket_staff';
-                const nomSalon   = isStaff ? `recrutement-${member.user.username}` : `question-${member.user.username}`;
-                const typeTicket = isStaff ? '🛡️ Gestion Staff' : '❓ Question / Signalement';
-
-                const salon = await guild.channels.create({
-                    name: nomSalon,
-                    parent: CATEGORIE_ID, // ✅ Utilise la constante
-                    permissionOverwrites: [
-                        { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-                        { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                        { id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                    ],
-                });
-
-                const now       = new Date();
-                const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const ticketEmbed = new EmbedBuilder()
-                    .setTitle(typeTicket)
-                    .setDescription(`Salut ${member} ! Un <@&${STAFF_ROLE_ID}> va te répondre dans les minutes qui suivent !\nPour fermer le ticket, utilise \`-fermer\` ou \`-delete\` pour le supprimer\n\n**Raison**\n\`\`\`${raison}\`\`\``)
-                    .setColor(0x2B2D31)
-                    .setFooter({ text: `Team Vortax - Support • ${dateHeure}` });
-
-                await salon.send({ content: `${member} <@&${STAFF_ROLE_ID}>`, embeds: [ticketEmbed] });
-                await interaction.reply({ content: `✅ Ton ticket a été créé : ${salon}`, ephemeral: true });
-
-                await logTicket(guild, '📬', 'Ticket ouvert', 0x2ecc71, [
-                    { name: '🎫 Ticket',     value: `\`${nomSalon}\``, inline: true },
-                    { name: '👤 Ouvert par', value: `${member}`,        inline: true },
-                    { name: '📂 Type',       value: typeTicket,          inline: true },
-                    { name: '📝 Raison',     value: raison.length > 200 ? raison.slice(0, 200) + '...' : raison, inline: false },
-                ]);
-            }
-        }
-    });
+        await logTicket(guild, '🤖', 'Ticket IA ouvert', 0x5865f2, [
+          { name: '🎫 Ticket',     value: `\`${nomSalon}\``, inline: true },
+          { name: '👤 Ouvert par', value: `${member}`,        inline: true },
+          { name: '📝 Question',   value: raison.length > 200 ? raison.slice(0, 200) + '...' : raison, inline: false },
+        ]);
+      }
+    }
+  });
 };
