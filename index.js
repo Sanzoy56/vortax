@@ -39,7 +39,7 @@ const client = new Client({
     ]
 });
 
-client.setMaxListeners(20);
+client.setMaxListeners(30);
 client.commands = new Collection();
 
 ticket(client);
