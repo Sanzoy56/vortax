@@ -1,28 +1,18 @@
 'use strict';
-const { SlashCommandBuilder } = require('discord.js');
 const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
-const { startVocalIA, stopVocalIA } = require('../../grokVocal.js');
+const { startVocalIA, stopVocalIA } = require('../grokVocal.js');
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('vocal')
-    .setDescription('Gérer le bot vocal IA')
-    .addSubcommand(sub =>
-      sub.setName('join')
-        .setDescription('Le bot rejoint ton salon vocal')
-    )
-    .addSubcommand(sub =>
-      sub.setName('leave')
-        .setDescription('Le bot quitte le salon vocal')
-    ),
+module.exports = (client) => {
+  client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName !== 'vocal') return;
 
-  async execute(interaction) {
     const sub = interaction.options.getSubcommand();
 
     if (sub === 'join') {
-      const channel = interaction.member?.voice?.channel;
+      const channel = interaction.options.getChannel('salon');
       if (!channel) {
-        return interaction.reply({ content: '❌ Tu dois être dans un salon vocal.', ephemeral: true });
+        return interaction.reply({ content: '❌ Sélectionne un salon vocal.', ephemeral: true });
       }
 
       const existingConnection = getVoiceConnection(interaction.guild.id);
@@ -53,5 +43,5 @@ module.exports = {
 
       await interaction.reply({ content: '✅ J\'ai quitté le salon vocal.', ephemeral: true });
     }
-  },
+  });
 };
