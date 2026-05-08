@@ -5,26 +5,27 @@ const path = require('path');
 const fs   = require('fs');
 
 // ── Events existants ─────────────────────────────────────────────────────────
-const ticket     = require('./ticket.js');
-const messages   = require('./events/messages');
-const vocal      = require('./events/vocal');
-const roles      = require('./events/roles');
-const joinLeave  = require('./events/joinleave.js');
-const salons     = require('./events/salons.js');
-const moderation = require('./events/moderation.js');
-const panel      = require('./commandes/panel.js');
-const welcome    = require('./events/welcome.js');
-const automod    = require('./events/automod.js');
-const say        = require('./commandes/say.js');
-const snipe      = require('./events/snipe.js');
-const meteo      = require('./events/meteo.js');
-const iq         = require('./events/iq.js');
-const suggestion = require('./events/suggestion.js');
+const ticket         = require('./ticket.js');
+const messages       = require('./events/messages');
+const vocal          = require('./events/vocal');
+const roles          = require('./events/roles');
+const joinLeave      = require('./events/joinleave.js');
+const salons         = require('./events/salons.js');
+const moderation     = require('./events/moderation.js');
+const panel          = require('./commandes/panel.js');
+const welcome        = require('./events/welcome.js');
+const automod        = require('./events/automod.js');
+const say            = require('./commandes/say.js');
+const snipe          = require('./events/snipe.js');
+const meteo          = require('./events/meteo.js');
+const iq             = require('./events/iq.js');
+const suggestion     = require('./events/suggestion.js');
 const { checkYoutube, CHECK_INTERVAL } = require('./youtube.js');
-const giveaway   = require('./giveaway.js');
-const grok       = require('./grok.js');
-const clear      = require('./commandes/clear.js');
-const vocal = require('./commandes/join/leavevocal.js');
+const giveaway       = require('./giveaway.js');
+const grok           = require('./grok.js');
+const clear          = require('./commandes/clear.js');
+const joinleavevocal = require('./commandes/joinleavevocal.js');
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -75,6 +76,7 @@ giveaway(client);
 grok(client);
 clear(client);
 joinleavevocal(client);
+
 // ── Slash commands ────────────────────────────────────────────────────────────
 client.on('interactionCreate', async (interaction) => {
   // Boutons

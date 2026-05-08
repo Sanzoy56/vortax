@@ -276,7 +276,12 @@ new SlashCommandBuilder()
     .setDescription('Gérer le bot vocal IA')
     .addSubcommand(sub =>
         sub.setName('join')
-            .setDescription('Le bot rejoint ton salon vocal')
+            .setDescription('Le bot rejoint un salon vocal')
+            .addChannelOption(opt =>
+                opt.setName('salon')
+                    .setDescription('Le salon vocal à rejoindre')
+                    .setRequired(true)
+            )
     )
     .addSubcommand(sub =>
         sub.setName('leave')
