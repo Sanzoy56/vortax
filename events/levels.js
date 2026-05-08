@@ -16,10 +16,10 @@ const SALONS = {
 
 const ADMINS_ROLES = ['1473460100210360370', '1491458130322919435', '1361408552664568100'];
 
-const XP_PAR_MESSAGE      = 120;  // était 50
-const XP_VOCAL_PAR_MINUTE = 60;   // était 30
-const COINS_PAR_MESSAGE   = 115;  // inchangé
-const MESSAGE_COOLDOWN_MS = 45 * 1000; // était 60s, réduit à 45s
+const XP_PAR_MESSAGE      = 120;
+const XP_VOCAL_PAR_MINUTE = 60;
+const COINS_PAR_MESSAGE   = 115;
+const MESSAGE_COOLDOWN_MS = 45 * 1000;
 const PURGE_PRIX          = 30000;
 const ROB_COOLDOWN_MS     = 4 * 60 * 60 * 1000;
 const ROB_ECHEC_CHANCE    = 0.30;
@@ -352,22 +352,23 @@ const avancerQuete = (user, idQuete, montant, guild, userId) => {
 
 // ========== NIVEAU & RANG ==========
 const gererNiveauEtRang = async (user, ancienNiveau, guild, member, userId) => {
+  // FIX : on monte les niveaux un par un et on envoie un message pour chaque
   while (user.xp >= xpPourNiveau(user.niveau)) {
     user.xp -= xpPourNiveau(user.niveau);
     user.niveau += 1;
-  }
 
-  const ancienRang  = getRang(ancienNiveau);
-  const nouveauRang = getRang(user.niveau);
-
-  if (user.niveau > ancienNiveau) {
     const niveauSalon = guild.channels.cache.get(SALONS.niveaux);
     if (niveauSalon) niveauSalon.send(`Toutes nos felicitations <@${userId}>, vous venez de passer niveau **${user.niveau}** !`);
   }
 
+  // Gestion du rang : on compare l'ancien et le nouveau rang
+  const ancienRang  = getRang(ancienNiveau);
+  const nouveauRang = getRang(user.niveau);
+
+  if (ancienRang?.role === nouveauRang?.role) return;
+
   const m = member || await guild.members.fetch(userId).catch(() => null);
   if (!m) return;
-  if (ancienRang?.role === nouveauRang?.role) return;
 
   if (nouveauRang && (!ancienRang || nouveauRang.niveau > ancienRang.niveau)) {
     if (ancienRang) await m.roles.remove(ancienRang.role).catch(() => null);
@@ -433,30 +434,55 @@ module.exports = (client) => {
       const db   = getDB();
       const user = getUser(db, message.author.id);
 
-      const aujourdhui  = new Date().toDateString();
-      const dernierJour = user.dernierMessage ? new Date(user.dernierMessage).toDateString() : null;
-      const hier        = new Date(now - 86400000).toDateString();
+      // ── FIX STREAK : on compare les dates AVANT de mettre à jour dernierMessage ──
+      const aujourdhui  = dateAujourdhui();
+      const hier        = new Date(now - 86400000).toISOString().slice(0, 10);
+      const dernierJour = user.dernierMessage
+        ? new Date(user.dernierMessage).toISOString().slice(0, 10)
+        : null;
 
-      if (dernierJour !== aujourdhui) {
-        user.streak = dernierJour === hier ? user.streak + 1 : 1;
-        const streakSalon = message.guild.channels.cache.get(SALONS.streaks);
-        if (streakSalon && user.streak > 1) {
-          streakSalon.send(`<@${message.author.id}> maintient son streak de **${user.streak} jours** ! (+${Math.round(getStreakBonus(user.streak) * 100)}% XP)`);
+      const estNouveauJour = dernierJour !== aujourdhui;
+
+      if (estNouveauJour) {
+        // Premier message de la journée → on met à jour le streak
+        if (dernierJour === hier) {
+          user.streak += 1; // streak maintenu
+        } else if (dernierJour === null || dernierJour < hier) {
+          user.streak = 1;  // streak cassé ou premier jour
         }
+
+        // Annonce streak dans le salon dédié (seulement si streak > 1)
+        if (user.streak > 1) {
+          const streakSalon = message.guild.channels.cache.get(SALONS.streaks);
+          if (streakSalon) {
+            streakSalon.send(
+              `<@${message.author.id}> maintient son streak de **${user.streak} jours** ! (+${Math.round(getStreakBonus(user.streak) * 100)}% XP)`
+            );
+          }
+        }
+
         avancerQuete(user, 'prog_streak', 1, message.guild, message.author.id);
       }
 
+      // On met à jour dernierMessage APRÈS la vérification du streak
       user.dernierMessage = now;
 
+      // ── XP et coins (avec cooldown) ──
       if (!enCooldown) {
         messageCooldowns.set(message.author.id, now);
         let xpGagne = XP_PAR_MESSAGE;
+
         if (user.boostActif && user.boostActif.expireAt > now) {
           xpGagne = Math.floor(xpGagne * (1 + user.boostActif.bonus));
-        } else { user.boostActif = null; }
+        } else {
+          user.boostActif = null;
+        }
         if (user.malusActif && user.malusActif.expireAt > now) {
           xpGagne = Math.floor(xpGagne * (1 + user.malusActif.bonus));
-        } else { user.malusActif = null; }
+        } else {
+          user.malusActif = null;
+        }
+
         xpGagne = Math.floor(xpGagne * (1 + getStreakBonus(user.streak)));
 
         const boostPerm = BOOSTS_PERMANENTS.find(b => b.id === user.boostPermanent);
@@ -466,16 +492,16 @@ module.exports = (client) => {
         user.xp    += xpGagne;
 
         avancerQuete(user, 'prog_xp500',  xpGagne,           message.guild, message.author.id);
-        avancerQuete(user, 'prog_xp1500', xpGagne,           message.guild, message.author.id);
+        avancerQuete(user, 'prog_xp2000', xpGagne,           message.guild, message.author.id);
         avancerQuete(user, 'prog_coins',  COINS_PAR_MESSAGE, message.guild, message.author.id);
       }
 
+      // ── Quêtes messages (pas de cooldown) ──
+      avancerQuete(user, 'msg_5',   1, message.guild, message.author.id);
       avancerQuete(user, 'msg_10',  1, message.guild, message.author.id);
-      avancerQuete(user, 'msg_25',  1, message.guild, message.author.id);
-      avancerQuete(user, 'msg_50',  1, message.guild, message.author.id);
-      avancerQuete(user, 'msg_100', 1, message.guild, message.author.id);
-      if (message.content.length > 200) avancerQuete(user, 'msg_long',  1, message.guild, message.author.id);
-      if (message.reference)            avancerQuete(user, 'msg_reply', 1, message.guild, message.author.id);
+      avancerQuete(user, 'msg_30',  1, message.guild, message.author.id);
+      avancerQuete(user, 'msg_75',  1, message.guild, message.author.id);
+      if (message.reference) avancerQuete(user, 'msg_reply', 1, message.guild, message.author.id);
 
       const heure = new Date().getHours();
       const jour  = new Date().getDay();
@@ -483,11 +509,10 @@ module.exports = (client) => {
       if (heure === 0)               avancerQuete(user, 'evt_nuit',     1, message.guild, message.author.id);
       if (jour === 5 && heure >= 20) avancerQuete(user, 'evt_vendredi', 1, message.guild, message.author.id);
       if (jour === 0 || jour === 6)  avancerQuete(user, 'evt_weekend',  1, message.guild, message.author.id);
-      if (jour === 1 && heure < 9)   avancerQuete(user, 'evt_lundi',    1, message.guild, message.author.id);
 
       const qCombo = user.quetes?.liste?.find(q => q.id === 'spe_combo');
       if (qCombo && !qCombo.completee) {
-        const qMsg = user.quetes.liste.find(q => q.id === 'msg_10');
+        const qMsg = user.quetes.liste.find(q => q.id === 'msg_30');
         const qVoc = user.quetes.liste.find(q => q.id === 'voc_30');
         if (qMsg?.completee && qVoc?.completee)
           avancerQuete(user, 'spe_combo', 1, message.guild, message.author.id);
@@ -496,12 +521,6 @@ module.exports = (client) => {
       const VORTAX_ID = '1405637417272086588';
       if (message.reference && message.mentions.users.has(VORTAX_ID))
         avancerQuete(user, 'soc_repVortax', 1, message.guild, message.author.id);
-      if (message.reference) {
-        const roleOr    = RANGS.find(r => r.nom === 'Or')?.role ?? null;
-        const mentionne = message.mentions.members;
-        if (roleOr && mentionne?.some(m => m.roles.cache.has(roleOr)))
-          avancerQuete(user, 'soc_repOr', 1, message.guild, message.author.id);
-      }
 
       const ancienNiveau = user.niveau;
       await gererNiveauEtRang(user, ancienNiveau, message.guild, null, message.author.id);
@@ -573,14 +592,12 @@ module.exports = (client) => {
           user.xp    += xpGagne;
           user.coins += Math.floor(xpGagne * 0.5);
 
-          avancerQuete(user, 'voc_15',  1, guild, userId);
+          avancerQuete(user, 'voc_10',  1, guild, userId);
           avancerQuete(user, 'voc_30',  1, guild, userId);
-          avancerQuete(user, 'voc_60',  1, guild, userId);
-          avancerQuete(user, 'voc_120', 1, guild, userId);
+          avancerQuete(user, 'voc_90',  1, guild, userId);
           if (membresActifs.size >= 3) avancerQuete(user, 'voc_group', 1, guild, userId);
 
           silenceMinutes.set(userId, (silenceMinutes.get(userId) || 0) + 1);
-          avancerQuete(user, 'spe_silence', 1, guild, userId);
 
           const ancienNiveau = user.niveau;
           await gererNiveauEtRang(user, ancienNiveau, guild, membreLive, userId);
