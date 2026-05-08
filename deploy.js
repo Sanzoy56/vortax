@@ -3,10 +3,11 @@ const { token } = require('./token.json');
 
 const commands = [
 
+    // ─── MODÉRATION ───────────────────────────────────────────────
     new SlashCommandBuilder()
         .setName('panel')
         .setDescription('Ouvre le panel de modération')
-        .setDefaultMemberPermissions(0)
+        .setDefaultMemberPermissions(0) // inchangé
         .addUserOption(option =>
             option.setName('membre')
                 .setDescription('Le membre à modérer')
@@ -21,8 +22,23 @@ const commands = [
         .toJSON(),
 
     new SlashCommandBuilder()
+        .setName('clear')
+        .setDescription('Supprime des messages dans le salon')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+        .addIntegerOption(option =>
+            option.setName('nombre')
+                .setDescription('Nombre de messages à supprimer (1-100)')
+                .setMinValue(1)
+                .setMaxValue(100)
+                .setRequired(true)
+        )
+        .toJSON(),
+
+    // ─── BOT ──────────────────────────────────────────────────────
+    new SlashCommandBuilder()
         .setName('status')
         .setDescription('Changer le statut du bot')
+        .setDefaultMemberPermissions(0) // admins seulement
         .addStringOption(option =>
             option.setName('texte')
                 .setDescription('Texte du statut')
@@ -45,7 +61,7 @@ const commands = [
     new SlashCommandBuilder()
         .setName('say')
         .setDescription('Faire parler le bot')
-        .setDefaultMemberPermissions(0)
+        .setDefaultMemberPermissions(0) // admins seulement
         .addStringOption(option =>
             option.setName('type')
                 .setDescription('Type de message')
@@ -82,9 +98,10 @@ const commands = [
         )
         .toJSON(),
 
+    // ─── ADMIN XP / MONEY ─────────────────────────────────────────
     new SlashCommandBuilder()
         .setName('adminexpajouter')
-        .setDescription('Ajouter de l\'XP à un membre')
+        .setDescription('[ADMIN] Ajouter de l\'XP à un membre')
         .setDefaultMemberPermissions(0)
         .addUserOption(option =>
             option.setName('membre')
@@ -100,8 +117,8 @@ const commands = [
         .toJSON(),
 
     new SlashCommandBuilder()
-        .setName('adminexpremove')
-        .setDescription('Retirer de l\'XP à un membre')
+        .setName('adminexpretirer')
+        .setDescription('[ADMIN] Retirer de l\'XP à un membre')
         .setDefaultMemberPermissions(0)
         .addUserOption(option =>
             option.setName('membre')
@@ -118,7 +135,7 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('adminmoneyajouter')
-        .setDescription('Ajouter des VTX-Coins à un membre')
+        .setDescription('[ADMIN] Ajouter des VTX-Coins à un membre')
         .setDefaultMemberPermissions(0)
         .addUserOption(option =>
             option.setName('membre')
@@ -134,8 +151,8 @@ const commands = [
         .toJSON(),
 
     new SlashCommandBuilder()
-        .setName('adminmoneyremove')
-        .setDescription('Retirer des VTX-Coins à un membre')
+        .setName('adminmoneyretirer')
+        .setDescription('[ADMIN] Retirer des VTX-Coins à un membre')
         .setDefaultMemberPermissions(0)
         .addUserOption(option =>
             option.setName('membre')
@@ -150,20 +167,11 @@ const commands = [
         )
         .toJSON(),
 
-    new SlashCommandBuilder()
-        .setName('boutique-boost')
-        .setDescription('Ouvre la boutique des boosts XP temporaires')
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('boutique-roles')
-        .setDescription('Ouvre la boutique des boosts XP permanents')
-        .toJSON(),
-
+    // ─── GIVEAWAY ─────────────────────────────────────────────────
     new SlashCommandBuilder()
         .setName('giveaway')
         .setDescription('Lancer un giveaway')
-        .setDefaultMemberPermissions(0)
+        .setDefaultMemberPermissions(0) // admins seulement
         .addStringOption(opt =>
             opt.setName('lot')
                 .setDescription('Ce qu\'on gagne')
@@ -187,17 +195,81 @@ const commands = [
         )
         .toJSON(),
 
+    // ─── BOUTIQUES ────────────────────────────────────────────────
     new SlashCommandBuilder()
-        .setName('clear')
-        .setDescription('Supprime des messages dans le salon')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-        .addIntegerOption(option =>
-            option.setName('nombre')
-                .setDescription('Nombre de messages à supprimer (1-100)')
-                .setMinValue(1)
-                .setMaxValue(100)
-                .setRequired(true)
+        .setName('boutique-boost')
+        .setDescription('Ouvre la boutique des boosts XP temporaires')
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('boutique-roles')
+        .setDescription('Ouvre la boutique des rôles XP permanents')
+        .toJSON(),
+
+    // ─── ÉCONOMIE / SOCIAL ────────────────────────────────────────
+    new SlashCommandBuilder()
+        .setName('profil')
+        .setDescription('Voir le profil d\'une personne')
+        .addUserOption(option =>
+            option.setName('membre')
+                .setDescription('Voir le profil d\'une personne')
+                .setRequired(false)
         )
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('top')
+        .setDescription('Afficher le classement XP')
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('topmoney')
+        .setDescription('Afficher le classement money')
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('rob')
+        .setDescription('Voler un membre')
+        .addUserOption(option =>
+            option.setName('membre')
+                .setDescription('Membre à voler')
+                .setRequired(false)
+        )
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('donner')
+        .setDescription('Donner de la money à un membre')
+        .addUserOption(option =>
+            option.setName('membre')
+                .setDescription('Choisissez la personne à qui donner')
+                .setRequired(false)
+        )
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('items')
+        .setDescription('Voir vos items')
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('use')
+        .setDescription('Utiliser un item acheté dans la boutique')
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('quetes')
+        .setDescription('Voir vos quêtes')
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('purge')
+        .setDescription('Supprimer votre malus')
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('aide')
+        .setDescription('Aide sur les commandes disponibles')
         .toJSON(),
 
 ];

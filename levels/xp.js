@@ -1,0 +1,100 @@
+'use strict';
+const { RANGS, STREAKS_BONUS, BOOSTS_PERMANENTS, SALONS } = require('./config');
+
+// ── Formules ─────────────────────────────────────────────────────────────────
+
+function xpPourNiveau(niveau) {
+  if (niveau < 10)  return 800   + niveau * 100;
+  if (niveau < 20)  return 2000  + niveau * 200;
+  if (niveau < 50)  return 5000  + niveau * 400;
+  if (niveau < 100) return 12000 + niveau * 800;
+  return 25000 + niveau * 1500;
+}
+
+function getStreakBonus(streak) {
+  let bonus = 0;
+  for (const s of STREAKS_BONUS) {
+    if (streak >= s.jours) bonus = s.bonus;
+  }
+  return bonus;
+}
+
+function getRang(niveau) {
+  let rang = null;
+  for (const r of RANGS) {
+    if (niveau >= r.niveau) rang = r;
+  }
+  return rang;
+}
+
+// ── Calcul XP gagné (boosts, malus, streak, perm) ────────────────────────────
+
+function calculerXp(base, user, now) {
+  let xp = base;
+  // boost temporaire
+  if (user.boostActif?.expireAt > now) {
+    xp = Math.floor(xp * (1 + user.boostActif.bonus));
+  } else {
+    user.boostActif = null;
+  }
+  // malus temporaire
+  if (user.malusActif?.expireAt > now) {
+    xp = Math.floor(xp * (1 + user.malusActif.bonus)); // bonus est négatif
+  } else {
+    user.malusActif = null;
+  }
+  // streak
+  xp = Math.floor(xp * (1 + getStreakBonus(user.streak)));
+  // boost permanent
+  const perm = BOOSTS_PERMANENTS.find(b => b.id === user.boostPermanent);
+  if (perm) xp = Math.floor(xp * (1 + perm.bonus));
+
+  return Math.max(1, xp);
+}
+
+// ── Montée de niveau + changement de rang ────────────────────────────────────
+
+async function gererNiveauEtRang(user, ancienNiveau, guild, member, userId) {
+  // Monte les niveaux un par un
+  while (user.xp >= xpPourNiveau(user.niveau)) {
+    user.xp    -= xpPourNiveau(user.niveau);
+    user.niveau += 1;
+    const salon = guild.channels.cache.get(SALONS.niveaux);
+    salon?.send(`Toutes nos félicitations <@${userId}>, vous venez de passer niveau **${user.niveau}** !`);
+  }
+
+  // Descente de niveau (XP retiré par admin)
+  while (user.niveau > 0 && user.xp < 0) {
+    user.niveau -= 1;
+    user.xp     += xpPourNiveau(user.niveau);
+  }
+  if (user.xp < 0) user.xp = 0;
+
+  // Rang
+  const ancienRang  = getRang(ancienNiveau);
+  const nouveauRang = getRang(user.niveau);
+  if (ancienRang?.role === nouveauRang?.role) return;
+
+  const m = member ?? await guild.members.fetch(userId).catch(() => null);
+  if (!m) return;
+
+  // Retire l'ancien rang
+  if (ancienRang) await m.roles.remove(ancienRang.role).catch(() => null);
+
+  // Ajoute le nouveau rang
+  if (nouveauRang) await m.roles.add(nouveauRang.role).catch(() => null);
+
+  const salon = guild.channels.cache.get(SALONS.rangs);
+  if (!salon) return;
+
+  if (!ancienRang || (nouveauRang && nouveauRang.niveau > ancienRang.niveau)) {
+    salon.send(`Toutes nos félicitations <@${userId}>, vous venez de passer au rang **${nouveauRang.nom}** !`);
+  } else if (ancienRang) {
+    salon.send(
+      `<@${userId}> a perdu son rang **${ancienRang.nom}**` +
+      (nouveauRang ? ` et est redescendu en **${nouveauRang.nom}**` : '') + '.'
+    );
+  }
+}
+
+module.exports = { xpPourNiveau, getStreakBonus, getRang, calculerXp, gererNiveauEtRang };
