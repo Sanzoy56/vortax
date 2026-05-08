@@ -1,4 +1,4 @@
-const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { token } = require('./token.json');
 
 const commands = [
@@ -62,12 +62,12 @@ const commands = [
         )
         .addStringOption(option =>
             option.setName('titre')
-                .setDescription('Titre de l embed')
+                .setDescription('Titre de l\'embed')
                 .setRequired(false)
         )
         .addStringOption(option =>
             option.setName('description')
-                .setDescription('Description de l embed')
+                .setDescription('Description de l\'embed')
                 .setRequired(false)
         )
         .addStringOption(option =>
@@ -77,14 +77,14 @@ const commands = [
         )
         .addStringOption(option =>
             option.setName('image')
-                .setDescription('URL de l image')
+                .setDescription('URL de l\'image')
                 .setRequired(false)
         )
         .toJSON(),
 
     new SlashCommandBuilder()
         .setName('adminexpajouter')
-        .setDescription('Ajouter de l XP à un membre')
+        .setDescription('Ajouter de l\'XP à un membre')
         .setDefaultMemberPermissions(0)
         .addUserOption(option =>
             option.setName('membre')
@@ -93,7 +93,7 @@ const commands = [
         )
         .addIntegerOption(option =>
             option.setName('somme')
-                .setDescription('Quantité d XP à ajouter')
+                .setDescription('Quantité d\'XP à ajouter')
                 .setMinValue(1)
                 .setRequired(true)
         )
@@ -101,7 +101,7 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('adminexpremove')
-        .setDescription('Retirer de l XP à un membre')
+        .setDescription('Retirer de l\'XP à un membre')
         .setDefaultMemberPermissions(0)
         .addUserOption(option =>
             option.setName('membre')
@@ -110,7 +110,7 @@ const commands = [
         )
         .addIntegerOption(option =>
             option.setName('somme')
-                .setDescription('Quantité d XP à retirer')
+                .setDescription('Quantité d\'XP à retirer')
                 .setMinValue(1)
                 .setRequired(true)
         )
@@ -160,7 +160,6 @@ const commands = [
         .setDescription('Ouvre la boutique des boosts XP permanents')
         .toJSON(),
 
-    // ← Giveaway ajouté
     new SlashCommandBuilder()
         .setName('giveaway')
         .setDescription('Lancer un giveaway')
@@ -185,6 +184,19 @@ const commands = [
             opt.setName('role')
                 .setDescription('Rôle requis pour participer (optionnel)')
                 .setRequired(false)
+        )
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('clear')
+        .setDescription('Supprime des messages dans le salon')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+        .addIntegerOption(option =>
+            option.setName('nombre')
+                .setDescription('Nombre de messages à supprimer (1-100)')
+                .setMinValue(1)
+                .setMaxValue(100)
+                .setRequired(true)
         )
         .toJSON(),
 
