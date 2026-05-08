@@ -25,10 +25,6 @@ const giveaway   = require('./giveaway.js');
 const grok       = require('./grok.js');
 const clear      = require('./commandes/clear.js');
 
-// ── XP / levels ──────────────────────────────────────────────────────────────
-const xpMessages = require('./levels/events/xpMessages.js');
-const xpVocal    = require('./levels/events/xpVocal.js');
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -78,10 +74,6 @@ suggestion(client);
 giveaway(client);
 grok(client);
 clear(client);
-
-// ── XP events ────────────────────────────────────────────────────────────────
-xpMessages(client);
-xpVocal(client);
 
 // ── Slash commands ────────────────────────────────────────────────────────────
 client.on('interactionCreate', async (interaction) => {
