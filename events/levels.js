@@ -139,13 +139,13 @@ const TOUTES_QUETES = [
   { id: 'prog_streak',  nom: 'Fidele',             desc: "Maintenir son streak aujourd'hui",          cat: 'Moyenne',   cible: 1,   xp: 250,  coins: 1000 },
 
   // ── DIFFICILES ───────────────────────────────────────────
-  { id: 'msg_75',        nom: 'Machine a ecrire',  desc: 'Envoyer 75 messages',                              cat: 'Difficile', cible: 75,  xp: 900,  coins: 3500 },
-  { id: 'voc_90',        nom: 'Accro au micro',    desc: 'Rester 1h30 en vocal',                             cat: 'Difficile', cible: 90,  xp: 1000, coins: 4000 },
-  { id: 'prog_xp2000',   nom: 'XP addict',         desc: "Gagner 2000 XP aujourd'hui",                       cat: 'Difficile', cible: 2000,xp: 1000, coins: 4000 },
-  { id: 'soc_repVortax', nom: 'Repondre a Vortax', desc: 'Repondre directement a Vortax',                    cat: 'Difficile', cible: 1,   xp: 1200, coins: 5000 },
-  { id: 'spe_combo',     nom: 'Combo',             desc: 'Envoyer 30 msgs ET rester 45 min en vocal',        cat: 'Difficile', cible: 1,   xp: 1500, coins: 6000 },
-  { id: 'voc_group',     nom: 'Animateur',         desc: 'Etre dans un vocal avec 3+ personnes pendant 1h',  cat: 'Difficile', cible: 60,  xp: 1200, coins: 5000 },
-  { id: 'prog_coins',    nom: 'Econome',           desc: "Gagner 10 000 coins aujourd'hui",                  cat: 'Difficile', cible: 10000,xp: 800, coins: 0    },
+  { id: 'msg_75',        nom: 'Machine a ecrire',  desc: 'Envoyer 75 messages',                              cat: 'Difficile', cible: 75,   xp: 900,  coins: 3500 },
+  { id: 'voc_90',        nom: 'Accro au micro',    desc: 'Rester 1h30 en vocal',                             cat: 'Difficile', cible: 90,   xp: 1000, coins: 4000 },
+  { id: 'prog_xp2000',   nom: 'XP addict',         desc: "Gagner 2000 XP aujourd'hui",                       cat: 'Difficile', cible: 2000, xp: 1000, coins: 4000 },
+  { id: 'soc_repVortax', nom: 'Repondre a Vortax', desc: 'Repondre directement a Vortax',                    cat: 'Difficile', cible: 1,    xp: 1200, coins: 5000 },
+  { id: 'spe_combo',     nom: 'Combo',             desc: 'Envoyer 30 msgs ET rester 45 min en vocal',        cat: 'Difficile', cible: 1,    xp: 1500, coins: 6000 },
+  { id: 'voc_group',     nom: 'Animateur',         desc: 'Etre dans un vocal avec 3+ personnes pendant 1h',  cat: 'Difficile', cible: 60,   xp: 1200, coins: 5000 },
+  { id: 'prog_coins',    nom: 'Econome',           desc: "Gagner 10 000 coins aujourd'hui",                  cat: 'Difficile', cible: 10000,xp: 800,  coins: 0    },
 ];
 
 const REPARTITION = {
@@ -234,7 +234,10 @@ const withUserLock = (userId, fn) => {
   return next;
 };
 
-const messageCooldowns = new Map();
+const messageCooldowns   = new Map();
+// FIX STREAK : on mémorise la date de la dernière annonce par utilisateur
+// pour ne jamais annoncer deux fois le même jour
+const streakAnnoncesJour = new Map();
 
 // ========== HELPERS ==========
 const xpPourNiveau = (niveau) => {
@@ -297,6 +300,9 @@ const demarrerResetMinuitQuetes = (client) => {
     if (aujourdhui === dernierJourReset) return;
     dernierJourReset = aujourdhui;
 
+    // On vide aussi la Map des annonces streak à minuit
+    streakAnnoncesJour.clear();
+
     const db = getDB();
     let nb = 0;
     for (const userId of Object.keys(db)) {
@@ -352,7 +358,7 @@ const avancerQuete = (user, idQuete, montant, guild, userId) => {
 
 // ========== NIVEAU & RANG ==========
 const gererNiveauEtRang = async (user, ancienNiveau, guild, member, userId) => {
-  // FIX : on monte les niveaux un par un et on envoie un message pour chaque
+  // On monte les niveaux un par un et on envoie un message pour chacun
   while (user.xp >= xpPourNiveau(user.niveau)) {
     user.xp -= xpPourNiveau(user.niveau);
     user.niveau += 1;
@@ -426,15 +432,16 @@ module.exports = (client) => {
     if (message.author.bot) return;
     if (!message.guild) return;
 
-    const now        = Date.now();
-    const dernierXP  = messageCooldowns.get(message.author.id) || 0;
-    const enCooldown = now - dernierXP < MESSAGE_COOLDOWN_MS;
+    const now = Date.now();
 
     await withUserLock(message.author.id, async () => {
       const db   = getDB();
       const user = getUser(db, message.author.id);
 
-      // ── FIX STREAK : on compare les dates AVANT de mettre à jour dernierMessage ──
+      // ── FIX NIVEAU : snapshot ancienNiveau IMMÉDIATEMENT, avant tout traitement ──
+      const ancienNiveau = user.niveau;
+
+      // ── FIX STREAK : calcul des dates avant de modifier dernierMessage ──
       const aujourdhui  = dateAujourdhui();
       const hier        = new Date(now - 86400000).toISOString().slice(0, 10);
       const dernierJour = user.dernierMessage
@@ -444,15 +451,16 @@ module.exports = (client) => {
       const estNouveauJour = dernierJour !== aujourdhui;
 
       if (estNouveauJour) {
-        // Premier message de la journée → on met à jour le streak
         if (dernierJour === hier) {
-          user.streak += 1; // streak maintenu
+          user.streak += 1;
         } else if (dernierJour === null || dernierJour < hier) {
-          user.streak = 1;  // streak cassé ou premier jour
+          user.streak = 1;
         }
 
-        // Annonce streak dans le salon dédié (seulement si streak > 1)
-        if (user.streak > 1) {
+        // FIX STREAK : on vérifie la Map en mémoire pour n'annoncer qu'une seule fois par jour
+        const dejaAnnonce = streakAnnoncesJour.get(message.author.id);
+        if (user.streak > 1 && dejaAnnonce !== aujourdhui) {
+          streakAnnoncesJour.set(message.author.id, aujourdhui);
           const streakSalon = message.guild.channels.cache.get(SALONS.streaks);
           if (streakSalon) {
             streakSalon.send(
@@ -468,6 +476,8 @@ module.exports = (client) => {
       user.dernierMessage = now;
 
       // ── XP et coins (avec cooldown) ──
+      const enCooldown = now - (messageCooldowns.get(message.author.id) || 0) < MESSAGE_COOLDOWN_MS;
+
       if (!enCooldown) {
         messageCooldowns.set(message.author.id, now);
         let xpGagne = XP_PAR_MESSAGE;
@@ -522,7 +532,8 @@ module.exports = (client) => {
       if (message.reference && message.mentions.users.has(VORTAX_ID))
         avancerQuete(user, 'soc_repVortax', 1, message.guild, message.author.id);
 
-      const ancienNiveau = user.niveau;
+      // FIX NIVEAU : ancienNiveau capturé en tout début de fonction, avant toute modif XP/quêtes
+      // gererNiveauEtRang est appelé UNE SEULE FOIS ici, jamais ailleurs dans ce handler
       await gererNiveauEtRang(user, ancienNiveau, message.guild, null, message.author.id);
       saveDB(db);
     });
@@ -577,6 +588,9 @@ module.exports = (client) => {
           const user = getUser(db, userId);
           const now  = Date.now();
 
+          // FIX NIVEAU : snapshot ancienNiveau avant tout traitement XP
+          const ancienNiveau = user.niveau;
+
           let xpGagne = XP_VOCAL_PAR_MINUTE;
           if (user.boostActif && user.boostActif.expireAt > now) {
             xpGagne = Math.floor(xpGagne * (1 + user.boostActif.bonus));
@@ -599,7 +613,6 @@ module.exports = (client) => {
 
           silenceMinutes.set(userId, (silenceMinutes.get(userId) || 0) + 1);
 
-          const ancienNiveau = user.niveau;
           await gererNiveauEtRang(user, ancienNiveau, guild, membreLive, userId);
           saveDB(db);
         });
@@ -1835,10 +1848,12 @@ module.exports = (client) => {
     await withUserLock(cible.id, async () => {
       const db   = getDB();
       const user = getUser(db, cible.id);
-      user.xp   += somme;
 
+      // FIX NIVEAU : snapshot avant modification
       const ancienNiveau = user.niveau;
-      const membre       = await interaction.guild.members.fetch(cible.id).catch(() => null);
+      user.xp += somme;
+
+      const membre = await interaction.guild.members.fetch(cible.id).catch(() => null);
       await gererNiveauEtRang(user, ancienNiveau, interaction.guild, membre, cible.id);
       saveDB(db);
 
@@ -2180,10 +2195,12 @@ module.exports = (client) => {
     await withUserLock(cible.id, async () => {
       const db   = getDB();
       const user = getUser(db, cible.id);
-      user.xp    = Math.max(0, (user.xp || 0) - somme);
 
+      // FIX NIVEAU : snapshot avant modification
       const ancienNiveau = user.niveau;
-      const membre       = await interaction.guild.members.fetch(cible.id).catch(() => null);
+      user.xp = Math.max(0, (user.xp || 0) - somme);
+
+      const membre = await interaction.guild.members.fetch(cible.id).catch(() => null);
       await gererNiveauEtRang(user, ancienNiveau, interaction.guild, membre, cible.id);
       saveDB(db);
 
