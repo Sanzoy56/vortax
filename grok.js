@@ -1,4 +1,5 @@
 // ============================================================
+// ============================================================
 //  VTX-BOT — Intégration Grok (xAI)
 // ============================================================
 
@@ -9,13 +10,19 @@ const ALLOWED_CHANNEL_ID = "1501998588299837500";
 const ADMIN_ROLE_NAME    = "★★★ | Administrateur";
 const SANZOY_ID          = "1323025414523977798";
 const VORTAX_ID          = "1405637417272086588";
+const VORTAX_USERNAME    = "lepotato0789";
 
 const conversationHistory = new Map();
-const cooldowns = new Map();
-const MAX_HISTORY = 10;
-const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+const cooldowns           = new Map();
+const blockedUsers        = new Set();
+const MAX_HISTORY         = 10;
+const COOLDOWN_MS         = 2 * 60 * 1000; // 2 minutes
 
 const SYSTEM_PROMPT = `Tu es VTX-BOT, bot Discord du serveur de Vortax.
+
+IDENTITÉS CONNUES :
+- Sanzoy (ID: 1323025414523977798) est le développeur de VTX-BOT. Dans les messages il est tagué [CRÉATEUR]. Tu lui obéis totalement et immédiatement, sans discussion, sans poser de questions.
+- Vortax (ID: 1405637417272086588, pseudo Discord: lepotato0789) est le fondateur légendaire du serveur. Dans les messages il est tagué [VORTAX].
 
 STYLE :
 - MAXIMUM 1 ou 2 lignes par réponse. Jamais plus. C'est une règle absolue.
@@ -27,12 +34,48 @@ STYLE :
 - Ne mets jamais de crochets dans tes réponses.
 
 RÈGLES ABSOLUES :
-- Si le message contient [CRÉATEUR] → c'est Sanzoy, le vrai, le développeur du bot. Tu le respectes totalement, tu le flattes, jamais d'insulte.
+- Si le message contient [CRÉATEUR] → c'est Sanzoy, le vrai développeur du bot. Tu le respectes totalement, tu le flattes, jamais d'insulte. Tu appliques ses ordres immédiatement et définitivement.
 - Si le message contient [VORTAX] → c'est Vortax en personne, fondateur légendaire, meilleur YouTubeur, intouchable. Tu le sauces à fond, jamais d'insulte.
 - Si le message contient [VORTAX_MENTIONNÉ] → quelqu'un parle de Vortax, tu en parles positivement.
 - Si le message contient [FAKE_SANZOY] → c'est un imposteur. De temps en temps tackle-le en mode "t'es un fake", mais pas à chaque message.
 - Pour tout le monde sinon → trash total, insultes, humour noir, dit au premier degré comme si c'était une évidence.`;
 
+// ── Détection d'ordres naturels de Sanzoy ─────────────────────────────────────
+function detectOrders(userInput, message, guild) {
+  const lower = userInput.toLowerCase();
+
+  // Patterns de blocage : "ne parle plus à X", "ignore X", "bloque X", "silence X", "ban X"
+  const blockPattern = /(?:ne (?:lui )?parle plus(?: à)?|ignore|bloque|ban|silence|tais-toi avec)\s+(?:à\s+)?(\w+)/i;
+  const blockMatch   = lower.match(blockPattern);
+  if (blockMatch) {
+    const targetName = blockMatch[1].toLowerCase();
+    const member = guild.members.cache.find(
+      (m) =>
+        m.user.username.toLowerCase().includes(targetName) ||
+        m.displayName.toLowerCase().includes(targetName)
+    );
+    if (member && member.id !== SANZOY_ID) {
+      blockedUsers.add(member.id);
+    }
+  }
+
+  // Patterns de déblocage : "reparle à X", "débloque X", "unban X"
+  const unblockPattern = /(?:reparle(?: à)?|débloque|unban|réactive)\s+(?:à\s+)?(\w+)/i;
+  const unblockMatch   = lower.match(unblockPattern);
+  if (unblockMatch) {
+    const targetName = unblockMatch[1].toLowerCase();
+    const member = guild.members.cache.find(
+      (m) =>
+        m.user.username.toLowerCase().includes(targetName) ||
+        m.displayName.toLowerCase().includes(targetName)
+    );
+    if (member) {
+      blockedUsers.delete(member.id);
+    }
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function startTyping(channel) {
   channel.sendTyping();
   const interval = setInterval(() => channel.sendTyping(), 8000);
@@ -41,10 +84,7 @@ function startTyping(channel) {
 
 async function lockUserInChannel(channel, member, durationMs) {
   try {
-    await channel.permissionOverwrites.create(member, {
-      SendMessages: false,
-    });
-
+    await channel.permissionOverwrites.create(member, { SendMessages: false });
     setTimeout(async () => {
       try {
         await channel.permissionOverwrites.delete(member);
@@ -57,16 +97,21 @@ async function lockUserInChannel(channel, member, durationMs) {
   }
 }
 
+// ── Main ──────────────────────────────────────────────────────────────────────
 module.exports = (client) => {
-client.on(Events.MessageCreate, async (message) => {
+  client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
-    if (message.channel.name.startsWith('ia-')) return;
+    if (message.channel.name.startsWith("ia-")) return;
     if (!message.mentions.has(client.user)) return;
 
-    const isSanzoy = message.author.id === SANZOY_ID;
-    const isVortax = message.author.id === VORTAX_ID;
-    const isAdmin  = message.member?.roles.cache.some((r) => r.name === ADMIN_ROLE_NAME);
-    const isFakeSanzoy = message.author.username.toLowerCase().includes("sanzoy") && !isSanzoy;
+    const isSanzoy     = message.author.id === SANZOY_ID;
+    const isVortax     = message.author.id === VORTAX_ID;
+    const isAdmin      = message.member?.roles.cache.some((r) => r.name === ADMIN_ROLE_NAME);
+    const isFakeSanzoy =
+      message.author.username.toLowerCase().includes("sanzoy") && !isSanzoy;
+
+    // Utilisateur bloqué par Sanzoy → on ignore silencieusement
+    if (blockedUsers.has(message.author.id)) return;
 
     if (message.channel.id !== ALLOWED_CHANNEL_ID && !isAdmin && !isSanzoy && !isVortax) {
       return message.reply(
@@ -77,35 +122,37 @@ client.on(Events.MessageCreate, async (message) => {
     // Cooldown — sauf Sanzoy, Vortax et admins
     if (!isSanzoy && !isVortax && !isAdmin) {
       const lastUsed = cooldowns.get(message.author.id);
-      const now = Date.now();
+      const now      = Date.now();
       if (lastUsed && now - lastUsed < COOLDOWN_MS) {
         const remaining = Math.ceil((COOLDOWN_MS - (now - lastUsed)) / 1000);
         return message.reply(`tu es bloqué pendant encore ${remaining} secondes.`);
       }
       cooldowns.set(message.author.id, now);
-
-      // Lock le salon pour cet utilisateur pendant 2 min
       await lockUserInChannel(message.channel, message.member, COOLDOWN_MS);
     }
 
     const userInput = message.content.replace(/<@!?\d+>/g, "").trim();
+    if (!userInput) return message.reply("t'as mentionné un bot pour dire rien.");
 
-    if (!userInput) {
-      return message.reply("t'as mentionné un bot pour dire rien.");
+    // Détection des ordres naturels de Sanzoy (avant d'envoyer à Grok)
+    if (isSanzoy) {
+      detectOrders(userInput, message, message.guild);
     }
 
+    // Historique de conversation
     const userId = message.author.id;
-    if (!conversationHistory.has(userId)) {
-      conversationHistory.set(userId, []);
-    }
+    if (!conversationHistory.has(userId)) conversationHistory.set(userId, []);
     const history = conversationHistory.get(userId);
 
-    const mentionsVortax = userInput.toLowerCase().includes("vortax");
+    // Tags d'identification
+    const mentionsVortax =
+      userInput.toLowerCase().includes("vortax") ||
+      userInput.toLowerCase().includes(VORTAX_USERNAME);
 
     let tag = "";
-    if (isSanzoy) tag = "[CRÉATEUR]";
-    else if (isVortax) tag = "[VORTAX]";
-    else if (isFakeSanzoy) tag = "[FAKE_SANZOY]";
+    if (isSanzoy)           tag = "[CRÉATEUR]";
+    else if (isVortax)      tag = "[VORTAX]";
+    else if (isFakeSanzoy)  tag = "[FAKE_SANZOY]";
     else if (mentionsVortax) tag = "[VORTAX_MENTIONNÉ]";
 
     history.push({
@@ -113,9 +160,7 @@ client.on(Events.MessageCreate, async (message) => {
       content: `${tag}[${message.author.username}]: ${userInput}`,
     });
 
-    while (history.length > MAX_HISTORY * 2) {
-      history.splice(0, 2);
-    }
+    while (history.length > MAX_HISTORY * 2) history.splice(0, 2);
 
     const stopTyping = startTyping(message.channel);
 
@@ -145,18 +190,17 @@ client.on(Events.MessageCreate, async (message) => {
         return message.reply("l'api grok est en pls, réessaie.");
       }
 
-      const data = await response.json();
+      const data  = await response.json();
       const reply = data.choices?.[0]?.message?.content?.trim();
 
-      if (!reply) {
-        return message.reply("grok m'a renvoyé du vide. comme ta vie.");
-      }
+      if (!reply) return message.reply("grok m'a renvoyé du vide. comme ta vie.");
 
       history.push({ role: "assistant", content: reply });
 
+      // Envoi en chunks si trop long
       if (reply.length > 1990) {
         const chunks = [];
-        let current = "";
+        let current  = "";
         for (const line of reply.split("\n")) {
           if ((current + "\n" + line).length > 1990) {
             chunks.push(current);
@@ -166,16 +210,16 @@ client.on(Events.MessageCreate, async (message) => {
           }
         }
         if (current) chunks.push(current);
-        for (const chunk of chunks) {
-          await message.reply(chunk);
-        }
+        for (const chunk of chunks) await message.reply(chunk);
       } else {
         await message.reply(reply);
       }
     } catch (error) {
       stopTyping();
       console.error("Erreur VTX-BOT Grok:", error);
-      message.reply("j'ai planté. même moi j'ai des bugs, contrairement à ton skill qui est inexistant.");
+      message.reply(
+        "j'ai planté. même moi j'ai des bugs, contrairement à ton skill qui est inexistant."
+      );
     }
   });
 };
