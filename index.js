@@ -24,7 +24,7 @@ const { checkYoutube, CHECK_INTERVAL } = require('./youtube.js');
 const giveaway   = require('./giveaway.js');
 const grok       = require('./grok.js');
 const clear      = require('./commandes/clear.js');
-
+const vocal = require('./commandes/join/leavevocal.js');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -74,7 +74,7 @@ suggestion(client);
 giveaway(client);
 grok(client);
 clear(client);
-
+joinleavevocal(client);
 // ── Slash commands ────────────────────────────────────────────────────────────
 client.on('interactionCreate', async (interaction) => {
   // Boutons

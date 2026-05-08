@@ -271,7 +271,18 @@ const commands = [
         .setName('aide')
         .setDescription('Aide sur les commandes disponibles')
         .toJSON(),
-
+new SlashCommandBuilder()
+    .setName('vocal')
+    .setDescription('Gérer le bot vocal IA')
+    .addSubcommand(sub =>
+        sub.setName('join')
+            .setDescription('Le bot rejoint ton salon vocal')
+    )
+    .addSubcommand(sub =>
+        sub.setName('leave')
+            .setDescription('Le bot quitte le salon vocal')
+    )
+    .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
