@@ -221,13 +221,13 @@ module.exports = (client) => {
                 
 Il y a 3 catégories de tickets mis à votre disposition :
 
-<:pointblue:1476046556078543069> **Gestion Staff** : Pour rejoindre notre équipe de modération.
+<:pointblue:1502098251489218653> **Gestion Staff** : Pour rejoindre notre équipe de modération.
 
-<:pointpurple:1476046534121357465> **Question / Signalement** : Pour poser une question ou signaler un membre.
+<:pointpurple:1502099424854147153> **Question / Signalement** : Pour poser une question ou signaler un membre.
 
-<:pointred:1476046578589368523> **Assistance IA** : Obtenez une réponse instantanée de notre assistant IA. Le staff sera alerté si nécessaire.
+<:pointred:1502098544163553350> **Assistance IA** : Obtenez une réponse instantanée de notre assistant IA. Le staff sera alerté si nécessaire.
 
-<:warningicon:1476048863864422465> Les tickets troll sont interdits et très fortement sanctionnés.`)
+<:warningicon:1502097886794616963> Les tickets troll sont interdits et très fortement sanctionnés.`)
         .setColor(0x2B2D31)
         .setFooter({ text: '— Support Team Vortax' });
 
