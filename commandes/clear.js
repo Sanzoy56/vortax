@@ -1,49 +1,35 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { PermissionFlagsBits } = require('discord.js');
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName('clear')
-    .setDescription('Supprime des messages dans le salon')
-    .addIntegerOption(option =>
-      option
-        .setName('nombre')
-        .setDescription('Nombre de messages à supprimer (1-100)')
-        .setMinValue(1)
-        .setMaxValue(100)
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+const ALLOWED_ROLES = [
+  '1491458130322919435', // Sanzoy
+  '1473460100210360370', // Vortax
+  '1361408552664568100', // Admin
+];
 
-  async execute(interaction) {
+module.exports = (client) => {
+  client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName !== 'clear') return;
+
+    const hasAnyPerm = ALLOWED_ROLES.some(id => interaction.member.roles.cache.has(id));
+    if (!hasAnyPerm) return interaction.reply({ content: '❌ Tu n\'as pas la permission.', ephemeral: true });
+
     const nombre = interaction.options.getInteger('nombre');
     const salon = interaction.channel;
 
-    // Vérification des permissions du bot
     if (!salon.permissionsFor(interaction.guild.members.me).has(PermissionFlagsBits.ManageMessages)) {
-      return interaction.reply({
-        content: '❌ Je n\'ai pas la permission de supprimer des messages dans ce salon.',
-        ephemeral: true,
-      });
+      return interaction.reply({ content: '❌ Je n\'ai pas la permission de supprimer des messages ici.', ephemeral: true });
     }
 
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      const messagesSupprimes = await salon.bulkDelete(nombre, true);
-      // Note : bulkDelete ignore les messages de plus de 14 jours
-
-      await interaction.editReply({
-        content: `✅ **${messagesSupprimes.size}** message(s) supprimé(s) avec succès.`,
-      });
-
-      // Suppression automatique de la confirmation après 5 secondes
+      const supprimes = await salon.bulkDelete(nombre, true);
+      await interaction.editReply({ content: `✅ **${supprimes.size}** message(s) supprimé(s).` });
       setTimeout(() => interaction.deleteReply().catch(() => {}), 5000);
-
     } catch (error) {
-      console.error('Erreur lors du clear :', error);
-      await interaction.editReply({
-        content: '❌ Une erreur est survenue. Les messages de plus de 14 jours ne peuvent pas être supprimés en masse.',
-      });
+      console.error('Erreur clear :', error);
+      await interaction.editReply({ content: '❌ Erreur. Les messages de plus de 14 jours ne peuvent pas être supprimés en masse.' });
     }
-  },
+  });
 };

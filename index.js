@@ -20,6 +20,7 @@ const suggestion = require('./events/suggestion.js'); // ← faute corrigée
 const { checkYoutube, CHECK_INTERVAL } = require('./youtube.js'); // ← ajout
 const giveaway = require('./giveaway.js');
 const grok = require('./grok.js');
+const clear = require('./commandes/clear.js');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -61,6 +62,7 @@ iq(client);
 suggestion(client);
 giveaway(client);
 grok(client);
+clear(client);
 client.once('ready', () => {
     console.log(`✅ Connecté en tant que ${client.user.tag}`);
     checkYoutube(client); // premier check au démarrage
