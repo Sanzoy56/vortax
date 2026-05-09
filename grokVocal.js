@@ -1,172 +1,309 @@
 'use strict';
-const { EndBehaviorType, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
-const { apiGrok: GROK_API_KEY } = require('./token.json');
-const fs   = require('fs');
+
+const {
+  EndBehaviorType,
+  createAudioPlayer,
+  createAudioResource,
+  AudioPlayerStatus,
+  StreamType
+} = require('@discordjs/voice');
+
+const prism = require('prism-media');
+const fs = require('fs');
 const path = require('path');
 
-// Mots déclencheurs
+const { apiGrok: GROK_API_KEY } = require('./token.json');
+
 const TRIGGERS = ['vtx-bot', 'bot', 'ia'];
+const VOICE_ID = 'eve';
 
-// Voix Grok TTS
-const VOICE_ID = 'eve'; // eve, ara, rex, sal, leo
+const SYSTEM_PROMPT = `
+Tu es VTX-BOT, bot Discord du serveur de Vortax.
 
-// System prompt (même style que grok.js)
-const SYSTEM_PROMPT = `Tu es VTX-BOT, bot Discord du serveur de Vortax.
-STYLE :
-- MAXIMUM 1 ou 2 phrases courtes par réponse. C'est une règle absolue.
-- Tu parles au premier degré, sérieux, comme si t'étais convaincu de ce que tu dis.
-- Humour trash et vulgaire mais toujours dit sérieusement.
-- Pas de majuscules inutiles. Français correct.`;
+RÈGLES :
+- Réponse courte (1 ou 2 phrases max)
+- Français
+- Sérieux
+- Humour trash / vulgaire
+- Jamais trop long
+`;
 
-// Map des sessions actives par guildId
+// guildId → { receiver, handler, isSpeaking }
 const activeSessions = new Map();
 
-// ── Transcription STT via Grok ────────────────────────────────────────────────
-async function transcribeAudio(audioBuffer) {
-  const FormData = require('form-data');
-  const form = new FormData();
-  form.append('file', audioBuffer, { filename: 'audio.wav', contentType: 'audio/wav' });
-  form.append('language', 'fr');
+// ─────────────────────────────────────────────────
+// Transcription audio (PCM → WAV → xAI)
+// ─────────────────────────────────────────────────
 
-  const response = await fetch('https://api.x.ai/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${GROK_API_KEY}`,
-      ...form.getHeaders(),
-    },
-    body: form,
-  });
+function pcmToWav(pcmBuffer, sampleRate = 48000, channels = 2) {
+  const byteRate = sampleRate * channels * 2;
+  const blockAlign = channels * 2;
+  const dataSize = pcmBuffer.length;
+  const buffer = Buffer.alloc(44 + dataSize);
 
-  if (!response.ok) return null;
-  const data = await response.json();
-  return data.text?.trim() || null;
-}
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write('WAVE', 8);
+  buffer.write('fmt ', 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);          // PCM
+  buffer.writeUInt16LE(channels, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(byteRate, 28);
+  buffer.writeUInt16LE(blockAlign, 32);
+  buffer.writeUInt16LE(16, 34);         // bits per sample
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(dataSize, 40);
+  pcmBuffer.copy(buffer, 44);
 
-// ── Réponse texte via Grok ────────────────────────────────────────────────────
-async function getGrokResponse(userText) {
-  const response = await fetch('https://api.x.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${GROK_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'grok-3-mini',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user',   content: userText },
-      ],
-      max_tokens: 80,
-      temperature: 1.2,
-    }),
-  });
-
-  if (!response.ok) return null;
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content?.trim() || null;
-}
-
-// ── TTS via Grok ──────────────────────────────────────────────────────────────
-async function textToSpeech(text) {
-  const response = await fetch('https://api.x.ai/v1/tts', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${GROK_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      text,
-      voice_id: VOICE_ID,
-      language: 'fr',
-    }),
-  });
-
-  if (!response.ok) return null;
-  const buffer = Buffer.from(await response.arrayBuffer());
   return buffer;
 }
 
-// ── Jouer l'audio dans le vocal ───────────────────────────────────────────────
-async function playAudio(connection, audioBuffer) {
-  const tmpPath = path.join(__dirname, `tmp_${Date.now()}.mp3`);
-  fs.writeFileSync(tmpPath, audioBuffer);
+async function transcribeAudio(pcmBuffer) {
+  try {
+    const wavBuffer = pcmToWav(pcmBuffer);
+    const tmpPath = path.join(__dirname, `stt_${Date.now()}.wav`);
+    fs.writeFileSync(tmpPath, wavBuffer);
 
-  const player   = createAudioPlayer();
-  const resource = createAudioResource(tmpPath);
-  connection.subscribe(player);
-  player.play(resource);
+    const { FormData, File } = await import('node:buffer').catch(() => null)
+      .then(() => globalThis);
 
-  return new Promise((resolve) => {
-    player.on(AudioPlayerStatus.Idle, () => {
-      fs.unlinkSync(tmpPath);
-      resolve();
-    });
-    player.on('error', () => {
-      if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
-      resolve();
-    });
-  });
+    // Utilise node-fetch ou fetch natif (Node 18+)
+    const formData = new globalThis.FormData();
+    const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+    formData.append('file', blob, 'audio.wav');
+    formData.append('language', 'fr');
+
+    const response = await fetch(
+      'https://api.x.ai/v1/audio/transcriptions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${GROK_API_KEY}`
+        },
+        body: formData
+      }
+    );
+
+    if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+
+    if (!response.ok) {
+      console.error('[STT ERROR]', await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    return data.text?.trim() || null;
+
+  } catch (err) {
+    console.error('[STT ERROR]', err);
+    return null;
+  }
 }
 
-// ── Écouter un utilisateur ────────────────────────────────────────────────────
-function listenToUser(receiver, userId, connection) {
+// ─────────────────────────────────────────────────
+// Réponse Grok
+// ─────────────────────────────────────────────────
+
+async function getGrokResponse(text) {
+  try {
+    const response = await fetch(
+      'https://api.x.ai/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${GROK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'grok-3-mini',
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: text }
+          ],
+          max_tokens: 80,
+          temperature: 1.1
+        })
+      }
+    );
+
+    if (!response.ok) {
+      console.error('[GROK ERROR]', await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content?.trim() || null;
+
+  } catch (err) {
+    console.error('[GROK ERROR]', err);
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Text-to-speech
+// ─────────────────────────────────────────────────
+
+async function textToSpeech(text) {
+  try {
+    const response = await fetch(
+      'https://api.x.ai/v1/audio/speech',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${GROK_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'grok-3-mini-tts',
+          voice: VOICE_ID,
+          input: text
+        })
+      }
+    );
+
+    if (!response.ok) {
+      console.error('[TTS ERROR]', await response.text());
+      return null;
+    }
+
+    return Buffer.from(await response.arrayBuffer());
+
+  } catch (err) {
+    console.error('[TTS ERROR]', err);
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Lecture audio dans le vocal
+// ─────────────────────────────────────────────────
+
+async function playAudio(connection, buffer, session) {
+  const filePath = path.join(__dirname, `tts_${Date.now()}.mp3`);
+
+  try {
+    fs.writeFileSync(filePath, buffer);
+
+    const player = createAudioPlayer();
+    const resource = createAudioResource(filePath, {
+      inputType: StreamType.Arbitrary
+    });
+
+    // Indique que le bot parle pour éviter qu'il se déclenche lui-même
+    if (session) session.isSpeaking = true;
+
+    connection.subscribe(player);
+    player.play(resource);
+
+    await new Promise((resolve) => {
+      player.once(AudioPlayerStatus.Idle, resolve);
+      player.once('error', (err) => {
+        console.error('[PLAYER ERROR]', err);
+        resolve();
+      });
+    });
+
+  } finally {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    if (session) session.isSpeaking = false;
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Écoute d'un utilisateur
+// ─────────────────────────────────────────────────
+
+function listenToUser(receiver, userId, connection, session) {
+  // Évite de s'abonner deux fois au même user
+  if (receiver.subscriptions.has(userId)) return;
+
+  // Ignore le bot lui-même
+  if (session?.isSpeaking) return;
+
   const opusStream = receiver.subscribe(userId, {
-    end: { behavior: EndBehaviorType.AfterSilence, duration: 1000 },
+    end: {
+      behavior: EndBehaviorType.AfterSilence,
+      duration: 1200
+    }
+  });
+
+  const decoder = new prism.opus.Decoder({
+    frameSize: 960,
+    channels: 2,
+    rate: 48000
   });
 
   const chunks = [];
-  opusStream.on('data', chunk => chunks.push(chunk));
 
-  opusStream.on('end', async () => {
-    if (chunks.length === 0) return;
+  opusStream
+    .pipe(decoder)
+    .on('data', chunk => chunks.push(chunk))
+    .on('end', async () => {
+      try {
+        const pcmBuffer = Buffer.concat(chunks);
 
-    const audioBuffer = Buffer.concat(chunks);
+        // Ignore les buffers trop courts (bruit / souffle)
+        if (pcmBuffer.length < 48000) return;
 
-    // Transcription
-    const text = await transcribeAudio(audioBuffer);
-    if (!text) return;
+        console.log(`[VOCAL] Audio reçu de ${userId} (${pcmBuffer.length} bytes)`);
 
-    // Vérification des mots déclencheurs
-    const lower = text.toLowerCase();
-    const triggered = TRIGGERS.some(t => lower.includes(t));
-    if (!triggered) return;
+        const text = await transcribeAudio(pcmBuffer);
+        if (!text) return;
 
-    console.log(`[VocalIA] Déclenché par : "${text}"`);
+        console.log(`[VOCAL] Transcription : "${text}"`);
 
-    // Réponse Grok
-    const reply = await getGrokResponse(text);
-    if (!reply) return;
+        const lower = text.toLowerCase();
+        const triggered = TRIGGERS.some(word => lower.includes(word));
+        if (!triggered) return;
 
-    console.log(`[VocalIA] Réponse : "${reply}"`);
+        const reply = await getGrokResponse(text);
+        if (!reply) return;
 
-    // TTS
-    const audioReply = await textToSpeech(reply);
-    if (!audioReply) return;
+        console.log(`[VOCAL] Réponse : "${reply}"`);
 
-    // Jouer dans le vocal
-    await playAudio(connection, audioReply);
-  });
+        const voice = await textToSpeech(reply);
+        if (!voice) return;
+
+        await playAudio(connection, voice, session);
+
+      } catch (err) {
+        console.error('[VOCAL ERROR]', err);
+      }
+    })
+    .on('error', err => console.error('[DECODER ERROR]', err));
 }
 
-// ── Start / Stop ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────
+// API publique
+// ─────────────────────────────────────────────────
+
 function startVocalIA(connection, guildId) {
+  if (activeSessions.has(guildId)) return;
+
   const receiver = connection.receiver;
+  const session = { receiver, isSpeaking: false, handler: null };
 
   const handler = (userId) => {
-    // Évite d'écouter plusieurs fois le même user en même temps
-    if (receiver.subscriptions.has(userId)) return;
-    listenToUser(receiver, userId, connection);
+    listenToUser(receiver, userId, connection, session);
   };
 
+  session.handler = handler;
   receiver.speaking.on('start', handler);
-  activeSessions.set(guildId, handler);
+  activeSessions.set(guildId, session);
 
-  console.log(`[VocalIA] Session démarrée pour guild ${guildId}`);
+  console.log(`[VOCAL] IA activée pour guild ${guildId}`);
 }
 
 function stopVocalIA(guildId) {
+  const session = activeSessions.get(guildId);
+  if (!session) return;
+
+  session.receiver.speaking.off('start', session.handler);
   activeSessions.delete(guildId);
-  console.log(`[VocalIA] Session arrêtée pour guild ${guildId}`);
+
+  console.log(`[VOCAL] IA arrêtée pour guild ${guildId}`);
 }
 
 module.exports = { startVocalIA, stopVocalIA };
