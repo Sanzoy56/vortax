@@ -6,6 +6,7 @@ const parser = new Parser();
 const CHANNEL_ID_YTB = 'UCFjCHig5fVqCtjL0Z_cWwlQ';
 const RSS_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID_YTB}`;
 const DISCORD_SALON = '1362799456059265044';
+const ROLE_ID = '1379482124075401326';
 const CHECK_INTERVAL = 5 * 60 * 1000; // toutes les 5 minutes
 
 let derniereVideoId = null;
@@ -32,26 +33,30 @@ async function checkYoutube(client) {
     const salon = await client.channels.fetch(DISCORD_SALON);
     if (!salon) return;
 
-    const isLive = derniere.title?.toLowerCase().includes('live') || 
+    const isLive = derniere.title?.toLowerCase().includes('live') ||
                    derniere.title?.toLowerCase().includes('🔴');
 
+    const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+    const videoUrl = derniere.link;
+
     const embed = new EmbedBuilder()
-      .setColor(isLive ? '#FF0000' : '#FF6B6B')
-      .setAuthor({ 
-        name: 'VTX Vortax', 
+      .setColor(isLive ? '#FF0000' : '#FF0000') // Rouge YouTube dans les 2 cas
+      .setAuthor({
+        name: 'YouTube',
         iconURL: 'https://www.youtube.com/favicon.ico',
-        url: `https://www.youtube.com/@VTX-Vortax`
       })
-      .setTitle(isLive ? `🔴 ${derniere.title}` : `🎥 ${derniere.title}`)
-      .setURL(derniere.link)
-      .setDescription(isLive ? 'Vortax est en live sur YouTube !' : 'Vortax a posté une nouvelle vidéo !')
-      .setThumbnail(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`)
+      .setTitle(isLive ? `🔴 ${derniere.title}` : derniere.title)
+      .setURL(videoUrl)
+      .setDescription(isLive ? '**VTX Vortax** est en live sur YouTube !' : '**VTX Vortax** vient de poster une nouvelle vidéo !')
+      .setImage(thumbnailUrl) // Image grande (comme dans la capture)
       .setTimestamp(new Date(derniere.pubDate))
       .setFooter({ text: isLive ? 'YouTube Live' : 'YouTube' });
 
-    await salon.send({ 
-      content: isLive ? '@everyone 🔴 **Vortax est en live !**' : '@everyone 🎥 **Nouvelle vidéo de Vortax !**',
-      embeds: [embed] 
+    await salon.send({
+      content: isLive
+        ? `<@&${ROLE_ID}> 🔴 **Vortax est en live !**`
+        : `<@&${ROLE_ID}> 🎥 **Nouvelle vidéo de Vortax !**`,
+      embeds: [embed]
     });
 
   } catch (err) {
