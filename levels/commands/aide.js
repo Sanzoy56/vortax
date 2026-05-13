@@ -1,76 +1,69 @@
-'use strict';
-
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const {
-  XP_PAR_MESSAGE, XP_VOCAL_PAR_MINUTE, COINS_PAR_MESSAGE,
-  PURGE_PRIX, ROB_COOLDOWN_MS, ROB_PENALITE,
-} = require('../config.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('aide')
-    .setDescription('Affiche toutes les commandes du système de niveaux'),
+    .setDescription('Affiche toutes les commandes disponibles'),
 
   async execute(interaction) {
     const embed = new EmbedBuilder()
-      .setTitle('📖 Commandes du système de niveaux')
-      .setColor(0x5865f2)
+      .setTitle('📖 Aide — Commandes disponibles')
+      .setColor(0x7c5cfc)
+      .setThumbnail(interaction.client.user.displayAvatarURL())
       .addFields(
         {
-          name: '📊 Progression',
+          name: '👤 Profil & Niveaux',
           value: [
-            '`/profil` — Ton profil complet',
-            '`/profil @membre` — Profil d\'un membre',
-            '`/top` — Classement Top 10 XP',
-            '`/topmoney` — Classement Top 10 Coins',
+            '`/profil [membre]` — Voir le profil d\'un membre (image)',
+            '`/top [exp|coins]` — Classement des 10 premiers',
           ].join('\n'),
         },
         {
-          name: '📋 Quêtes',
-          value: '`/quetes` — Tes quêtes du jour (reset à minuit)',
-        },
-        {
-          name: '🛒 Boutiques',
+          name: '🎯 Quêtes',
           value: [
-            '`/boutique` — Boosts XP + boîte surprise',
-            '`/boutique-roles` — Boosts XP permanents',
-            '`/items` — Bouclier, purge malus, lame acérée',
-            '`/use` — Activer un item depuis ton inventaire',
+            '`/quetes` — Voir tes quêtes journalières + réclamer les récompenses',
           ].join('\n'),
         },
         {
-          name: '💰 Coins',
+          name: '💰 Économie',
           value: [
-            '`/donner @membre <montant>` — Donner des coins à quelqu\'un',
-            '`/purge` — Supprimer ton malus actif (' + PURGE_PRIX.toLocaleString() + ' VTX-Coins)',
+            '`/dep <montant|all>` — Déposer en banque',
+            '`/with <montant|all>` — Retirer de la banque',
+            '`/rob <@membre>` — Voler un membre (cooldown 4h, argent sur soi uniquement)',
           ].join('\n'),
         },
         {
-          name: '🔫 Rob',
+          name: '🛒 Boutique & Inventaire',
           value: [
-            '`/rob @membre` — Voler entre 5% et 15% des coins (max 75%, cooldown 4h)',
-            `30% de chances d'échouer → tu perds **${ROB_PENALITE.toLocaleString()} coins**`,
+            '`/boutique boost` — Acheter des boosts temporaires (max 1h)',
+            '`/boutique role` — Acheter des boosts permanents (min 1M VTX-Coins)',
+            '`/inventaire` — Gérer et équiper tes boosts',
           ].join('\n'),
         },
         {
-          name: '🎮 Divertissement',
+          name: '🔥 Système de Streak',
           value: [
-            '`/iq` — Teste ton QI du jour (reset à minuit)',
-            '`/meteo <ville>` — Affiche la météo d\'une ville',
+            'Parle chaque jour pour maintenir ton streak.',
+            'Chaque jour de streak = **+2% EXP** (max +50%).',
+            'Tu perds ton streak si tu ne parles pas le lendemain.',
           ].join('\n'),
         },
         {
-          name: 'ℹ️ Infos',
+          name: '🏅 Rangs',
+          value: 'Les rôles sont attribués automatiquement selon ton niveau. Progresse pour débloquer Plastique, Carton, Bronze... jusqu\'au **GOAT** !',
+        },
+        {
+          name: '🪙 VTX-Coins',
           value: [
-            `Tu gagnes **${XP_PAR_MESSAGE} XP** et **${COINS_PAR_MESSAGE} VTX-Coins** par message (1 fois/45s max).`,
-            `Tu gagnes **${XP_VOCAL_PAR_MINUTE} XP/min** en vocal (2+ personnes, sans mute).`,
-            `Ton streak augmente ton XP jusqu'à **+20%** !`,
+            'Gagnes des VTX-Coins en envoyant des messages.',
+            'Utilise `/dep` pour mettre tes coins en sécurité à la banque.',
+            'L\'argent en banque ne peut pas être volé.',
           ].join('\n'),
         },
       )
-      .setFooter({ text: 'Team Vortax 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) })
+      .setFooter({ text: 'Bot développé pour le serveur Vortax' })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed] });
   },
 };

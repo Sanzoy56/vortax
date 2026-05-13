@@ -1,99 +1,65 @@
-'use strict';
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getDB, getUser, withLock, saveDB }  = require('../db');
-const { ADMINS_ROLES, VORTAX_ID, ROB_COOLDOWN_MS, ROB_ECHEC_CHANCE, ROB_PENALITE } = require('../config');
+const { SlashCommandBuilder } = require('discord.js');
+const { getUser, saveUser } = require('../db');
+const { PROTECTED_USERS, ROB } = require('../config');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('rob')
-    .setDescription('Voler des VTX-Coins à un membre')
-    .addUserOption(o => o.setName('membre').setDescription('Membre à voler').setRequired(true)),
+    .setDescription('Tente de voler de l\'argent à un membre')
+    .addUserOption(o => o.setName('cible').setDescription('Membre à voler').setRequired(true)),
 
   async execute(interaction) {
-    const cible = interaction.options.getUser('membre');
+    const target = interaction.options.getUser('cible');
+    const userId = interaction.user.id;
 
-    if (cible.id === interaction.user.id)
-      return interaction.reply({ content: 'Tu ne peux pas te voler toi-même.', ephemeral: true });
-    if (cible.bot)
-      return interaction.reply({ content: 'Tu ne peux pas voler un bot.', ephemeral: true });
+    // Protection
+    if (target.id === userId) return interaction.reply({ content: '❌ Tu ne peux pas te voler toi-même.', ephemeral: true });
+    if (PROTECTED_USERS.includes(target.id)) return interaction.reply({ content: '🛡️ Cette personne est protégée et ne peut pas être volée.', ephemeral: true });
 
-    const lockKey = [interaction.user.id, cible.id].sort().join('_');
+    const robber = getUser(userId);
+    const victim = getUser(target.id);
 
-    await withLock(lockKey, async () => {
-      const db      = getDB();
-      const voleur  = getUser(db, interaction.user.id);
-      const victime = getUser(db, cible.id);
-      const now     = Date.now();
+    // Cooldown 4h
+    const now  = Date.now();
+    const diff = now - (robber.rob?.lastUsed || 0);
+    if (diff < ROB.COOLDOWN_MS) {
+      const remaining = Math.ceil((ROB.COOLDOWN_MS - diff) / 60_000);
+      return interaction.reply({ content: `⏳ Tu dois attendre encore **${remaining} minute(s)** avant de re-voler.`, ephemeral: true });
+    }
 
-      const membreVoleur   = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-      const voleurEstAdmin = membreVoleur?.roles.cache.some(r => ADMINS_ROLES.includes(r.id));
-      const voleurExempt   = VORTAX_ID === interaction.user.id || voleurEstAdmin;
+    // Victime doit avoir de l'argent sur soi (pas en banque)
+    if (victim.wallet <= 0) {
+      robber.rob.lastUsed = now;
+      saveUser(robber);
+      return interaction.reply({ content: `💸 <@${target.id}> n'a pas d'argent sur lui, tout est en banque !` });
+    }
 
-      const membreCible   = await interaction.guild.members.fetch(cible.id).catch(() => null);
-      const cibleEstAdmin = membreCible?.roles.cache.some(r => ADMINS_ROLES.includes(r.id));
-      const cibleExempt   = VORTAX_ID === cible.id || cibleEstAdmin;
+    robber.rob.lastUsed = now;
 
-      if (cibleExempt && !voleurExempt)
-        return interaction.reply({ content: `<@${cible.id}> ne peut pas être volé. 🛡️`, ephemeral: true });
+    // 60% de réussite
+    const success = Math.random() < ROB.SUCCESS_RATE;
+    if (success) {
+      const percent = ROB.MIN_PERCENT + Math.random() * (ROB.MAX_PERCENT - ROB.MIN_PERCENT);
+      const stolen  = Math.max(1, Math.floor(victim.wallet * percent));
 
-      if (!voleurExempt && voleur.dernierRob && now - voleur.dernierRob < ROB_COOLDOWN_MS) {
-        const resteMs = ROB_COOLDOWN_MS - (now - voleur.dernierRob);
-        return interaction.reply({
-          content: `Tu dois attendre encore <t:${Math.floor((now + resteMs) / 1000)}:R> avant de pouvoir voler à nouveau.`,
-          ephemeral: true,
-        });
-      }
+      victim.wallet -= stolen;
+      robber.wallet += stolen;
 
-      if (victime.coins <= 0)
-        return interaction.reply({ content: `Impossible de voler <@${cible.id}>, il n'a pas un seul VTX-Coin !`, ephemeral: true });
+      saveUser(robber);
+      saveUser(victim);
 
-      if (victime.shieldActif && victime.shieldActif > now) {
-        if (!voleurExempt) voleur.dernierRob = now;
-        saveDB(db);
-        return interaction.reply({
-          content: `<@${cible.id}> est protégé par un **Bouclier Anti-Rob** ! Tu repars les mains vides${!voleurExempt ? ' et ton cooldown est réinitialisé' : ''}.`,
-          ephemeral: true,
-        });
-      }
+      return interaction.reply({
+        content: `🦹 **${interaction.user.username}** a volé **${stolen} VTX-Coins** à <@${target.id}> ! 💰`,
+      });
+    } else {
+      // Échec : pénalité sur le voleur
+      const penalty = Math.floor(victim.wallet * 0.05);
+      robber.wallet = Math.max(0, robber.wallet - penalty);
+      saveUser(robber);
 
-      if (!voleurExempt) voleur.dernierRob = now;
-
-      // Échec
-      if (Math.random() < ROB_ECHEC_CHANCE) {
-        const perte  = Math.min(ROB_PENALITE, voleur.coins);
-        voleur.coins = Math.max(0, voleur.coins - perte);
-        saveDB(db);
-        return interaction.reply({
-          content: `Le vol a échoué ! Tu t'es fait attraper et tu as perdu **${perte.toLocaleString()} VTX-Coins**.\nTon solde : **${voleur.coins.toLocaleString()} VTX-Coins**`,
-          ephemeral: true,
-        });
-      }
-
-      // Succès
-      let montant = Math.floor(victime.coins * (0.05 + Math.random() * 0.10));
-      montant     = Math.min(montant, Math.floor(victime.coins * 0.75), 500000);
-
-      if (voleur.lameProchaineRob) {
-        montant = Math.min(montant * 2, Math.floor(victime.coins * 0.75));
-        voleur.lameProchaineRob = false;
-      }
-
-      victime.coins -= montant;
-      voleur.coins  += montant;
-      saveDB(db);
-
-      const embed = new EmbedBuilder()
-        .setTitle('Vol réussi !')
-        .setColor(0xe74c3c)
-        .setDescription(
-          `<@${interaction.user.id}> a volé **${montant.toLocaleString()} VTX-Coins** à <@${cible.id}> !\n\n` +
-          `Ton solde : **${voleur.coins.toLocaleString()}**\n` +
-          `Solde de <@${cible.id}> : **${victime.coins.toLocaleString()}**`
-        )
-        .setFooter({ text: voleurExempt ? 'Aucun cooldown appliqué' : 'Prochain rob disponible dans 4h' })
-        .setTimestamp();
-
-      await interaction.reply({ embeds: [embed] });
-    });
+      return interaction.reply({
+        content: `🚔 **${interaction.user.username}** s'est fait attraper en essayant de voler <@${target.id}> ! Il a perdu **${penalty} VTX-Coins**.`,
+      });
+    }
   },
 };

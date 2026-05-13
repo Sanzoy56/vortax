@@ -1,3 +1,5 @@
+'use strict';
+
 const { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { token } = require('./token.json');
 
@@ -7,7 +9,7 @@ const commands = [
     new SlashCommandBuilder()
         .setName('panel')
         .setDescription('Ouvre le panel de modération')
-        .setDefaultMemberPermissions(0) // inchangé
+        .setDefaultMemberPermissions(0)
         .addUserOption(option =>
             option.setName('membre')
                 .setDescription('Le membre à modérer')
@@ -38,7 +40,7 @@ const commands = [
     new SlashCommandBuilder()
         .setName('status')
         .setDescription('Changer le statut du bot')
-        .setDefaultMemberPermissions(0) // admins seulement
+        .setDefaultMemberPermissions(0)
         .addStringOption(option =>
             option.setName('texte')
                 .setDescription('Texte du statut')
@@ -61,7 +63,7 @@ const commands = [
     new SlashCommandBuilder()
         .setName('say')
         .setDescription('Faire parler le bot')
-        .setDefaultMemberPermissions(0) // admins seulement
+        .setDefaultMemberPermissions(0)
         .addStringOption(option =>
             option.setName('type')
                 .setDescription('Type de message')
@@ -171,7 +173,7 @@ const commands = [
     new SlashCommandBuilder()
         .setName('giveaway')
         .setDescription('Lancer un giveaway')
-        .setDefaultMemberPermissions(0) // admins seulement
+        .setDefaultMemberPermissions(0)
         .addStringOption(opt =>
             opt.setName('lot')
                 .setDescription('Ce qu\'on gagne')
@@ -195,18 +197,26 @@ const commands = [
         )
         .toJSON(),
 
-    // ─── BOUTIQUES ────────────────────────────────────────────────
+    // ─── VOCAL ────────────────────────────────────────────────────
     new SlashCommandBuilder()
-        .setName('boutique-boost')
-        .setDescription('Ouvre la boutique des boosts XP temporaires')
+        .setName('vocal')
+        .setDescription('Gérer le bot vocal IA')
+        .addSubcommand(sub =>
+            sub.setName('join')
+                .setDescription('Le bot rejoint un salon vocal')
+                .addChannelOption(opt =>
+                    opt.setName('salon')
+                        .setDescription('Le salon vocal à rejoindre')
+                        .setRequired(true)
+                )
+        )
+        .addSubcommand(sub =>
+            sub.setName('leave')
+                .setDescription('Le bot quitte le salon vocal')
+        )
         .toJSON(),
 
-    new SlashCommandBuilder()
-        .setName('boutique-roles')
-        .setDescription('Ouvre la boutique des rôles XP permanents')
-        .toJSON(),
-
-    // ─── ÉCONOMIE / SOCIAL ────────────────────────────────────────
+    // ─── LEVELS / ÉCONOMIE ────────────────────────────────────────
     new SlashCommandBuilder()
         .setName('profil')
         .setDescription('Voir le profil d\'une personne')
@@ -219,21 +229,24 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('top')
-        .setDescription('Afficher le classement XP')
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('topmoney')
-        .setDescription('Afficher le classement money')
+        .setDescription('Classement des membres')
+        .addStringOption(o =>
+            o.setName('mode')
+             .setDescription('Classer par EXP ou VTX-Coins')
+             .addChoices(
+                 { name: '🏆 EXP',       value: 'exp'   },
+                 { name: '💰 VTX-Coins', value: 'coins' }
+             )
+        )
         .toJSON(),
 
     new SlashCommandBuilder()
         .setName('rob')
-        .setDescription('Voler un membre')
+        .setDescription('Tente de voler de l\'argent à un membre')
         .addUserOption(option =>
-            option.setName('membre')
+            option.setName('cible')
                 .setDescription('Membre à voler')
-                .setRequired(false)
+                .setRequired(true)
         )
         .toJSON(),
 
@@ -248,46 +261,52 @@ const commands = [
         .toJSON(),
 
     new SlashCommandBuilder()
-        .setName('items')
-        .setDescription('Voir vos items')
+        .setName('dep')
+        .setDescription('Déposer de l\'argent en banque')
+        .addStringOption(o =>
+            o.setName('montant')
+             .setDescription('Montant à déposer ou "all"')
+             .setRequired(true)
+        )
         .toJSON(),
 
     new SlashCommandBuilder()
-        .setName('use')
-        .setDescription('Utiliser un item acheté dans la boutique')
+        .setName('with')
+        .setDescription('Retirer de l\'argent de la banque')
+        .addStringOption(o =>
+            o.setName('montant')
+             .setDescription('Montant à retirer ou "all"')
+             .setRequired(true)
+        )
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('boutique')
+        .setDescription('Accéder à la boutique')
+        .addSubcommand(sub =>
+            sub.setName('boost')
+               .setDescription('Boosts temporaires d\'EXP / Coins (max 1h)')
+        )
+        .addSubcommand(sub =>
+            sub.setName('role')
+               .setDescription('Boosts permanents via rôle (min 1M VTX-Coins)')
+        )
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('inventaire')
+        .setDescription('Voir et gérer ton inventaire de boosts')
         .toJSON(),
 
     new SlashCommandBuilder()
         .setName('quetes')
-        .setDescription('Voir vos quêtes')
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('purge')
-        .setDescription('Supprimer votre malus')
+        .setDescription('Voir tes quêtes journalières')
         .toJSON(),
 
     new SlashCommandBuilder()
         .setName('aide')
         .setDescription('Aide sur les commandes disponibles')
         .toJSON(),
-new SlashCommandBuilder()
-    .setName('vocal')
-    .setDescription('Gérer le bot vocal IA')
-    .addSubcommand(sub =>
-        sub.setName('join')
-            .setDescription('Le bot rejoint un salon vocal')
-            .addChannelOption(opt =>
-                opt.setName('salon')
-                    .setDescription('Le salon vocal à rejoindre')
-                    .setRequired(true)
-            )
-    )
-    .addSubcommand(sub =>
-        sub.setName('leave')
-            .setDescription('Le bot quitte le salon vocal')
-    )
-    .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
@@ -295,14 +314,11 @@ const rest = new REST({ version: '10' }).setToken(token);
 (async () => {
     try {
         console.log('Enregistrement des commandes...');
-
         await rest.put(
             Routes.applicationCommands('1495864702457217271'),
             { body: commands }
         );
-
         console.log('Commandes enregistrées !');
-
     } catch (error) {
         console.error(error);
     }

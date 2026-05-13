@@ -1,47 +1,35 @@
-'use strict';
-const { TOUTES_QUETES, REPARTITION_QUETES, SALONS } = require('./config');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
+const { getUser, saveUser } = require('../db');
+const { generateDailyQuests, announceQuests } = require('../quests');
+const { canAnnounceQuests } = require('../tasks/questTask');
+const { generateQuests } = require('../canvas');
 
-function dateAujourdhui() {
-  return new Date().toISOString().slice(0, 10);
-}
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('quetes')
+    .setDescription('Voir tes quêtes journalières'),
 
-function tirerQuetes() {
-  const liste = [];
-  for (const [cat, nb] of Object.entries(REPARTITION_QUETES)) {
-    const pool   = TOUTES_QUETES.filter(q => q.cat === cat);
-    const tirage = pool.sort(() => Math.random() - 0.5).slice(0, nb);
-    for (const q of tirage) liste.push({ id: q.id, progression: 0, completee: false });
-  }
-  return { date: dateAujourdhui(), liste };
-}
+  async execute(interaction) {
+    await interaction.deferReply();
 
-function getQuetesJour(user) {
-  if (!user.quetes || user.quetes.date !== dateAujourdhui()) {
-    user.quetes = tirerQuetes();
-  }
-  return user.quetes.liste;
-}
+    const user = getUser(interaction.user.id);
+    generateDailyQuests(user);
+    saveUser(user);
 
-function avancerQuete(user, idQuete, montant, guild, userId) {
-  const quetes = getQuetesJour(user);
-  const entry  = quetes.find(q => q.id === idQuete);
-  if (!entry || entry.completee) return;
+    const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+    if (!member) return interaction.editReply('❌ Erreur membre.');
 
-  const def = TOUTES_QUETES.find(q => q.id === idQuete);
-  if (!def) return;
+    const buffer     = await generateQuests(member, user.quests.list);
+    const attachment = new AttachmentBuilder(buffer, { name: 'quetes.png' });
 
-  entry.progression = Math.min(entry.progression + montant, def.cible);
-  if (entry.progression < def.cible) return;
+    await interaction.editReply({
+      content: '📋 Tes quêtes du jour — les récompenses sont données automatiquement quand tu complètes une quête !',
+      files:   [attachment],
+    });
 
-  entry.completee = true;
-  user.xp    += def.xp;
-  user.coins += def.coins;
-
-  const salon = guild?.channels.cache.get(SALONS.quetes);
-  salon?.send(
-    `Toutes nos félicitations <@${userId}>, vous venez d'accomplir la quête **${def.nom}** ! ` +
-    `+${def.xp} XP, +${def.coins.toLocaleString()} coins`
-  );
-}
-
-module.exports = { dateAujourdhui, tirerQuetes, getQuetesJour, avancerQuete };
+    // Annoncer dans le salon quêtes (1 fois/jour max)
+    if (canAnnounceQuests(interaction.user.id)) {
+      await announceQuests(interaction.guild, interaction.user.id);
+    }
+  },
+};

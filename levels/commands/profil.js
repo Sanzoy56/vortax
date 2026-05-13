@@ -1,32 +1,27 @@
-'use strict';
-const { SlashCommandBuilder } = require('discord.js');
-const { getDB, getUser, withLock, saveDB } = require('../db');
-const { buildProfilCanvas }               = require('../canvas');
-const { avancerQuete }                    = require('../quetes');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
+const { getUser } = require('../db');
+const { levelFromExp } = require('../levels');
+const { generateProfile } = require('../canvas');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('profil')
     .setDescription('Affiche ton profil ou celui d\'un membre')
-    .addUserOption(o => o.setName('membre').setDescription('Membre à voir').setRequired(false)),
+    .addUserOption(o => o.setName('membre').setDescription('Membre à afficher')),
 
   async execute(interaction) {
-    const target = interaction.options.getUser('membre') ?? interaction.user;
+    await interaction.deferReply();
 
-    await withLock(target.id, async () => {
-      const db   = getDB();
-      const user = getUser(db, target.id);
-      const now  = Date.now();
+    const target = interaction.options.getUser('membre') || interaction.user;
+    const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+    if (!member) return interaction.editReply('❌ Membre introuvable.');
 
-      if (target.id === interaction.user.id) {
-        avancerQuete(user, 'spe_profil', 1, interaction.guild, interaction.user.id);
-        saveDB(db);
-      }
+    const userData   = getUser(target.id);
+    userData.level   = levelFromExp(userData.exp);
 
-      const member = await interaction.guild.members.fetch(target.id).catch(() => null);
-      const file   = await buildProfilCanvas(target, member, user, now);
+    const buffer     = await generateProfile(member, userData);
+    const attachment = new AttachmentBuilder(buffer, { name: 'profil.png' });
 
-      await interaction.reply({ files: [file] });
-    });
+    await interaction.editReply({ files: [attachment] });
   },
 };

@@ -1,156 +1,134 @@
-'use strict';
-
-const SALONS = {
-  niveaux:   '1500132108599955647',
-  rangs:     '1500132032016285797',
-  streaks:   '1500132131173564586',
-  annonces:  '1360971107846590474',
-  quetes:    '1500132151381852394',
-};
-
-const ADMINS_ROLES = [
-  '1473460100210360370',
-  '1491458130322919435',
-  '1361408552664568100',
-];
-
-const XP_PAR_MESSAGE      = 120;
-const XP_VOCAL_PAR_MINUTE = 60;
-const COINS_PAR_MESSAGE   = 115;
-const MESSAGE_COOLDOWN_MS = 45 * 1000;
-const PURGE_PRIX          = 30000;
-const ROB_COOLDOWN_MS     = 4 * 60 * 60 * 1000;
-const ROB_ECHEC_CHANCE    = 0.30;
-const ROB_PENALITE        = 20000;
-const BOITE_PRIX          = 50000;
-const TROIS_MOIS_MS       = 3 * 30 * 24 * 60 * 60 * 1000;
-const VORTAX_ID           = '1405637417272086588';
-
-const RANGS = [
-  { nom: 'Plastique',         role: '1500111867228454952', niveau: 1    },
-  { nom: 'Plastique I',       role: '1499486138488848394', niveau: 5    },
-  { nom: 'Plastique II',      role: '1500111961722060891', niveau: 10   },
-  { nom: 'Plastique III',     role: '1500112003589607475', niveau: 15   },
-  { nom: 'Carton',            role: '1500112057855508481', niveau: 20   },
-  { nom: 'Carton I',          role: '1500112122858962955', niveau: 25   },
-  { nom: 'Carton II',         role: '1500112168866021428', niveau: 30   },
-  { nom: 'Carton III',        role: '1500112194329903356', niveau: 35   },
-  { nom: 'Bronze',            role: '1500112232854585404', niveau: 40   },
-  { nom: 'Bronze I',          role: '1500112321689682070', niveau: 47   },
-  { nom: 'Bronze II',         role: '1500112503215099954', niveau: 54   },
-  { nom: 'Bronze III',        role: '1500112549113233428', niveau: 61   },
-  { nom: 'Fer',               role: '1500112592327147550', niveau: 70   },
-  { nom: 'Fer I',             role: '1500112650389164102', niveau: 80   },
-  { nom: 'Fer II',            role: '1500112726079574187', niveau: 90   },
-  { nom: 'Fer III',           role: '1500112767112446023', niveau: 100  },
-  { nom: 'Or',                role: '1500112824020766720', niveau: 115  },
-  { nom: 'Or I',              role: '1500112880970891446', niveau: 130  },
-  { nom: 'Or II',             role: '1500112924897968159', niveau: 145  },
-  { nom: 'Or III',            role: '1500112962097123360', niveau: 160  },
-  { nom: 'Diamant',           role: '1500113000458354870', niveau: 180  },
-  { nom: 'Diamant I',         role: '1500113050953449693', niveau: 200  },
-  { nom: 'Diamant II',        role: '1500113089561886790', niveau: 225  },
-  { nom: 'Diamant III',       role: '1500113148076884009', niveau: 250  },
-  { nom: 'Emeraude',          role: '1500113212455125135', niveau: 280  },
-  { nom: 'Emeraude I',        role: '1500113268386168982', niveau: 310  },
-  { nom: 'Emeraude II',       role: '1500113309565845775', niveau: 340  },
-  { nom: 'Emeraude III',      role: '1500113348396843118', niveau: 370  },
-  { nom: 'Rubis',             role: '1500113510011768982', niveau: 410  },
-  { nom: 'Rubis I',           role: '1500113611174182932', niveau: 450  },
-  { nom: 'Rubis II',          role: '1500113574314508390', niveau: 490  },
-  { nom: 'Rubis III',         role: '1500113692631760896', niveau: 530  },
-  { nom: 'Legendaire',        role: '1500113765654331567', niveau: 580  },
-  { nom: 'Legendaire I',      role: '1500113838195081236', niveau: 630  },
-  { nom: 'Legendaire II',     role: '1500113881043959918', niveau: 680  },
-  { nom: 'Mythique',          role: '1500113863230754946', niveau: 740  },
-  { nom: 'Mythique I',        role: '1500114173676224662', niveau: 800  },
-  { nom: 'Mythique II',       role: '1500114196401229906', niveau: 860  },
-  { nom: 'GOAT',              role: '1500114259667980289', niveau: 950  },
-  { nom: 'EXTRA GOAT',        role: '1500114314827141281', niveau: 1050 },
-  { nom: 'THE ORIGINAL GOAT', role: '1500114295223095316', niveau: 1200 },
-];
-
-const BOOSTS_PERMANENTS = [
-  { id: 'perm_1', nom: 'Boosteur Bronze',     bonus: 0.05, prix: 8000000,  roleId: '1500261512764194877' },
-  { id: 'perm_2', nom: 'Boosteur Argent',     bonus: 0.10, prix: 12000000, roleId: '1500261615868711114' },
-  { id: 'perm_3', nom: 'Boosteur Or',         bonus: 0.15, prix: 16000000, roleId: '1500261594624561303' },
-  { id: 'perm_4', nom: 'Boosteur Diamant',    bonus: 0.25, prix: 20000000, roleId: '1500261748819628338' },
-  { id: 'perm_5', nom: 'Boosteur Cristal',    bonus: 0.35, prix: 23000000, roleId: '1500261748689600712' },
-  { id: 'perm_6', nom: 'Boosteur Legendaire', bonus: 0.45, prix: 25000000, roleId: '1500261896513917049' },
-];
-
-const STREAKS_BONUS = [
-  { jours: 1,   bonus: 0.02 },
-  { jours: 8,   bonus: 0.04 },
-  { jours: 15,  bonus: 0.06 },
-  { jours: 31,  bonus: 0.09 },
-  { jours: 46,  bonus: 0.12 },
-  { jours: 61,  bonus: 0.15 },
-  { jours: 91,  bonus: 0.18 },
-  { jours: 181, bonus: 0.20 },
-];
-
-const BOOSTS = [
-  { id: 'boost_1', nom: '+30% XP 20min', bonus: 0.30, duree: 20 * 60 * 1000, prix: 80000  },
-  { id: 'boost_2', nom: '+40% XP 30min', bonus: 0.40, duree: 30 * 60 * 1000, prix: 100000 },
-  { id: 'boost_3', nom: '+50% XP 10min', bonus: 0.50, duree: 10 * 60 * 1000, prix: 350000 },
-  { id: 'boost_4', nom: '+25% XP 1h',    bonus: 0.25, duree: 60 * 60 * 1000, prix: 120000 },
-  { id: 'boost_5', nom: '+60% XP 15min', bonus: 0.60, duree: 15 * 60 * 1000, prix: 200000 },
-  { id: 'boost_6', nom: '+75% XP 5min',  bonus: 0.75, duree: 5  * 60 * 1000, prix: 500000 },
-];
-
-const ITEMS = [
-  { id: 'item_shield', nom: 'Bouclier Anti-Rob', desc: 'Protège contre un vol pendant 2h',        prix: 40000, duree: 2 * 60 * 60 * 1000 },
-  { id: 'item_purge',  nom: 'Purge Malus',        desc: 'Supprime immédiatement ton malus actif',  prix: 25000, duree: null                },
-  { id: 'item_vol2x',  nom: 'Lame Acérée',        desc: 'Double le montant volé au prochain /rob', prix: 60000, duree: null                },
-];
-
-const BOITE_RECOMPENSES = [
-  { type: 'boost', boostId: 'boost_1', label: '+30% XP 20min', chance: 35 },
-  { type: 'boost', boostId: 'boost_2', label: '+40% XP 30min', chance: 25 },
-  { type: 'boost', boostId: 'boost_3', label: '+50% XP 10min', chance: 15 },
-  { type: 'boost', boostId: 'boost_6', label: '+75% XP 5min',  chance: 5  },
-  { type: 'malus', bonus: -0.05, duree: 20 * 60 * 1000, label: '-5% XP 20min',      chance: 10 },
-  { type: 'malus', bonus: -0.10, duree: 15 * 60 * 1000, label: '-10% XP 15min',     chance: 7  },
-  { type: 'malus', bonus: -0.15, duree: 10 * 60 * 1000, label: '-15% XP 10min',     chance: 2  },
-  { type: 'coins', montant: -25000,                      label: '-25 000 VTX-Coins', chance: 1  },
-];
-
-const TOUTES_QUETES = [
-  { id: 'msg_5',         nom: 'Bavard',           desc: 'Envoyer 5 messages',                        cat: 'Messages',    cible: 5,     xp: 100,  coins: 400  },
-  { id: 'msg_10',        nom: 'Causant',          desc: 'Envoyer 10 messages',                       cat: 'Messages',    cible: 10,    xp: 150,  coins: 600  },
-  { id: 'msg_30',        nom: 'Intarissable',     desc: 'Envoyer 30 messages',                       cat: 'Messages',    cible: 30,    xp: 400,  coins: 1500 },
-  { id: 'msg_75',        nom: 'Machine à écrire', desc: 'Envoyer 75 messages',                       cat: 'Messages',    cible: 75,    xp: 900,  coins: 3500 },
-  { id: 'msg_reply',     nom: 'Réactif',          desc: 'Répondre à 5 messages',                     cat: 'Messages',    cible: 5,     xp: 120,  coins: 450  },
-  { id: 'voc_10',        nom: 'Présent',          desc: 'Rester 10 min en vocal',                    cat: 'Vocal',       cible: 10,    xp: 150,  coins: 600  },
-  { id: 'voc_30',        nom: 'Sociable',         desc: 'Rester 30 min en vocal',                    cat: 'Vocal',       cible: 30,    xp: 450,  coins: 1800 },
-  { id: 'voc_90',        nom: 'Accro au micro',   desc: 'Rester 1h30 en vocal',                      cat: 'Vocal',       cible: 90,    xp: 1000, coins: 4000 },
-  { id: 'voc_group',     nom: 'Animateur',        desc: 'Être dans un vocal 3+ personnes pendant 1h',cat: 'Vocal',       cible: 60,    xp: 1200, coins: 5000 },
-  { id: 'soc_react10',   nom: 'Expressif',        desc: 'Mettre 10 réactions',                       cat: 'Social',      cible: 10,    xp: 300,  coins: 1200 },
-  { id: 'soc_repVortax', nom: 'Répondre à Vortax',desc: 'Répondre directement à Vortax',             cat: 'Social',      cible: 1,     xp: 1200, coins: 5000 },
-  { id: 'prog_boost',    nom: 'Boosté',           desc: 'Activer un boost',                          cat: 'Progression', cible: 1,     xp: 300,  coins: 1200 },
-  { id: 'prog_xp500',    nom: 'Accumulateur',     desc: "Gagner 500 XP aujourd'hui",                 cat: 'Progression', cible: 500,   xp: 400,  coins: 1500 },
-  { id: 'prog_xp2000',   nom: 'XP addict',        desc: "Gagner 2000 XP aujourd'hui",                cat: 'Progression', cible: 2000,  xp: 1000, coins: 4000 },
-  { id: 'prog_streak',   nom: 'Fidèle',           desc: "Maintenir son streak aujourd'hui",          cat: 'Progression', cible: 1,     xp: 250,  coins: 1000 },
-  { id: 'prog_coins',    nom: 'Économe',          desc: "Gagner 10 000 coins aujourd'hui",           cat: 'Progression', cible: 10000, xp: 800,  coins: 0    },
-  { id: 'evt_matin',     nom: 'Matinal',          desc: 'Envoyer un message avant 9h',               cat: 'Evenement',   cible: 1,     xp: 100,  coins: 400  },
-  { id: 'evt_nuit',      nom: 'Noctambule',       desc: 'Envoyer un message après minuit',           cat: 'Evenement',   cible: 1,     xp: 100,  coins: 400  },
-  { id: 'evt_vendredi',  nom: 'Vendredi soir',    desc: 'Envoyer 10 messages un vendredi après 20h', cat: 'Evenement',   cible: 10,    xp: 350,  coins: 1400 },
-  { id: 'evt_weekend',   nom: 'Actif du weekend', desc: 'Envoyer 20 messages un samedi ou dimanche', cat: 'Evenement',   cible: 20,    xp: 400,  coins: 1600 },
-  { id: 'spe_profil',    nom: 'Curieux',          desc: 'Utiliser la commande /profil',              cat: 'Speciale',    cible: 1,     xp: 80,   coins: 300  },
-  { id: 'spe_boutique',  nom: 'Commerçant',       desc: 'Ouvrir la boutique',                        cat: 'Speciale',    cible: 1,     xp: 80,   coins: 300  },
-  { id: 'spe_combo',     nom: 'Combo',            desc: 'Envoyer 30 msgs ET rester 45 min en vocal', cat: 'Speciale',    cible: 1,     xp: 1500, coins: 6000 },
-];
-
-const REPARTITION_QUETES = {
-  Messages: 2, Vocal: 2, Social: 2, Progression: 2, Evenement: 1, Speciale: 1,
-};
-
 module.exports = {
-  SALONS, ADMINS_ROLES, VORTAX_ID,
-  XP_PAR_MESSAGE, XP_VOCAL_PAR_MINUTE, COINS_PAR_MESSAGE,
-  MESSAGE_COOLDOWN_MS, PURGE_PRIX, ROB_COOLDOWN_MS,
-  ROB_ECHEC_CHANCE, ROB_PENALITE, BOITE_PRIX, TROIS_MOIS_MS,
-  RANGS, BOOSTS_PERMANENTS, STREAKS_BONUS, BOOSTS, ITEMS,
-  BOITE_RECOMPENSES, TOUTES_QUETES, REPARTITION_QUETES,
+  // ─── Salons ───────────────────────────────────────────────
+  CHANNELS: {
+    RANKS:   '1500132032016285797',  // salon annonce level-up
+    NIVEAU:  '1500132108599955647',  // salon niveaux
+    STREAKS: '1500132131173564586',  // salon streaks
+    QUETES:  '1500132151381852394',  // salon quêtes
+  },
+
+  // ─── Utilisateurs protégés (anti-rob) ─────────────────────
+  PROTECTED_USERS: [
+    '1405637417272086588', // Vortax
+    '1323025414523977798', // Sanzoy
+  ],
+
+  // ─── Paliers de rangs (level requis → rôle ID) ────────────
+  // Progression intelligente : rapide au début, exponentielle ensuite
+  RANKS: [
+    { level: 1,    roleId: '1500111867228454952', name: 'Plastique'      },
+    { level: 3,    roleId: '1499486138488848394', name: 'Plastique 1'    },
+    { level: 6,    roleId: '1500111961722060891', name: 'Plastique 2'    },
+    { level: 10,   roleId: '1500112003589607475', name: 'Plastique 3'    },
+    { level: 15,   roleId: '1500112057855508481', name: 'Carton'         },
+    { level: 21,   roleId: '1500112122858962955', name: 'Carton 1'       },
+    { level: 28,   roleId: '1500112168866021428', name: 'Carton 2'       },
+    { level: 36,   roleId: '1500112194329903356', name: 'Carton 3'       },
+    { level: 45,   roleId: '1500112232854585404', name: 'Bronze'         },
+    { level: 55,   roleId: '1500112321689682070', name: 'Bronze 1'       },
+    { level: 66,   roleId: '1500112503215099954', name: 'Bronze 2'       },
+    { level: 78,   roleId: '1500112549113233428', name: 'Bronze 3'       },
+    { level: 91,   roleId: '1500112592327147550', name: 'Fer'            },
+    { level: 105,  roleId: '1500112650389164102', name: 'Fer 1'          },
+    { level: 120,  roleId: '1500112726079574187', name: 'Fer 2'          },
+    { level: 136,  roleId: '1500112767112446023', name: 'Fer 3'          },
+    { level: 153,  roleId: '1500112824020766720', name: 'Or'             },
+    { level: 171,  roleId: '1500112880970891446', name: 'Or 1'           },
+    { level: 190,  roleId: '1500112924897968159', name: 'Or 2'           },
+    { level: 210,  roleId: '1500112962097123360', name: 'Or 3'           },
+    { level: 231,  roleId: '1500113000458354870', name: 'Diamant'        },
+    { level: 253,  roleId: '1500113050953449693', name: 'Diamant 1'      },
+    { level: 276,  roleId: '1500113089561886790', name: 'Diamant 2'      },
+    { level: 300,  roleId: '1500113148076884009', name: 'Diamant 3'      },
+    { level: 325,  roleId: '1500113212455125135', name: 'Émeraude'       },
+    { level: 351,  roleId: '1500113268386168982', name: 'Émeraude 1'     },
+    { level: 378,  roleId: '1500113309565845775', name: 'Émeraude 2'     },
+    { level: 406,  roleId: '1500113348396843118', name: 'Émeraude 3'     },
+    { level: 435,  roleId: '1500113510011768982', name: 'Rubis'          },
+    { level: 465,  roleId: '1500113611174182932', name: 'Rubis 1'        },
+    { level: 496,  roleId: '1500113574314508390', name: 'Rubis 2'        },
+    { level: 528,  roleId: '1500113692631760896', name: 'Rubis 3'        },
+    { level: 561,  roleId: '1500113765654331567', name: 'Légendaire'     },
+    { level: 595,  roleId: '1500113838195081236', name: 'Légendaire 1'   },
+    { level: 630,  roleId: '1500113881043959918', name: 'Légendaire 2'   },
+    { level: 666,  roleId: '1500113863230754946', name: 'Légendaire 3'   },
+    { level: 703,  roleId: '1500114173676224662', name: 'Mythique'       },
+    { level: 741,  roleId: '1500114196401229906', name: 'Mythique 1'     },
+    { level: 780,  roleId: '1500114259667980289', name: 'Mythique 2'     },
+    { level: 820,  roleId: '1500114314827141281', name: 'Mythique 3'     },
+    { level: 861,  roleId: '1500114295223095316', name: 'GOAT'           },
+  ],
+
+  // ─── EXP ──────────────────────────────────────────────────
+  EXP: {
+    MIN_PER_MSG: 15,
+    MAX_PER_MSG: 25,
+    COOLDOWN_MS: 60_000, // 1 message par minute compte pour l'XP
+  },
+
+  // ─── Coins par message ────────────────────────────────────
+  COINS: {
+    MIN_PER_MSG: 5,
+    MAX_PER_MSG: 15,
+  },
+
+  // ─── Streak ───────────────────────────────────────────────
+  STREAK: {
+    BONUS_PER_DAY: 0.02, // +2% EXP par jour de streak
+    MAX_BONUS: 0.50,     // cap à +50%
+  },
+
+  // ─── Rob ──────────────────────────────────────────────────
+  ROB: {
+    COOLDOWN_MS: 4 * 60 * 60 * 1000, // 4h
+    MIN_PERCENT: 0.05,
+    MAX_PERCENT: 0.20,
+    SUCCESS_RATE: 0.60, // 60% de chance de réussir
+  },
+
+  // ─── Boutique Boosts Temporaires ─────────────────────────
+  TEMP_BOOSTS: [
+    { id: 'boost_exp_25_30m', label: '+25% EXP — 30 min',  expBoost: 0.25, duration: 30,  price: 30_000  },
+    { id: 'boost_exp_25_1h',  label: '+25% EXP — 1h',      expBoost: 0.25, duration: 60,  price: 50_000  },
+    { id: 'boost_exp_50_30m', label: '+50% EXP — 30 min',  expBoost: 0.50, duration: 30,  price: 70_000  },
+    { id: 'boost_exp_50_1h',  label: '+50% EXP — 1h',      expBoost: 0.50, duration: 60,  price: 120_000 },
+    { id: 'boost_coin_25_1h', label: '+25% Coins — 1h',    coinBoost: 0.25, duration: 60, price: 40_000  },
+    { id: 'boost_coin_50_1h', label: '+50% Coins — 1h',    coinBoost: 0.50, duration: 60, price: 90_000  },
+  ],
+
+  // ─── Boutique Rôles (boosts permanents) ──────────────────
+  ROLE_BOOSTS: [
+    { id: 'role_exp_30',  label: '+30% EXP permanent',   expBoost: 0.30, price: 1_000_000, roleId: '1500261512764194877' },
+    { id: 'role_exp_45',  label: '+45% EXP permanent',   expBoost: 0.45, price: 2_500_000, roleId: '1500261615868711114' },
+    { id: 'role_exp_60',  label: '+60% EXP permanent',   expBoost: 0.60, price: 5_000_000, roleId: '1500261594624561303' },
+    { id: 'role_coin_30', label: '+30% Coins permanent', coinBoost: 0.30, price: 1_000_000, roleId: '1500261748819628338' },
+    { id: 'role_coin_45', label: '+45% Coins permanent', coinBoost: 0.45, price: 2_500_000, roleId: '1500261748689600712' },
+    { id: 'role_coin_60', label: '+60% Coins permanent', coinBoost: 0.60, price: 5_000_000, roleId: '1500261896513917049' },
+  ],
+
+  // ─── Quêtes journalières (pool) ───────────────────────────
+  QUEST_POOL: [
+    { id: 'q_msg_20',     label: 'Envoyer 20 messages',       type: 'messages', target: 20,   rewardExp: 300,   rewardCoins: 150   },
+    { id: 'q_msg_50',     label: 'Envoyer 50 messages',       type: 'messages', target: 50,   rewardExp: 700,   rewardCoins: 350   },
+    { id: 'q_msg_100',    label: 'Envoyer 100 messages',      type: 'messages', target: 100,  rewardExp: 1500,  rewardCoins: 750   },
+    { id: 'q_coins_500',  label: 'Gagner 500 VTX-Coins',      type: 'coins',    target: 500,  rewardExp: 400,   rewardCoins: 200   },
+    { id: 'q_coins_2000', label: 'Gagner 2 000 VTX-Coins',    type: 'coins',    target: 2000, rewardExp: 1000,  rewardCoins: 500   },
+    { id: 'q_exp_200',    label: 'Gagner 200 EXP',            type: 'exp',      target: 200,  rewardExp: 0,     rewardCoins: 300   },
+    { id: 'q_exp_500',    label: 'Gagner 500 EXP',            type: 'exp',      target: 500,  rewardExp: 0,     rewardCoins: 700   },
+    { id: 'q_streak',     label: 'Maintenir ton streak',       type: 'streak',   target: 1,    rewardExp: 500,   rewardCoins: 250   },
+    { id: 'q_cmd_3',      label: 'Utiliser 3 commandes',      type: 'commands', target: 3,    rewardExp: 200,   rewardCoins: 100   },
+  ],
+
+  QUESTS_PER_DAY: 3,
+
+  // ─── Canvas ───────────────────────────────────────────────
+  CANVAS: {
+    FONT_MAIN:  'Rajdhani',
+    COLOR_BG:   '#0d0d1a',
+    COLOR_CARD: '#13132b',
+    COLOR_ACC:  '#7c5cfc',
+    COLOR_GOLD: '#f5c842',
+    COLOR_TEXT: '#e8e8f0',
+    COLOR_MUTED:'#6b6b8a',
+  },
 };

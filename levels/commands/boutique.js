@@ -1,104 +1,140 @@
-'use strict';
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { getDB, getUser, withLock, saveDB } = require('../db');
-const { avancerQuete }                    = require('../quetes');
-const { BOOSTS, BOITE_PRIX, BOITE_RECOMPENSES, PURGE_PRIX } = require('../config');
-
-function ouvrirBoite() {
-  const total = BOITE_RECOMPENSES.reduce((a, b) => a + b.chance, 0);
-  let rand = Math.random() * total;
-  for (const r of BOITE_RECOMPENSES) { rand -= r.chance; if (rand <= 0) return r; }
-  return BOITE_RECOMPENSES[0];
-}
-
-function labelBoost(b) {
-  const bonus = `+${Math.round(b.bonus * 100)}%`;
-  const min   = b.duree / 60000;
-  const dur   = min >= 60 ? `${min / 60}h` : `${min}min`;
-  const prix  = b.prix >= 1000 ? `${b.prix / 1000}k` : b.prix;
-  return `${bonus} - ${dur} - ${prix}`;
-}
+const { getUser, saveUser } = require('../db');
+const { TEMP_BOOSTS, ROLE_BOOSTS } = require('../config');
+const { fmt } = require('../levels');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('boutique')
-    .setDescription('Boutique des boosts XP et boîte surprise'),
+    .setDescription('Accéder à la boutique')
+    .addSubcommand(sub =>
+      sub.setName('boost')
+         .setDescription('Boosts temporaires d\'EXP / Coins (max 1h)')
+    )
+    .addSubcommand(sub =>
+      sub.setName('role')
+         .setDescription('Boosts permanents via rôle (min 1M VTX-Coins)')
+    ),
 
   async execute(interaction) {
-    await withLock(interaction.user.id, async () => {
-      const db   = getDB();
-      const user = getUser(db, interaction.user.id);
-      avancerQuete(user, 'spe_boutique', 1, interaction.guild, interaction.user.id);
-      saveDB(db);
-    });
+    const sub  = interaction.options.getSubcommand();
+    const user = getUser(interaction.user.id);
 
-    const db   = getDB();
-    const user = getUser(db, interaction.user.id);
+    if (sub === 'boost') {
+      const embed = new EmbedBuilder()
+        .setTitle('⚡ Boutique — Boosts Temporaires')
+        .setColor(0x7c5cfc)
+        .setDescription(`💼 Ton portefeuille : **${fmt(user.wallet)} VTX-Coins**\n\n*L'argent doit être sur toi (pas en banque) pour acheter.*`)
+        .setFooter({ text: 'Un seul boost temporaire équipé à la fois.' });
 
-    const buttons = [
-      ...BOOSTS.map(b => new ButtonBuilder().setCustomId(`boutique_boost_${b.id}`).setLabel(labelBoost(b)).setStyle(ButtonStyle.Primary)),
-      new ButtonBuilder().setCustomId('boutique_boost_boite').setLabel('Boîte - 50k').setStyle(ButtonStyle.Secondary),
-    ];
-    const rows = [];
-    for (let i = 0; i < buttons.length; i += 5)
-      rows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
+      TEMP_BOOSTS.forEach(b => {
+        const boostLine = b.expBoost
+          ? `+${b.expBoost * 100}% EXP`
+          : `+${b.coinBoost * 100}% Coins`;
+        embed.addFields({ name: b.label, value: `${boostLine} — **${fmt(b.price)} VTX-Coins**`, inline: true });
+      });
 
-    const embed = new EmbedBuilder()
-      .setTitle('Boutique Boosts VTX')
-      .setColor(0xffd700)
-      .setDescription(`Ton solde : **${user.coins.toLocaleString()} VTX-Coins**\n> Tu peux aussi acheter des items avec **/items**`)
-      .addFields(
-        { name: 'Boosts XP', value: BOOSTS.map(b => `**${b.nom}** — ${b.prix.toLocaleString()} VTX-Coins`).join('\n') },
-        { name: 'Boîte Surprise', value: `**50 000 VTX-Coins** — Gain ou malus aléatoire !\nUtilise **/purge** (${PURGE_PRIX.toLocaleString()} coins) pour annuler un malus.` },
-      )
-      .setFooter({ text: 'Team Vortax 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) })
-      .setTimestamp();
-
-    await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
-  },
-
-  // Handler boutons boutique boosts (appelé depuis index.js)
-  async handleButton(interaction) {
-    const action = interaction.customId.replace('boutique_boost_', '');
-
-    await withLock(interaction.user.id, async () => {
-      const db   = getDB();
-      const user = getUser(db, interaction.user.id);
-      const now  = Date.now();
-
-      // Achat boost
-      const boost = BOOSTS.find(b => b.id === action);
-      if (boost) {
-        if (user.coins < boost.prix)
-          return interaction.reply({ content: `Il te faut **${boost.prix.toLocaleString()} coins**. Tu en as **${user.coins.toLocaleString()}**.`, ephemeral: true });
-        user.coins -= boost.prix;
-        user.inventaire.push({ type: 'boost', boostId: boost.id, nom: boost.nom, bonus: boost.bonus, duree: boost.duree });
-        avancerQuete(user, 'prog_boost', 1, interaction.guild, interaction.user.id);
-        saveDB(db);
-        return interaction.reply({ content: `**${boost.nom}** ajouté à ton inventaire ! Utilise **/use** pour l'activer.`, ephemeral: true });
+      const rows = [];
+      for (let i = 0; i < TEMP_BOOSTS.length; i += 3) {
+        const row = new ActionRowBuilder();
+        TEMP_BOOSTS.slice(i, i + 3).forEach(b => {
+          row.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`buy_temp_${b.id}`)
+              .setLabel(b.label)
+              .setStyle(ButtonStyle.Primary)
+              .setDisabled(user.wallet < b.price)
+          );
+        });
+        rows.push(row);
       }
 
-      // Boite
-      if (action === 'boite') {
-        if (user.coins < BOITE_PRIX)
-          return interaction.reply({ content: `Il te faut **${BOITE_PRIX.toLocaleString()} coins**. Tu en as **${user.coins.toLocaleString()}**.`, ephemeral: true });
-        user.coins -= BOITE_PRIX;
-        const r = ouvrirBoite();
-        let msg = '';
-        if (r.type === 'boost') {
-          const b = BOOSTS.find(b => b.id === r.boostId);
-          user.inventaire.push({ type: 'boost', boostId: b.id, nom: b.nom, bonus: b.bonus, duree: b.duree });
-          msg = `Tu as gagné : **${r.label}** ! Ajouté à ton inventaire. Utilise **/use** pour l'activer.`;
-        } else if (r.type === 'malus') {
-          user.malusActif = { bonus: r.bonus, expireAt: now + r.duree };
-          msg = `Malus : **${r.label}** ! Expire <t:${Math.floor((now + r.duree) / 1000)}:R>\nUtilise **/purge** (${PURGE_PRIX.toLocaleString()} coins) pour l'annuler.`;
-        } else if (r.type === 'coins') {
-          user.coins = Math.max(0, user.coins + r.montant);
-          msg = `Malus : **${r.label}** !`;
+      const reply = await interaction.reply({ embeds: [embed], components: rows, fetchReply: true });
+      const collector = reply.createMessageComponentCollector({ time: 60_000 });
+
+      collector.on('collect', async btn => {
+        if (btn.user.id !== interaction.user.id) return btn.reply({ content: '❌', ephemeral: true });
+        const boostId = btn.customId.replace('buy_temp_', '');
+        const boost   = TEMP_BOOSTS.find(b => b.id === boostId);
+        if (!boost) return btn.reply({ content: '❌ Boost introuvable.', ephemeral: true });
+
+        const u = getUser(btn.user.id);
+        if (u.wallet < boost.price) return btn.reply({ content: '❌ Pas assez de VTX-Coins sur toi.', ephemeral: true });
+
+        u.wallet -= boost.price;
+        // Ajouter à l'inventaire (pas équipé automatiquement)
+        if (!u.inventory.tempBoostItems) u.inventory.tempBoostItems = [];
+        u.inventory.tempBoostItems.push({
+          ...boost,
+          purchasedAt: Date.now(),
+          equipped:    false,
+        });
+        saveUser(u);
+
+        await btn.reply({ content: `✅ **${boost.label}** acheté et ajouté à ton inventaire !`, ephemeral: true });
+      });
+
+    } else if (sub === 'role') {
+      const embed = new EmbedBuilder()
+        .setTitle('👑 Boutique — Boosts Permanents')
+        .setColor(0xf5c842)
+        .setDescription(`💼 Ton portefeuille : **${fmt(user.wallet)} VTX-Coins**\n\n*Boosts permanents appliqués via rôle. Un seul rôle boost à la fois.*`)
+        .setFooter({ text: 'Minimum 1 000 000 VTX-Coins requis.' });
+
+      ROLE_BOOSTS.forEach(b => {
+        const boostLine = b.expBoost
+          ? `+${b.expBoost * 100}% EXP permanent`
+          : `+${b.coinBoost * 100}% Coins permanent`;
+        embed.addFields({ name: b.label, value: `${boostLine} — **${fmt(b.price)} VTX-Coins**`, inline: true });
+      });
+
+      const rows = [];
+      for (let i = 0; i < ROLE_BOOSTS.length; i += 3) {
+        const row = new ActionRowBuilder();
+        ROLE_BOOSTS.slice(i, i + 3).forEach(b => {
+          row.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`buy_role_${b.id}`)
+              .setLabel(b.label)
+              .setStyle(ButtonStyle.Success)
+              .setDisabled(user.wallet < b.price)
+          );
+        });
+        rows.push(row);
+      }
+
+      const reply = await interaction.reply({ embeds: [embed], components: rows, fetchReply: true });
+      const collector = reply.createMessageComponentCollector({ time: 60_000 });
+
+      collector.on('collect', async btn => {
+        if (btn.user.id !== interaction.user.id) return btn.reply({ content: '❌', ephemeral: true });
+        const boostId = btn.customId.replace('buy_role_', '');
+        const boost   = ROLE_BOOSTS.find(b => b.id === boostId);
+        if (!boost) return btn.reply({ content: '❌ Boost introuvable.', ephemeral: true });
+
+        const u = getUser(btn.user.id);
+        if (u.wallet < boost.price) return btn.reply({ content: '❌ Pas assez de VTX-Coins sur toi.', ephemeral: true });
+
+        u.wallet -= boost.price;
+        if (!u.inventory.roleBoostItems) u.inventory.roleBoostItems = [];
+        u.inventory.roleBoostItems.push({
+          ...boost,
+          purchasedAt: Date.now(),
+          equipped:    false,
+        });
+        saveUser(u);
+
+        // Attribuer le rôle Discord si défini
+        if (boost.roleId) {
+          const member = await interaction.guild.members.fetch(btn.user.id).catch(() => null);
+          if (member) {
+            const role = interaction.guild.roles.cache.get(boost.roleId);
+            if (role) await member.roles.add(role).catch(() => {});
+          }
         }
-        saveDB(db);
-        return interaction.reply({ content: msg, ephemeral: true });
-      }
-    });
+
+        await btn.reply({ content: `✅ **${boost.label}** acheté et ajouté à ton inventaire !`, ephemeral: true });
+      });
+    }
   },
 };
