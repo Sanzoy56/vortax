@@ -2,7 +2,7 @@
 //  VTX-BOT — Intégration Grok (xAI)
 // ============================================================
 
-const { Events, PermissionsBitField } = require("discord.js");
+const { Events } = require("discord.js");
 const { apiGrok: GROK_API_KEY } = require("./token.json");
 
 const ALLOWED_CHANNEL_ID = "1501998588299837500";
@@ -12,10 +12,8 @@ const VORTAX_ID          = "1405637417272086588";
 const VORTAX_USERNAME    = "lepotato0789";
 
 const conversationHistory = new Map();
-const cooldowns           = new Map();
 const blockedUsers        = new Set();
 const MAX_HISTORY         = 10;
-const COOLDOWN_MS         = 2 * 60 * 1000; // 2 minutes
 
 const SYSTEM_PROMPT = `Tu es VTX-BOT, bot Discord du serveur de Vortax.
 
@@ -45,7 +43,6 @@ RÈGLES ABSOLUES :
 function detectOrders(userInput, message, guild) {
   const lower = userInput.toLowerCase();
 
-  // Patterns de blocage : "ne parle plus à X", "ignore X", "bloque X", "silence X", "ban X"
   const blockPattern = /(?:ne (?:lui )?parle plus(?: à)?|ignore|bloque|ban|silence|tais-toi avec)\s+(?:à\s+)?(\w+)/i;
   const blockMatch   = lower.match(blockPattern);
   if (blockMatch) {
@@ -60,7 +57,6 @@ function detectOrders(userInput, message, guild) {
     }
   }
 
-  // Patterns de déblocage : "reparle à X", "débloque X", "unban X"
   const unblockPattern = /(?:reparle(?: à)?|débloque|unban|réactive)\s+(?:à\s+)?(\w+)/i;
   const unblockMatch   = lower.match(unblockPattern);
   if (unblockMatch) {
@@ -83,21 +79,6 @@ function startTyping(channel) {
   return () => clearInterval(interval);
 }
 
-async function lockUserInChannel(channel, member, durationMs) {
-  try {
-    await channel.permissionOverwrites.create(member, { SendMessages: false });
-    setTimeout(async () => {
-      try {
-        await channel.permissionOverwrites.delete(member);
-      } catch (e) {
-        console.error("Erreur suppression permission:", e);
-      }
-    }, durationMs);
-  } catch (e) {
-    console.error("Erreur lock utilisateur:", e);
-  }
-}
-
 // ── Main ──────────────────────────────────────────────────────────────────────
 module.exports = (client) => {
   client.on(Events.MessageCreate, async (message) => {
@@ -111,7 +92,6 @@ module.exports = (client) => {
     const isFakeSanzoy =
       message.author.username.toLowerCase().includes("sanzoy") && !isSanzoy;
 
-    // Utilisateur bloqué par Sanzoy → on ignore silencieusement
     if (blockedUsers.has(message.author.id)) return;
 
     if (message.channel.id !== ALLOWED_CHANNEL_ID && !isAdmin && !isSanzoy && !isVortax) {
@@ -120,40 +100,25 @@ module.exports = (client) => {
       );
     }
 
-    // Cooldown — sauf Sanzoy, Vortax et admins
-    if (!isSanzoy && !isVortax && !isAdmin) {
-      const lastUsed = cooldowns.get(message.author.id);
-      const now      = Date.now();
-      if (lastUsed && now - lastUsed < COOLDOWN_MS) {
-        const remaining = Math.ceil((COOLDOWN_MS - (now - lastUsed)) / 1000);
-        return message.reply(`tu es bloqué pendant encore ${remaining} secondes.`);
-      }
-      cooldowns.set(message.author.id, now);
-      await lockUserInChannel(message.channel, message.member, COOLDOWN_MS);
-    }
-
     const userInput = message.content.replace(/<@!?\d+>/g, "").trim();
     if (!userInput) return message.reply("t'as mentionné un bot pour dire rien.");
 
-    // Détection des ordres naturels de Sanzoy (avant d'envoyer à Grok)
     if (isSanzoy) {
       detectOrders(userInput, message, message.guild);
     }
 
-    // Historique de conversation
     const userId = message.author.id;
     if (!conversationHistory.has(userId)) conversationHistory.set(userId, []);
     const history = conversationHistory.get(userId);
 
-    // Tags d'identification
     const mentionsVortax =
       userInput.toLowerCase().includes("vortax") ||
       userInput.toLowerCase().includes(VORTAX_USERNAME);
 
     let tag = "";
-    if (isSanzoy)           tag = "[CRÉATEUR]";
-    else if (isVortax)      tag = "[VORTAX]";
-    else if (isFakeSanzoy)  tag = "[FAKE_SANZOY]";
+    if (isSanzoy)            tag = "[CRÉATEUR]";
+    else if (isVortax)       tag = "[VORTAX]";
+    else if (isFakeSanzoy)   tag = "[FAKE_SANZOY]";
     else if (mentionsVortax) tag = "[VORTAX_MENTIONNÉ]";
 
     history.push({
@@ -198,7 +163,6 @@ module.exports = (client) => {
 
       history.push({ role: "assistant", content: reply });
 
-      // Envoi en chunks si trop long
       if (reply.length > 1990) {
         const chunks = [];
         let current  = "";

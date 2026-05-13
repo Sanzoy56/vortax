@@ -1,7 +1,7 @@
-const { EXP, COINS } = require('../config');
-const { getUser, saveUser } = require('../db');
-const { addExp, addCoins, resetDailyStatsIfNeeded } = require('../levels');
-const { updateQuestProgress, generateDailyQuests } = require('../quests');
+const { EXP, COINS } = require('./config');
+const { getUser, saveUser } = require('./db');
+const { addExp, addCoins, resetDailyStatsIfNeeded } = require('./levels');
+const { updateQuestProgress, generateDailyQuests } = require('./quests');
 
 const cooldowns = new Map();
 

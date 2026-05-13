@@ -1,0 +1,120 @@
+{
+  "1323025414523977798": {
+    "userId": "1323025414523977798",
+    "exp": 265,
+    "level": 0,
+    "wallet": 133,
+    "bank": 0,
+    "streak": 1,
+    "lastMessageDate": "2026-05-13",
+    "lastExpGain": 0,
+    "rob": {
+      "lastUsed": 1778710191925
+    },
+    "inventory": {
+      "tempBoost": null,
+      "roleBoost": null
+    },
+    "quests": {
+      "date": "2026-05-13",
+      "list": [
+        {
+          "id": "q_exp_500",
+          "label": "Gagner 500 EXP",
+          "type": "exp",
+          "target": 500,
+          "rewardExp": 0,
+          "rewardCoins": 700,
+          "progress": 65,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "q_cmd_3",
+          "label": "Utiliser 3 commandes",
+          "type": "commands",
+          "target": 3,
+          "rewardExp": 200,
+          "rewardCoins": 100,
+          "progress": 3,
+          "completed": true,
+          "rewarded": true
+        },
+        {
+          "id": "q_coins_500",
+          "label": "Gagner 500 VTX-Coins",
+          "type": "coins",
+          "target": 500,
+          "rewardExp": 400,
+          "rewardCoins": 200,
+          "progress": 33,
+          "completed": false,
+          "rewarded": false
+        }
+      ]
+    },
+    "dailyStats": {
+      "date": "2026-05-13",
+      "messages": 8,
+      "coins": 33,
+      "exp": 65,
+      "commands": 6
+    }
+  },
+  "1053403548425134170": {
+    "userId": "1053403548425134170",
+    "exp": 0,
+    "level": 0,
+    "wallet": 0,
+    "bank": 0,
+    "streak": 0,
+    "lastMessageDate": null,
+    "lastExpGain": 0,
+    "rob": {
+      "lastUsed": 0
+    },
+    "inventory": {
+      "tempBoost": null,
+      "roleBoost": null
+    },
+    "quests": {
+      "date": null,
+      "list": []
+    },
+    "dailyStats": {
+      "date": null,
+      "messages": 0,
+      "coins": 0,
+      "exp": 0,
+      "commands": 0
+    }
+  },
+  "1405219168336220191": {
+    "userId": "1405219168336220191",
+    "exp": 0,
+    "level": 0,
+    "wallet": 0,
+    "bank": 0,
+    "streak": 0,
+    "lastMessageDate": null,
+    "lastExpGain": 0,
+    "rob": {
+      "lastUsed": 0
+    },
+    "inventory": {
+      "tempBoost": null,
+      "roleBoost": null
+    },
+    "quests": {
+      "date": null,
+      "list": []
+    },
+    "dailyStats": {
+      "date": null,
+      "messages": 0,
+      "coins": 0,
+      "exp": 0,
+      "commands": 0
+    }
+  }
+}

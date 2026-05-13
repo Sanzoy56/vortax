@@ -7,9 +7,9 @@ module.exports = {
     if (!command) return;
 
     try {
-      const { getUser, saveUser } = require('../db');
-      const { resetDailyStatsIfNeeded } = require('../levels');
-      const { generateDailyQuests, updateQuestProgress } = require('../quests');
+      const { getUser, saveUser } = require('./db');
+      const { resetDailyStatsIfNeeded } = require('./levels');
+      const { generateDailyQuests, updateQuestProgress } = require('./quests');
 
       const user = getUser(interaction.user.id);
       generateDailyQuests(user);

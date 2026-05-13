@@ -1,4 +1,4 @@
-const { QUEST_POOL, QUESTS_PER_DAY, CHANNELS } = require('../config');
+const { QUEST_POOL, QUESTS_PER_DAY, CHANNELS } = require('./config');
 const { getUser, saveUser, today } = require('./db');
 
 // ─── Générer les quêtes du jour pour un user ─────────────────

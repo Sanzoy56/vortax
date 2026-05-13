@@ -37,7 +37,7 @@ const { checkYoutube, CHECK_INTERVAL } = require('./youtube.js');
 const giveaway = require('./giveaway.js');
 
 // ── Levels : tasks ────────────────────────────────
-const { startStreakReminder } = require('./levels/tasks/streakTask');
+const { startStreakReminder } = require('./levels/tasks/streaktask')
 const { startQuestReset }     = require('./levels/tasks/questTask');
 
 // ── Levels : messageCreate ────────────────────────
