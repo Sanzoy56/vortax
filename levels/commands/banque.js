@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { getUser, saveUser } = require('../db');
 const { fmt } = require('../levels');
+const { updateQuestProgress } = require('../quests');
 
 // ─── /dep ────────────────────────────────────────────────────
 const dep = {
@@ -25,12 +26,21 @@ const dep = {
       if (isNaN(amount) || amount <= 0) return interaction.reply({ content: '❌ Montant invalide.', ephemeral: true });
     }
 
-    if (amount === 0) return interaction.reply({ content: '❌ Tu n\'as pas d\'argent sur toi.', ephemeral: true });
-    if (amount > user.wallet) return interaction.reply({ content: `❌ Tu n'as que **${fmt(user.wallet)} VTX-Coins** sur toi.`, ephemeral: true });
+    if (amount === 0)            return interaction.reply({ content: '❌ Tu n\'as pas d\'argent sur toi.', ephemeral: true });
+    if (amount > user.wallet)    return interaction.reply({ content: `❌ Tu n'as que **${fmt(user.wallet)} VTX-Coins** sur toi.`, ephemeral: true });
 
     user.wallet -= amount;
     user.bank   += amount;
     saveUser(user);
+
+    // Quête : déposer en banque (Investisseur, Banquier)
+    await updateQuestProgress(interaction.guild, interaction.user.id, 'bank', 1);
+
+    // Quête : avoir X coins en banque (Économe, Banquier suprême)
+    await updateQuestProgress(interaction.guild, interaction.user.id, 'bank_amount', user.bank);
+
+    // Quête : utiliser des commandes
+    await updateQuestProgress(interaction.guild, interaction.user.id, 'commands', 1);
 
     return interaction.reply({
       content: `🏦 **${fmt(amount)} VTX-Coins** déposés en banque !\n💼 Portefeuille : **${fmt(user.wallet)}** | 🏦 Banque : **${fmt(user.bank)}**`,
@@ -61,12 +71,16 @@ const withCmd = {
       if (isNaN(amount) || amount <= 0) return interaction.reply({ content: '❌ Montant invalide.', ephemeral: true });
     }
 
-    if (amount === 0) return interaction.reply({ content: '❌ Tu n\'as rien en banque.', ephemeral: true });
-    if (amount > user.bank) return interaction.reply({ content: `❌ Tu n'as que **${fmt(user.bank)} VTX-Coins** en banque.`, ephemeral: true });
+    if (amount === 0)         return interaction.reply({ content: '❌ Tu n\'as rien en banque.', ephemeral: true });
+    if (amount > user.bank)   return interaction.reply({ content: `❌ Tu n'as que **${fmt(user.bank)} VTX-Coins** en banque.`, ephemeral: true });
 
     user.bank   -= amount;
     user.wallet += amount;
     saveUser(user);
+
+    // Quête : utiliser des commandes (Banquier, Visiteur, Explorateur...)
+    await updateQuestProgress(interaction.guild, interaction.user.id, 'bank', 1);
+    await updateQuestProgress(interaction.guild, interaction.user.id, 'commands', 1);
 
     return interaction.reply({
       content: `💸 **${fmt(amount)} VTX-Coins** retirés de la banque !\n💼 Portefeuille : **${fmt(user.wallet)}** | 🏦 Banque : **${fmt(user.bank)}**`,

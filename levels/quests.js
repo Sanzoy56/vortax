@@ -1,10 +1,13 @@
-const { QUEST_POOL, QUESTS_PER_DAY, CHANNELS } = require('./config');
+'use strict';
+const { QUEST_POOL } = require('./ConfigQuests');
+const { CHANNELS }   = require('./config');
 const { getUser, saveUser, today } = require('./db');
 
-// ─── Générer les quêtes du jour pour un user ─────────────────
+const QUESTS_PER_DAY = 10;
+
 function generateDailyQuests(user) {
   const todayStr = today();
-  if (user.quests.date === todayStr) return;
+  if (user.quests?.date === todayStr) return;
 
   const pool     = [...QUEST_POOL];
   const selected = [];
@@ -13,6 +16,7 @@ function generateDailyQuests(user) {
     selected.push(pool.splice(idx, 1)[0]);
   }
 
+  if (!user.quests) user.quests = {};
   user.quests.date = todayStr;
   user.quests.list = selected.map(q => ({
     ...q,
@@ -22,7 +26,6 @@ function generateDailyQuests(user) {
   }));
 }
 
-// ─── Mettre à jour la progression + récompense automatique ───
 async function updateQuestProgress(guild, userId, type, amount = 1) {
   const user = getUser(userId);
   generateDailyQuests(user);
@@ -30,7 +33,12 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
   for (const q of user.quests.list) {
     if (q.rewarded || q.type !== type) continue;
 
-    q.progress = Math.min(q.progress + amount, q.target);
+    // Pour le streak, la progression = valeur absolue du streak, pas un incrément
+    if (type === 'streak') {
+      q.progress = amount; // amount = user.streak passé directement
+    } else {
+      q.progress = Math.min(q.progress + amount, q.target);
+    }
 
     if (q.progress >= q.target && !q.completed) {
       q.completed = true;
@@ -39,7 +47,6 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
       user.exp    += q.rewardExp   || 0;
       user.wallet += q.rewardCoins || 0;
 
-      // Annonce dans le salon quêtes
       if (guild) {
         const channel = guild.channels.cache.get(CHANNELS.QUETES);
         if (channel) {
@@ -55,28 +62,4 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
   saveUser(user);
 }
 
-// ─── Annoncer les quêtes du jour dans le salon (1x/jour) ─────
-async function announceQuests(guild, userId) {
-  const user = getUser(userId);
-  generateDailyQuests(user);
-  saveUser(user);
-
-  const channel = guild.channels.cache.get(CHANNELS.QUETES);
-  if (!channel) return;
-
-  const member = await guild.members.fetch(userId).catch(() => null);
-  if (!member) return;
-
-  const { generateQuests }   = require('./canvas');
-  const { AttachmentBuilder } = require('discord.js');
-
-  const buffer     = await generateQuests(member, user.quests.list);
-  const attachment = new AttachmentBuilder(buffer, { name: 'quetes.png' });
-
-  await channel.send({
-    content: `📋 <@${userId}> voici tes quêtes du jour !`,
-    files:   [attachment],
-  });
-}
-
-module.exports = { generateDailyQuests, updateQuestProgress, announceQuests };
+module.exports = { generateDailyQuests, updateQuestProgress };

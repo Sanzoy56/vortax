@@ -1,4 +1,4 @@
-const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, PermissionFlagsBits, SlashCommandBuilder } = require('discord.js');
+const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
 
 const GIVEAWAYS_FILE = './giveaways.json';
@@ -30,8 +30,15 @@ async function endGiveaway(client, messageId, channelId) {
     saveGiveaways(giveaways);
 
     try {
-        const channel = await client.channels.fetch(channelId);
-        const message = await channel.messages.fetch(messageId);
+        const channel = await client.channels.fetch(channelId).catch(() => null);
+        if (!channel) return; // salon supprimé
+
+        // Si le message est introuvable (supprimé), on sort proprement
+        const message = await channel.messages.fetch(messageId).catch(() => null);
+        if (!message) {
+            console.log(`[Giveaway] Message ${messageId} introuvable (supprimé), giveaway ignoré.`);
+            return;
+        }
 
         const participants = giveaway.participants || [];
 
@@ -63,7 +70,6 @@ async function endGiveaway(client, messageId, channelId) {
             return;
         }
 
-        // Tirer les gagnants
         const shuffled = eligibles.sort(() => Math.random() - 0.5);
         const winners = shuffled.slice(0, Math.min(giveaway.winners, eligibles.length));
 
@@ -83,7 +89,6 @@ async function endGiveaway(client, messageId, channelId) {
 }
 
 module.exports = (client) => {
-    // Reprendre les giveaways en cours au démarrage
     client.once('ready', () => {
         const giveaways = loadGiveaways();
         const now = Date.now();
@@ -101,7 +106,6 @@ module.exports = (client) => {
         }
     });
 
-    // Commande slash
     client.on('interactionCreate', async (interaction) => {
         if (interaction.isChatInputCommand() && interaction.commandName === 'giveaway') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -145,7 +149,6 @@ module.exports = (client) => {
             await interaction.reply({ content: '✅ Giveaway lancé !', ephemeral: true });
             const msg = await interaction.channel.send({ embeds: [embed], components: [row] });
 
-            // Sauvegarder
             const giveaways = loadGiveaways();
             giveaways[msg.id] = {
                 lot,
@@ -161,7 +164,6 @@ module.exports = (client) => {
             setTimeout(() => endGiveaway(client, msg.id, interaction.channelId), duree);
         }
 
-        // Bouton participer
         if (interaction.isButton() && interaction.customId === 'giveaway_participer') {
             const giveaways = loadGiveaways();
             const giveaway = giveaways[interaction.message.id];
@@ -173,11 +175,9 @@ module.exports = (client) => {
             const userId = interaction.user.id;
 
             if (giveaway.participants.includes(userId)) {
-                // Retirer la participation
                 giveaway.participants = giveaway.participants.filter(id => id !== userId);
                 saveGiveaways(giveaways);
 
-                // Mettre à jour l'embed
                 const embed = EmbedBuilder.from(interaction.message.embeds[0])
                     .setDescription(interaction.message.embeds[0].description.replace(/📊 \*\*Participants :\*\* \d+/, `📊 **Participants :** ${giveaway.participants.length}`));
 
@@ -185,7 +185,6 @@ module.exports = (client) => {
                 return interaction.followUp({ content: '❌ Tu t\'es retiré du giveaway.', ephemeral: true });
             }
 
-            // Vérif rôle
             if (giveaway.requiredRole) {
                 const member = await interaction.guild.members.fetch(userId);
                 if (!member.roles.cache.has(giveaway.requiredRole)) {
@@ -196,7 +195,6 @@ module.exports = (client) => {
             giveaway.participants.push(userId);
             saveGiveaways(giveaways);
 
-            // Mettre à jour l'embed
             const embed = EmbedBuilder.from(interaction.message.embeds[0])
                 .setDescription(interaction.message.embeds[0].description.replace(/📊 \*\*Participants :\*\* \d+/, `📊 **Participants :** ${giveaway.participants.length}`));
 

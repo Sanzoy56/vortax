@@ -1,7 +1,6 @@
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { getUser, saveUser } = require('../db');
-const { generateDailyQuests, announceQuests } = require('../quests');
-const { canAnnounceQuests } = require('../tasks/questTask');
+const { generateDailyQuests } = require('../quests');
 const { generateQuests } = require('../canvas');
 
 module.exports = {
@@ -22,14 +21,6 @@ module.exports = {
     const buffer     = await generateQuests(member, user.quests.list);
     const attachment = new AttachmentBuilder(buffer, { name: 'quetes.png' });
 
-    await interaction.editReply({
-      content: '📋 Tes quêtes du jour — les récompenses sont données automatiquement quand tu complètes une quête !',
-      files:   [attachment],
-    });
-
-    // Annoncer dans le salon quêtes (1 fois/jour max)
-    if (canAnnounceQuests(interaction.user.id)) {
-      await announceQuests(interaction.guild, interaction.user.id);
-    }
+    await interaction.editReply({ files: [attachment] });
   },
 };

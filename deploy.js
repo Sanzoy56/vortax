@@ -228,6 +228,16 @@ const commands = [
         .toJSON(),
 
     new SlashCommandBuilder()
+        .setName('bal')
+        .setDescription('Voir le solde d\'un membre')
+        .addUserOption(option =>
+            option.setName('membre')
+                .setDescription('Le membre à inspecter (toi par défaut)')
+                .setRequired(false)
+        )
+        .toJSON(),
+
+    new SlashCommandBuilder()
         .setName('top')
         .setDescription('Classement des membres')
         .addStringOption(o =>

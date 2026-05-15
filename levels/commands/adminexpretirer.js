@@ -1,43 +1,45 @@
 'use strict';
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getDB, getUser, saveDB }            = require('../db');
-const { withLock: withUserLock }            = require('../db');
-const { xpPourNiveau, gererNiveauEtRang }   = require('../xp');
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { getUser, saveUser } = require('../db');
+const { xpPourNiveau }      = require('../xp');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('adminexpretirer')
     .setDescription('[ADMIN] Retirer de l\'XP à un membre')
-    .setDefaultMemberPermissions(0)
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator)
     .addUserOption(o => o.setName('membre').setDescription('Le membre ciblé').setRequired(true))
     .addIntegerOption(o => o.setName('somme').setDescription('Quantité d\'XP à retirer').setMinValue(1).setRequired(true)),
 
   async execute(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+
     const cible = interaction.options.getUser('membre');
     const somme = interaction.options.getInteger('somme');
 
-    await withUserLock(cible.id, async () => {
-      const db         = getDB();
-      const user       = getUser(db, cible.id);
-      const ancienNiveau = user.niveau;
-      user.xp = Math.max(0, (user.xp || 0) - somme);
+    const user = getUser(cible.id);
+    user.exp = Math.max(0, (user.exp || 0) - somme);
 
-      const membre = await interaction.guild.members.fetch(cible.id).catch(() => null);
-      await gererNiveauEtRang(user, ancienNiveau, interaction.guild, membre, cible.id);
-      saveDB(db);
+    // Descente de niveau
+    while (user.level > 0 && user.exp < 0) {
+      user.level -= 1;
+      user.exp   += xpPourNiveau(user.level);
+    }
+    if (user.exp < 0) user.exp = 0;
 
-      const embed = new EmbedBuilder()
-        .setTitle('XP retirée [ADMIN]')
-        .setColor(0xe74c3c)
-        .setDescription(
-          `**-${somme.toLocaleString()} XP** retirés à <@${cible.id}>\n\n` +
-          `Niveau : **${user.niveau}**\n` +
-          `XP actuelle : **${user.xp}** / **${xpPourNiveau(user.niveau)}**`
-        )
-        .setFooter({ text: `Action effectuée par ${interaction.user.username}` })
-        .setTimestamp();
+    saveUser(user);
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
-    });
+    const embed = new EmbedBuilder()
+      .setTitle('XP retirée [ADMIN]')
+      .setColor(0xe74c3c)
+      .setDescription(
+        `**-${somme.toLocaleString()} XP** retirés à <@${cible.id}>\n\n` +
+        `Niveau : **${user.level}**\n` +
+        `XP actuelle : **${user.exp}** / **${xpPourNiveau(user.level)}**`
+      )
+      .setFooter({ text: `Action effectuée par ${interaction.user.username}` })
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
   },
 };
