@@ -3,7 +3,7 @@ const config = require('./config.json');
 const token = require('./token.json');
 
 // ========== IDs ==========
-const STAFF_ROLE_ID       = config.roles?.modoPerm ?? '';
+const STAFF_ROLE_ID       = '1497331100782039071';
 const CATEGORIE_ID        = '1416145060285648966';
 const LOGS_TICKETS_ID     = '1416181684679741521';
 const LOGS_TRANSCRIPT_ID  = '1473347420648771598';
