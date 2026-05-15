@@ -12,7 +12,7 @@ const VOCAL = {
 };
 
 // ─── Démarrer la boucle vocale ───────────────────────────────
-function startVoiceXp(client) {
+function startVoicexp(client) {
   setInterval(async () => {
     for (const guild of client.guilds.cache.values()) {
       for (const channel of guild.channels.cache.values()) {
@@ -43,4 +43,5 @@ function startVoiceXp(client) {
   }, VOCAL.INTERVAL_MS);
 }
 
-module.exports = { startVoiceXp };
+module.exports = { startVoicexp };
+// test
