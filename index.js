@@ -40,7 +40,7 @@ const giveaway = require('./giveaway.js');
 // ── Levels : tasks ────────────────────────────────
 const { startStreakReminder } = require('./levels/tasks/streaktask');
 const { startQuestReset }     = require('./levels/tasks/Questtask');
-const { startVoiceXp }        = require('./levels/voiceXp');
+const { startVoiceXp }        = require('./levels/Voicexp');
 
 // ── Levels : messageCreate ────────────────────────
 const levelMessage = require('./levels/Messagecreate');
