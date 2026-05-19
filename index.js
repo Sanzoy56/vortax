@@ -211,8 +211,9 @@ client.once('clientReady', () => {
 // Errors
 // ───────────────────────────────────────────────────
 
-process.on('unhandledRejection', (err) =>
-  console.error('❌ Erreur non gérée :', err)
-);
+process.on('unhandledRejection', (err) => {
+  if (err?.code === 10062) return;
+  console.error('❌ Erreur non gérée :', err);
+});
 
 client.login(token);

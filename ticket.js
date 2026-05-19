@@ -270,6 +270,9 @@ Il y a 3 catégories de tickets mis à votre disposition :
       await message.reply({ content: '📄 Génération du transcript en cours...' });
       ticketHistories.delete(msgChannel.id);
 
+      // fileUrl déclaré ici pour être accessible dans tout le bloc
+      let fileUrl = null;
+
       try {
         const html    = await genererTranscript(msgChannel, message.member);
         const buffer  = Buffer.from(html, 'utf-8');
@@ -287,7 +290,21 @@ Il y a 3 catégories de tickets mis à votre disposition :
             )
             .setFooter({ text: 'Team Vortax — Système de tickets' })
             .setTimestamp();
-          await logsChannel.send({ embeds: [logEmbed], files: [fichier] });
+
+          // On récupère le message envoyé pour obtenir l'URL du fichier CDN
+          const logMsg = await logsChannel.send({ embeds: [logEmbed], files: [fichier] });
+          fileUrl = logMsg.attachments.first()?.url ?? null;
+
+          // Bouton lien direct dans le salon de logs
+          if (fileUrl) {
+            const btnRow = new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setLabel('📄 Voir le transcript')
+                .setStyle(ButtonStyle.Link)
+                .setURL(fileUrl)
+            );
+            await logsChannel.send({ content: '🔗 Lien direct vers le transcript :', components: [btnRow] });
+          }
         }
       } catch (err) {
         console.error('[Transcript] Erreur :', err);
@@ -308,7 +325,18 @@ Il y a 3 catégories de tickets mis à votre disposition :
         .setDescription('Ce ticket a été fermé par le staff.\nUtilisez `-delete` pour supprimer définitivement le salon.')
         .setColor(0xFF0000)
         .setTimestamp();
-      await msgChannel.send({ embeds: [fermerEmbed] });
+
+      // Bouton lien direct aussi dans le ticket fermé (si le transcript a bien été généré)
+      const components = fileUrl
+        ? [new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel('📄 Voir le transcript')
+              .setStyle(ButtonStyle.Link)
+              .setURL(fileUrl)
+          )]
+        : [];
+
+      await msgChannel.send({ embeds: [fermerEmbed], components });
       return;
     }
 
@@ -345,29 +373,19 @@ Il y a 3 catégories de tickets mis à votre disposition :
     if (!msgChannel.name.startsWith('ia-')) return;
     if (message.content.trim().startsWith('-')) return;
 
-    // ✅ CORRECTION : on ne filtre plus les membres staff
-    // Le staff peut écrire librement dans le ticket sans déclencher l'IA
-    // MAIS si c'est le membre du ticket qui écrit (même s'il est staff), l'IA doit répondre.
-    // On récupère d'abord le state pour savoir si l'IA est active.
-
     let state = ticketHistories.get(msgChannel.id);
     if (!state) {
-      // Le bot a probablement redémarré, on réinitialise le state
       state = { messages: [], iaActive: true };
       ticketHistories.set(msgChannel.id, state);
     }
 
-    // Si l'IA est désactivée (staff déjà notifié), on ignore tout
     if (!state.iaActive) return;
 
-    // ✅ On compare par ID Discord, fiable même si le pseudo contient des caractères spéciaux
     const isStaffMember = message.member.roles.cache.has(STAFF_ROLE_ID);
     const isTicketOwner = message.author.id === state.ownerId;
 
-    // Si c'est un staff qui n'est PAS le créateur du ticket → il intervient manuellement, on ignore
     if (isStaffMember && !isTicketOwner) return;
 
-    // ✅ Ici : c'est le créateur du ticket (staff ou non), l'IA répond
     state.messages.push({ role: 'user', content: message.content });
     ticketHistories.set(msgChannel.id, state);
 
@@ -448,8 +466,9 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
       // ----- Tickets Staff / Question -----
       if (customId === 'modal_ticket_staff' || customId === 'modal_ticket_question') {
-        await interaction.deferReply({ flags: 64 });
-
+  try {
+    await interaction.deferReply({ flags: 64 });
+  } catch { return; }
         const raison     = interaction.fields.getTextInputValue('raison');
         const isStaff    = customId === 'modal_ticket_staff';
         const nomSalon   = isStaff ? `recrutement-${member.user.username}` : `question-${member.user.username}`;
@@ -485,9 +504,10 @@ Il y a 3 catégories de tickets mis à votre disposition :
       }
 
       // ----- Ticket IA -----
-      if (customId === 'modal_ticket_ia') {
-        await interaction.deferReply({ flags: 64 });
-
+     if (customId === 'modal_ticket_ia') {
+  try {
+    await interaction.deferReply({ flags: 64 });
+  } catch { return; }
         const raison   = interaction.fields.getTextInputValue('raison');
         const nomSalon = `ia-${member.user.username}`;
 

@@ -43,5 +43,5 @@ function startVoicexp(client) {
   }, VOCAL.INTERVAL_MS);
 }
 
-module.exports = { startVoicexp };
+module.exports = { startVoiceXp: startVoicexp };
 // test
