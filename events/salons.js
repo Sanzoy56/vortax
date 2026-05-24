@@ -1,5 +1,12 @@
 const { EmbedBuilder, AuditLogEvent, ChannelType } = require('discord.js');
-const config = require('../config.json');
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch {
+    return {}
+  }
+}
 
 const getType = (type) => {
     const types = {
@@ -46,7 +53,8 @@ module.exports = (client) => {
             .setTimestamp()
             .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: channel.guild.iconURL() ?? null });
 
-        const logSalon = channel.guild.channels.cache.get(config.logs?.salons);
+        const config = await getConfig()
+        const logSalon = channel.guild.channels.cache.get(config.log_salons);
         if (!logSalon) return console.error('❌ [SALON CREATE] Salon introuvable ! ID:', config.logs?.salons);
         await logSalon.send({ embeds: [embed] });
     });
@@ -72,7 +80,8 @@ module.exports = (client) => {
             .setTimestamp()
             .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: channel.guild.iconURL() ?? null });
 
-        const logSalon = channel.guild.channels.cache.get(config.logs?.salons);
+        const config = await getConfig()
+        const logSalon = channel.guild.channels.cache.get(config.log_salons);
         if (!logSalon) return console.error('❌ [SALON DELETE] Salon introuvable ! ID:', config.logs?.salons);
         await logSalon.send({ embeds: [embed] });
     });
@@ -115,7 +124,8 @@ module.exports = (client) => {
             .setTimestamp()
             .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: newChannel.guild.iconURL() ?? null });
 
-        const logSalon = newChannel.guild.channels.cache.get(config.logs?.salons);
+        const config = await getConfig()
+        const logSalon = newChannel.guild.channels.cache.get(config.log_salons);
         if (!logSalon) return console.error('❌ [SALON UPDATE] Salon introuvable ! ID:', config.logs?.salons);
         await logSalon.send({ embeds: [embed] });
     });

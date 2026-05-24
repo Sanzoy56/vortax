@@ -5,7 +5,12 @@ const parser = new Parser();
 
 const CHANNEL_ID_YTB = 'UCFjCHig5fVqCtjL0Z_cWwlQ';
 const RSS_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID_YTB}`;
-const DISCORD_SALON = '1362799456059265044';
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch { return {} }
+}
 const ROLE_ID = '1379482124075401326';
 const CHECK_INTERVAL = 5 * 60 * 1000; // toutes les 5 minutes
 
@@ -30,7 +35,8 @@ async function checkYoutube(client) {
 
     derniereVideoId = videoId;
 
-    const salon = await client.channels.fetch(DISCORD_SALON);
+    const cfg = await getConfig()
+    const salon = await client.channels.fetch(cfg.youtube);
     if (!salon) return;
 
     const isLive = derniere.title?.toLowerCase().includes('live') ||

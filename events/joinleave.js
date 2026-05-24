@@ -1,12 +1,21 @@
 const { EmbedBuilder } = require('discord.js');
-const config = require('../config.json');
+
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch {
+    return {}
+  }
+}
 
 module.exports = (client) => {
 
     // ========== MEMBRE REJOINT ==========
     client.on('guildMemberAdd', async (member) => {
-        const logSalon = member.guild.channels.cache.get(config.logs?.joinLeave);
-        if (!logSalon) return console.error('❌ [JOIN] Salon introuvable ! ID:', config.logs?.joinLeave);
+        const config = await getConfig()
+        const logSalon = member.guild.channels.cache.get(config.log_welcome);
+        if (!logSalon) return;
 
         const compteCreeLe = Math.floor(member.user.createdTimestamp / 1000);
         const ageCompte    = Math.floor((Date.now() - member.user.createdTimestamp) / (1000 * 60 * 60 * 24));
@@ -31,8 +40,9 @@ module.exports = (client) => {
 
     // ========== MEMBRE PARTI ==========
     client.on('guildMemberRemove', async (member) => {
-        const logSalon = member.guild.channels.cache.get(config.logs?.joinLeave);
-        if (!logSalon) return console.error('❌ [LEAVE] Salon introuvable ! ID:', config.logs?.joinLeave);
+        const config = await getConfig()
+        const logSalon = member.guild.channels.cache.get(config.log_welcome);
+        if (!logSalon) return;
 
         const arrivedAt = Math.floor(member.joinedTimestamp / 1000);
         const duree     = Math.floor((Date.now() - member.joinedTimestamp) / (1000 * 60 * 60 * 24));

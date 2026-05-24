@@ -1,5 +1,12 @@
 const { EmbedBuilder, AuditLogEvent } = require('discord.js');
-const config = require('../config.json');
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch {
+    return {}
+  }
+}
 
 module.exports = (client) => {
 
@@ -28,7 +35,8 @@ module.exports = (client) => {
             .setTimestamp()
             .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: guild.iconURL() ?? null });
 
-        const logSalon = guild.channels.cache.get(config.logs?.moderation);
+        const config = await getConfig()
+        const logSalon = guild.channels.cache.get(config.log_moderation);
         if (!logSalon) return console.error('❌ [BAN] Salon introuvable ! ID:', config.logs?.moderation);
         await logSalon.send({ embeds: [embed] });
     });
@@ -56,7 +64,8 @@ module.exports = (client) => {
             .setTimestamp()
             .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: guild.iconURL() ?? null });
 
-        const logSalon = guild.channels.cache.get(config.logs?.moderation);
+        const config = await getConfig()
+        const logSalon = guild.channels.cache.get(config.log_moderation);
         if (!logSalon) return console.error('❌ [UNBAN] Salon introuvable ! ID:', config.logs?.moderation);
         await logSalon.send({ embeds: [embed] });
     });
@@ -87,7 +96,8 @@ module.exports = (client) => {
             .setTimestamp()
             .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: member.guild.iconURL() ?? null });
 
-        const logSalon = member.guild.channels.cache.get(config.logs?.moderation);
+        const config = await getConfig()
+        const logSalon = member.guild.channels.cache.get(config.log_moderation); 
         if (!logSalon) return console.error('❌ [KICK] Salon introuvable ! ID:', config.logs?.moderation);
         await logSalon.send({ embeds: [embed] });
     });
@@ -98,7 +108,8 @@ module.exports = (client) => {
         const wasTimedOut = oldMember.communicationDisabledUntil;
         const isTimedOut  = newMember.communicationDisabledUntil;
 
-        const logSalon = guild.channels.cache.get(config.logs?.moderation);
+        const config = await getConfig()
+        const logSalon = guild.channels.cache.get(config.log_moderation);
         if (!logSalon) return console.error('❌ [TIMEOUT] Salon introuvable ! ID:', config.logs?.moderation);
 
         // Timeout ajouté

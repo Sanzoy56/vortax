@@ -1,12 +1,20 @@
 const { Events, EmbedBuilder } = require('discord.js');
-const config = require('../config.json');
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch {
+    return {}
+  }
+}
 
 module.exports = (client) => {
 
     client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
         if (newState.member?.user.bot) return;
 
-        const logChannel = newState.guild?.channels.cache.get(config.logs?.vocal); // ✅ config.logs.vocal
+        const config = await getConfig()
+        const logChannel = newState.guild?.channels.cache.get(config.log_vocal);
         if (!logChannel) return;
 
         const member = newState.member;

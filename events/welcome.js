@@ -1,7 +1,14 @@
 const { AttachmentBuilder } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 const path = require('path');
-const config = require('../config.json');
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch {
+    return {}
+  }
+}
 
 const STATUS_COLORS = {
   online: '#43b581', idle: '#faa61a',
@@ -54,8 +61,8 @@ async function generateCard(member, type) {
 
 module.exports = (client) => {
   client.on('guildMemberAdd', async (member) => {
-    const channel = member.guild.channels.cache.get(config.salons?.bienvenue);
-    if (!channel) return console.error('❌ [WELCOME] Salon introuvable ! ID:', config.salons?.bienvenue);
+    const config = await getConfig()
+    const channel = member.guild.channels.cache.get(config.welcome);
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
       const fetchedMember = await member.guild.members.fetch({ user: member.id, force: true });
@@ -78,8 +85,8 @@ module.exports = (client) => {
   });
 
   client.on('guildMemberRemove', async (member) => {
-    const channel = member.guild.channels.cache.get(config.salons?.depart);
-    if (!channel) return console.error('❌ [LEAVE] Salon introuvable ! ID:', config.salons?.depart);
+    const config = await getConfig()
+    const channel = member.guild.channels.cache.get(config.leave);
     try {
       const attachment = await generateCard(member, 'leave');
       await channel.send({ files: [attachment] });

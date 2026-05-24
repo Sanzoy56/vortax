@@ -8,7 +8,8 @@ function startStreakReminder(client) {
 
     const guild = client.guilds.cache.first();
     if (!guild) return;
-    const channel = guild.channels.cache.get(CHANNELS.STREAKS);
+    const cfg = await getConfig()
+    const channel = guild.channels.cache.get(cfg.streaks);
     if (!channel) return;
 
     const yesterday = new Date();

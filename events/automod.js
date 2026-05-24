@@ -1,5 +1,10 @@
 const { EmbedBuilder } = require('discord.js');
-const { logs } = require('../config.json');
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch { return {} }
+}
 
 // Liens Discord (invitations)
 const DISCORD_INVITE = /(discord\.gg|discord\.com\/invite|discordapp\.com\/invite)\/[a-zA-Z0-9]+/gi;
@@ -23,7 +28,8 @@ module.exports = (client) => {
 
     const content = message.content;
     const member = message.member;
-    const logSalon = message.guild.channels.cache.get(logs.moderation);
+    const config = await getConfig()
+    const logSalon = message.guild.channels.cache.get(config.log_moderation);
 
     // ========== LIENS P*RNO → BAN ==========
     if (BANNED_LINKS.test(content)) {

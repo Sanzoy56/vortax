@@ -1,5 +1,12 @@
 const { Events, EmbedBuilder, AuditLogEvent } = require('discord.js');
-const config = require('../config.json');
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch {
+    return {}
+  }
+}
 
 module.exports = (client) => {
 
@@ -10,7 +17,8 @@ module.exports = (client) => {
         if (!oldMessage.content || !newMessage.content) return;
         if (oldMessage.content === newMessage.content) return;
 
-        const logChannel = newMessage.guild?.channels.cache.get(config.logs?.messages);
+        const config = await getConfig()
+        const logChannel = newMessage.guild?.channels.cache.get(config.log_messages);
         if (!logChannel) return;
 
         const createdAt = oldMessage.createdAt;
@@ -52,7 +60,8 @@ module.exports = (client) => {
         // ✅ On ne bloque plus les bots ni les messages sans contenu
         if (message.partial) {
             // Message pas en cache : on log quand même avec les infos disponibles
-            const logChannel = message.guild?.channels.cache.get(config.logs?.messages);
+            const config = await getConfig()
+            const logChannel = message.guild?.channels.cache.get(config.log_messages);
             if (!logChannel) return;
 
             const deletedAt = new Date();
@@ -83,7 +92,8 @@ module.exports = (client) => {
             return logChannel.send({ embeds: [embed] });
         }
 
-        const logChannel = message.guild?.channels.cache.get(config.logs?.messages);
+        const config = await getConfig()
+        const logChannel = message.guild?.channels.cache.get(config.log_messages);
         if (!logChannel) return;
 
         const deletedAt = new Date();

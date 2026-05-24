@@ -1,7 +1,13 @@
 'use strict';
 const { QUEST_POOL } = require('./ConfigQuests');
-const { CHANNELS }   = require('./config');
 const { getUser, saveUser, today } = require('./db');
+
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch { return {} }
+}
 
 const QUESTS_PER_DAY = 10;
 
@@ -48,7 +54,8 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
       user.wallet += q.rewardCoins || 0;
 
       if (guild) {
-        const channel = guild.channels.cache.get(CHANNELS.QUETES);
+        const cfg = await getConfig()
+        const channel = guild.channels.cache.get(cfg.quetes);
         if (channel) {
           const parts = [];
           if (q.rewardExp)   parts.push(`+${q.rewardExp} EXP`);

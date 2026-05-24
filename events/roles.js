@@ -1,5 +1,13 @@
 const { Events, EmbedBuilder, AuditLogEvent } = require('discord.js');
-const config = require('../config.json');
+
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch {
+    return {}
+  }
+}
 
 const permissionNames = {
     AddReactions: 'Ajouter des réactions', Administrator: 'Administrateur',
@@ -29,10 +37,10 @@ const formatPerms = (perms) =>
 
 module.exports = (client) => {
 
-    // ========== RÔLE CRÉÉ ==========
     client.on(Events.GuildRoleCreate, async (role) => {
-        const logChannel = role.guild.channels.cache.get(config.logs?.roles);
-        if (!logChannel) return console.error('❌ [ROLE CREATE] Salon introuvable ! ID:', config.logs?.roles);
+        const config = await getConfig()
+        const logChannel = role.guild.channels.cache.get(config.log_roles);
+        if (!logChannel) return;
 
         const now = new Date();
         let createdBy = 'Inconnu';
@@ -61,10 +69,10 @@ module.exports = (client) => {
         await logChannel.send({ embeds: [embed] });
     });
 
-    // ========== RÔLE SUPPRIMÉ ==========
     client.on(Events.GuildRoleDelete, async (role) => {
-        const logChannel = role.guild.channels.cache.get(config.logs?.roles);
-        if (!logChannel) return console.error('❌ [ROLE DELETE] Salon introuvable ! ID:', config.logs?.roles);
+        const config = await getConfig()
+        const logChannel = role.guild.channels.cache.get(config.log_roles);
+        if (!logChannel) return;
 
         const now = new Date();
         let deletedBy = 'Inconnu';
@@ -92,10 +100,10 @@ module.exports = (client) => {
         await logChannel.send({ embeds: [embed] });
     });
 
-    // ========== RÔLE MODIFIÉ ==========
     client.on(Events.GuildRoleUpdate, async (oldRole, newRole) => {
-        const logChannel = newRole.guild.channels.cache.get(config.logs?.roles);
-        if (!logChannel) return console.error('❌ [ROLE UPDATE] Salon introuvable ! ID:', config.logs?.roles);
+        const config = await getConfig()
+        const logChannel = newRole.guild.channels.cache.get(config.log_roles);
+        if (!logChannel) return;
 
         const now = new Date();
         let updatedBy = 'Inconnu';
@@ -132,12 +140,12 @@ module.exports = (client) => {
         await logChannel.send({ embeds: [embed] });
     });
 
-    // ========== RÔLE AJOUTÉ / RETIRÉ ==========
     client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
         if (!oldMember.guild) return;
 
-        const logChannel = newMember.guild.channels.cache.get(config.logs?.roles);
-        if (!logChannel) return console.error('❌ [ROLE MEMBER] Salon introuvable ! ID:', config.logs?.roles);
+        const config = await getConfig()
+        const logChannel = newMember.guild.channels.cache.get(config.log_roles);
+        if (!logChannel) return;
 
         const addedRoles   = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id));
         const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id));

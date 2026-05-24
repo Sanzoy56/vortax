@@ -10,8 +10,14 @@ const {
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { roles: permRoles, logs } = require('../config.json');
+const { roles: permRoles } = require('../config.json');
 
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch { return {} }
+}
 // ========== WARNS JSON ==========
 const warnsPath = path.join(__dirname, '../warns.json');
 const getWarns = () => {
@@ -154,7 +160,8 @@ module.exports = (client) => {
         if (!panelData) return interaction.reply({ content: '❌ Session expirée, refais /panel.', ephemeral: true });
 
         const target = await interaction.guild.members.fetch(panelData.targetId).catch(() => null);
-        const logChannel = interaction.guild.channels.cache.get(logs.moderation);
+        const config = await getConfig()
+        const logChannel = interaction.guild.channels.cache.get(config.log_moderation);
         const footer = { text: 'Team Vortax © 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) };
 
         // ========== UNMUTE DIRECT ==========
@@ -224,7 +231,8 @@ module.exports = (client) => {
         const targetId = parts[2];
 
         const target = await interaction.guild.members.fetch(targetId).catch(() => null);
-        const logChannel = interaction.guild.channels.cache.get(logs.moderation);
+        const config = await getConfig()
+        const logChannel = interaction.guild.channels.cache.get(config.log_moderation);
         const footer = { text: 'Team Vortax © 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) };
 
         // ========== BAN ==========

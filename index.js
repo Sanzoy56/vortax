@@ -206,7 +206,16 @@ client.once('clientReady', () => {
   startQuestReset(client);
   startVoiceXp(client);
 });
-
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    const config = await res.json()
+    return config
+  } catch (e) {
+    console.error('❌ Impossible de lire la config du panel :', e.message)
+    return {}
+  }
+}
 // ───────────────────────────────────────────────────
 // Errors
 // ───────────────────────────────────────────────────

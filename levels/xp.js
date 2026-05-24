@@ -1,5 +1,12 @@
 'use strict';
-const { RANGS, STREAKS_BONUS, BOOSTS_PERMANENTS, SALONS } = require('./config');
+const { RANGS, STREAKS_BONUS, BOOSTS_PERMANENTS } = require('./config');
+
+async function getConfig() {
+  try {
+    const res = await fetch('http://localhost:3001/config')
+    return await res.json()
+  } catch { return {} }
+}
 
 // ── Formules ─────────────────────────────────────────────────────────────────
 
@@ -59,7 +66,8 @@ async function gererNiveauEtRang(user, ancienNiveau, guild, member, userId) {
   while (user.xp >= xpPourNiveau(user.niveau)) {
     user.xp    -= xpPourNiveau(user.niveau);
     user.niveau += 1;
-    const salon = guild.channels.cache.get(SALONS.niveaux);
+    const cfg = await getConfig()
+    const salon = guild.channels.cache.get(cfg.levels);
     salon?.send(`Toutes nos félicitations <@${userId}>, vous venez de passer niveau **${user.niveau}** !`);
   }
 
@@ -84,7 +92,8 @@ async function gererNiveauEtRang(user, ancienNiveau, guild, member, userId) {
   // Ajoute le nouveau rang
   if (nouveauRang) await m.roles.add(nouveauRang.role).catch(() => null);
 
-  const salon = guild.channels.cache.get(SALONS.rangs);
+  const cfg = await getConfig()
+  const salon = guild.channels.cache.get(cfg.rangs);
   if (!salon) return;
 
   if (!ancienRang || (nouveauRang && nouveauRang.niveau > ancienRang.niveau)) {
