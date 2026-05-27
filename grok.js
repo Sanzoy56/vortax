@@ -107,24 +107,52 @@ function normalize(str) {
     .replace(/\s+/g, ' ');
 }
 
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const prev = Array.from({ length: n + 1 }, (_, i) => i);
+  const curr = new Array(n + 1);
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      curr[j] = a[i - 1] === b[j - 1] ? prev[j - 1] : 1 + Math.min(prev[j - 1], prev[j], curr[j - 1]);
+    }
+    prev.splice(0, n + 1, ...curr);
+  }
+  return prev[n];
+}
+
+// Distance max : 1 pour les mots courts, 2 pour les mots plus longs
+function fuzzyWord(a, b) {
+  const maxLen = Math.max(a.length, b.length);
+  return levenshtein(a, b) <= (maxLen <= 5 ? 1 : 2);
+}
+
+function hasKw(normalizedWords, ...keywords) {
+  return normalizedWords.some(w => keywords.some(k => w === k || fuzzyWord(w, k)));
+}
+
 // ── Helpers fuzzy search ──────────────────────────────────────────────────────
 function findCategory(guild, query) {
   const q = normalize(query);
-  return guild.channels.cache.find(
-    c => c.type === ChannelType.GuildCategory && normalize(c.name).includes(q)
-  ) ?? null;
+  return guild.channels.cache.find(c => {
+    if (c.type !== ChannelType.GuildCategory) return false;
+    const n = normalize(c.name);
+    return n.includes(q) || fuzzyWord(n, q) || q.split(' ').every(qw => n.split(' ').some(w => w === qw || fuzzyWord(w, qw)));
+  }) ?? null;
 }
 
 function findChannel(guild, name, categoryQuery = null) {
   const q = normalize(name);
-  let candidates = guild.channels.cache.filter(
-    c => !c.isThread() && c.type !== ChannelType.GuildCategory && normalize(c.name) === q
-  );
-  if (candidates.size === 0) {
-    candidates = guild.channels.cache.filter(
-      c => !c.isThread() && c.type !== ChannelType.GuildCategory && normalize(c.name).includes(q)
-    );
-  }
+  const score = (n) => {
+    if (n === q) return 3;
+    if (n.includes(q)) return 2;
+    if (fuzzyWord(n, q)) return 1;
+    return 0;
+  };
+  let candidates = guild.channels.cache
+    .filter(c => !c.isThread() && c.type !== ChannelType.GuildCategory && score(normalize(c.name)) > 0)
+    .sort((a, b) => score(normalize(b.name)) - score(normalize(a.name)));
+  if (candidates.size === 0) return null;
   if (categoryQuery && candidates.size > 1) {
     const cat = findCategory(guild, categoryQuery);
     if (cat) {
@@ -139,6 +167,7 @@ function findRole(guild, name) {
   const q = normalize(name);
   return guild.roles.cache.find(r => normalize(r.name) === q)
     ?? guild.roles.cache.find(r => normalize(r.name).includes(q))
+    ?? guild.roles.cache.find(r => fuzzyWord(normalize(r.name), q))
     ?? null;
 }
 
@@ -195,8 +224,9 @@ async function detectMod(message, client, userInput) {
     { action: 'warn',    re: /\bwarn(?:er?)?\b|\bavertis(?:s(?:ement)?)?\b/i },
   ];
 
-  const content = message.content;
-  const matched = modPatterns.find(({ re }) => re.test(content));
+  const content  = message.content;
+  const nContent = normalize(content);
+  const matched  = modPatterns.find(({ re }) => re.test(nContent) || re.test(content));
   if (!matched) return null;
 
   const reason = extractReason(userInput);
@@ -222,31 +252,51 @@ async function detectMod(message, client, userInput) {
 }
 
 // ── Détection création/suppression de salons et rôles ────────────────────────
-// Approche par mots-clés : l'ordre des mots dans la phrase n'a pas d'importance
 function detectAction(text) {
-  const isCreate = /\b(?:crée?r?|créer|creer|cree|ajoute?r?)\b/i.test(text);
-  const isDelete = /\b(?:supp(?:rime?r?)?|supprimer|efface?r?|delete|enlève?r?|retire?r?|vire?r?)\b/i.test(text);
+  const n  = normalize(text);
+  const nw = n.split(/\s+/);
+
+  const isCreate = /\b(?:cree?r?|ajoute?r?)\b/.test(n) || hasKw(nw, 'creer', 'cree', 'ajouter');
+  const isDelete = /\b(?:supp(?:rime?r?)?|efface?r?|delete|enleve?r?|retire?r?|vire?r?)\b/.test(n)
+    || hasKw(nw, 'supprimer', 'effacer', 'delete', 'enlever', 'retirer', 'virer');
   if (!isCreate && !isDelete) return null;
 
-  const hasChannel = /\b(?:salon|channel|canal)\b/i.test(text);
-  const hasRole    = /\b(?:rôle|role)\b/i.test(text);
+  const hasChannel = /\b(?:salon|channel|canal)\b/.test(n) || hasKw(nw, 'salon', 'channel', 'canal');
+  const hasRole    = /\brole\b/.test(n) || hasKw(nw, 'role');
   if (!hasChannel && !hasRole) return null;
 
-  // Catégorie : ce qui suit le mot "catégorie/cat"
+  // Catégorie (depuis le texte original pour conserver les accents)
   let category = null;
-  const catM = text.match(/\b(?:catégorie|categorie|category|cat)\s+([^\n,?!.]+)/i);
+  const catM = text.match(/\b(?:cat[eé]gorie|category|cat)\s+([^\n,?!.]+)/i);
   if (catM) category = catM[1].replace(/[,?!.\s]+$/, '').trim();
 
-  // Nom : ce qui suit le mot-clé de type (salon/rôle), avant la partie catégorie
-  const typeRe = hasChannel ? /\b(?:salon|channel|canal)\b/i : /\b(?:rôle|role)\b/i;
-  const typeM  = text.match(typeRe);
-  if (!typeM) return null;
+  // Position du mot-clé de type : essayer texte original d'abord, puis normalisé, puis fuzzy
+  const typeReOrig = hasChannel ? /\b(?:salon|channel|canal)\b/i : /\b(?:r[oô]le)\b/i;
+  const typeReNorm = hasChannel ? /\b(?:salon|channel|canal)\b/ : /\brole\b/;
+  const origMatch  = text.match(typeReOrig);
+  const normMatch  = n.match(typeReNorm);
 
-  let afterType = text.slice(typeM.index + typeM[0].length);
-  // Retirer la partie "dans la catégorie X" si présente
-  afterType = afterType.replace(/\s+(?:dans|en|in|de)\s+(?:la\s+)?(?:catégorie|categorie|category|cat)\s+.*/i, '');
-  // Retirer déterminants de début et ponctuation de fin
-  let name = afterType
+  let afterType = null;
+  if (origMatch) {
+    // Cas normal : mot-clé trouvé dans le texte original → nom conserve les accents
+    let raw = text.slice(origMatch.index + origMatch[0].length);
+    raw = raw.replace(/\s+(?:dans|en|in|de)\s+(?:la\s+)?(?:cat[eé]gorie|category|cat)\s+.*/i, '');
+    afterType = raw;
+  } else if (normMatch) {
+    // Fallback : mot-clé trouvé dans le texte normalisé (ex : "slon" → non, mais accents manquants oui)
+    let raw = n.slice(normMatch.index + normMatch[0].length);
+    raw = raw.replace(/\s+(?:dans|en|in|de)\s+(?:la\s+)?(?:categorie|category|cat)\s+.*/i, '');
+    afterType = raw;
+  } else {
+    // Fuzzy : chercher la position du mot-clé le plus proche dans les mots normalisés
+    const kws = hasChannel ? ['salon', 'channel', 'canal'] : ['role'];
+    const idx = nw.findIndex(w => kws.some(k => w === k || fuzzyWord(w, k)));
+    if (idx >= 0) afterType = nw.slice(idx + 1).join(' ');
+  }
+
+  if (!afterType) return null;
+
+  const name = afterType
     .replace(/^\s+/, '')
     .replace(/^(?:un |une |le |la |du |de |mon |ton |son |mes |tes |ses )/i, '')
     .replace(/[,?!.\s]+$/, '')
@@ -318,7 +368,7 @@ module.exports = (client) => {
     await interaction.deferUpdate();
     const guild = interaction.guild;
     const msg   = interaction.message;
-    const { action, targetId, roleId, roleName, channelId, channelName, categoryId } = pending;
+    const { action, targetId, reason, roleId, roleName, channelId, channelName, categoryId } = pending;
 
     async function done(text) {
       await msg.edit({ content: text, embeds: [], components: [] }).catch(console.error);
