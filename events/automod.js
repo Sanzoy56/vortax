@@ -72,16 +72,33 @@ async function appliquerSanction(member, guild, message, sanction, raison, logSa
 
     if (logSalon) await logSalon.send({ embeds: [embed] })
 
-    const DM_MESSAGES = {
-      timeout_1h:  `Tu as reçu un timeout de **1 heure** sur **${guild.name}**.\n📋 **Raison :** ${raison}`,
-      timeout_24h: `Tu as reçu un timeout de **24 heures** sur **${guild.name}**.\n📋 **Raison :** ${raison}`,
-      timeout_7j:  `Tu as reçu un timeout de **7 jours** sur **${guild.name}**.\n📋 **Raison :** ${raison}`,
-      kick:        `Tu as été expulsé de **${guild.name}**.\n📋 **Raison :** ${raison}`,
-      ban:         `Tu as été banni de **${guild.name}**.\n📋 **Raison :** ${raison}`,
-      warn:        `Tu as reçu un avertissement sur **${guild.name}**.\n📋 **Raison :** ${raison}`,
+    const DM_CONFIGS = {
+      timeout_1h:  { title: '🔇 Vous avez été mis en timeout', color: 0x5865F2, desc: `Vous avez été mis en timeout sur **${guild.name}**.`, dur: '1 heure',   ms: 60 * 60 * 1000 },
+      timeout_24h: { title: '🔇 Vous avez été mis en timeout', color: 0x5865F2, desc: `Vous avez été mis en timeout sur **${guild.name}**.`, dur: '24 heures', ms: 24 * 60 * 60 * 1000 },
+      timeout_7j:  { title: '🔇 Vous avez été mis en timeout', color: 0x5865F2, desc: `Vous avez été mis en timeout sur **${guild.name}**.`, dur: '7 jours',   ms: 7 * 24 * 60 * 60 * 1000 },
+      kick:        { title: '👢 Vous avez été expulsé',         color: 0xFEE75C, desc: `Vous avez été expulsé de **${guild.name}**.` },
+      ban:         { title: '🔨 Vous avez été banni',           color: 0xED4245, desc: `Vous avez été banni de **${guild.name}**.` },
+      warn:        { title: '⚠️ Vous avez reçu un avertissement', color: 0xFEE75C, desc: `Vous avez reçu un avertissement sur **${guild.name}**.` },
     }
-    if (DM_MESSAGES[sanction]) {
-      await member.send(DM_MESSAGES[sanction]).catch(() => {})
+    const dmCfg = DM_CONFIGS[sanction]
+    if (dmCfg) {
+      const nowTs = Math.floor(Date.now() / 1000)
+      const dmEmbed = new EmbedBuilder()
+        .setTitle(dmCfg.title)
+        .setColor(dmCfg.color)
+        .setDescription(dmCfg.desc)
+        .setThumbnail(guild.iconURL({ dynamic: true }) ?? null)
+        .setTimestamp()
+      if (dmCfg.dur) {
+        const unmuteTs = Math.floor((Date.now() + dmCfg.ms) / 1000)
+        dmEmbed.addFields(
+          { name: '⏳ Durée',     value: dmCfg.dur, inline: true },
+          { name: '🔓 Démute le', value: `<t:${unmuteTs}:F> (<t:${unmuteTs}:R>)`, inline: false },
+        )
+      }
+      dmEmbed.addFields({ name: '📅 Date', value: `<t:${nowTs}:F>`, inline: false })
+      if (raison) dmEmbed.addFields({ name: '📋 Raison', value: raison, inline: false })
+      await member.send({ embeds: [dmEmbed] }).catch(() => {})
     }
 
     const comment = GLADOS[sanction]?.(member) ?? GLADOS.none(member)

@@ -378,14 +378,31 @@ module.exports = (client) => {
       // Modération
       if (['ban','unban','kick','mute','timeout','unmute','warn','unwarn'].includes(action)) {
         const by     = interaction.user.tag;
-        const rLine  = reason ? `\nMotif : ${reason}` : '';
         const auditR = (label) => `${label} par ${by} via VTX-BOT${reason ? ` — ${reason}` : ''}`;
+        const nowTs  = Math.floor(Date.now() / 1000);
+        const icon   = guild.iconURL({ dynamic: true }) ?? null;
+
+        // Construit l'embed MP : champs optionnels avant Date + Raison
+        function dmEmbed(title, color, desc, extraFields = []) {
+          const e = new EmbedBuilder()
+            .setTitle(title).setColor(color)
+            .setDescription(desc)
+            .setThumbnail(icon)
+            .setTimestamp();
+          if (extraFields.length) e.addFields(...extraFields);
+          e.addFields({ name: '📅 Date', value: `<t:${nowTs}:F>`, inline: false });
+          if (reason) e.addFields({ name: '📋 Raison', value: reason, inline: false });
+          return e;
+        }
 
         // ── Unban (la personne n'est pas dans le serveur) ──────────────
         if (action === 'unban') {
           await guild.bans.remove(targetId, auditR('Débanni')).catch(e => { throw e; });
           const user = await client.users.fetch(targetId).catch(() => null);
-          if (user) await user.send(`🔓 Tu as été **débanni** du serveur **${guild.name}** par ${by}.${rLine}`).catch(() => {});
+          if (user) await user.send({ embeds: [dmEmbed(
+            '🔓 Vous avez été débanni', 0x57F287,
+            `Vous avez été débanni de **${guild.name}**.`
+          )] }).catch(() => {});
           return done(`Sujet débanni. Intéressant choix de clémence.`);
         }
 
@@ -395,31 +412,55 @@ module.exports = (client) => {
         if (!member) return done(`Je ne trouve pas ce membre dans le serveur.`);
 
         if (action === 'ban') {
-          await member.send(`🔨 Tu as été **banni** du serveur **${guild.name}** par ${by}.${rLine}`).catch(() => {});
+          await member.send({ embeds: [dmEmbed(
+            '🔨 Vous avez été banni', 0xED4245,
+            `Vous avez été banni de **${guild.name}**.`
+          )] }).catch(() => {});
           await member.ban({ reason: auditR('Banni') });
           return done(`Sujet banni. Le test est terminé pour lui.`);
         }
         if (action === 'kick') {
-          await member.send(`👢 Tu as été **expulsé** du serveur **${guild.name}** par ${by}.${rLine}`).catch(() => {});
+          await member.send({ embeds: [dmEmbed(
+            '👢 Vous avez été expulsé', 0xFEE75C,
+            `Vous avez été expulsé de **${guild.name}**.`
+          )] }).catch(() => {});
           await member.kick(auditR('Expulsé'));
           return done(`Sujet expulsé. Efficacement.`);
         }
         if (action === 'mute' || action === 'timeout') {
-          await member.send(`⏱️ Tu as reçu un **timeout de 10 minutes** sur le serveur **${guild.name}** par ${by}.${rLine}`).catch(() => {});
-          await member.timeout(10 * 60 * 1000, auditR('Timeout'));
+          const durMs    = 10 * 60 * 1000;
+          const unmuteTs = Math.floor((Date.now() + durMs) / 1000);
+          await member.send({ embeds: [dmEmbed(
+            '🔇 Vous avez été mis en timeout', 0x5865F2,
+            `Vous avez été mis en timeout sur **${guild.name}**.`,
+            [
+              { name: '⏳ Durée',     value: '10 minutes', inline: true },
+              { name: '🔓 Démute le', value: `<t:${unmuteTs}:F> (<t:${unmuteTs}:R>)`, inline: false },
+            ]
+          )] }).catch(() => {});
+          await member.timeout(durMs, auditR('Timeout'));
           return done(`Sujet mis en timeout 10 minutes. Comme c'est reposant.`);
         }
         if (action === 'unmute') {
           await member.timeout(null, auditR('Timeout retiré'));
-          await member.send(`🔊 Ton timeout a été **retiré** sur le serveur **${guild.name}** par ${by}.${rLine}`).catch(() => {});
+          await member.send({ embeds: [dmEmbed(
+            '🔊 Votre timeout a été retiré', 0x57F287,
+            `Votre timeout a été retiré sur **${guild.name}**.`
+          )] }).catch(() => {});
           return done(`Timeout retiré. Le silence était pourtant si agréable.`);
         }
         if (action === 'warn') {
-          await member.send(`⚠️ Tu as reçu un **avertissement** sur le serveur **${guild.name}** par ${by}.${rLine}`).catch(() => {});
+          await member.send({ embeds: [dmEmbed(
+            '⚠️ Vous avez reçu un avertissement', 0xFEE75C,
+            `Vous avez reçu un avertissement sur **${guild.name}**.`
+          )] }).catch(() => {});
           return done(`Avertissement envoyé. J'espère sincèrement qu'il en tirera une leçon.`);
         }
         if (action === 'unwarn') {
-          await member.send(`✅ Ton avertissement a été **retiré** sur le serveur **${guild.name}** par ${by}.${rLine}`).catch(() => {});
+          await member.send({ embeds: [dmEmbed(
+            '✅ Votre avertissement a été retiré', 0x57F287,
+            `Votre avertissement a été retiré sur **${guild.name}**.`
+          )] }).catch(() => {});
           return done(`Avertissement retiré. Une ardoise propre. Pour l'instant.`);
         }
       }
