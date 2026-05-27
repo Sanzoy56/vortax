@@ -1,23 +1,49 @@
 {
   "1323025414523977798": {
     "userId": "1323025414523977798",
-    "exp": 1128,
+    "exp": 6445,
     "level": 0,
-    "wallet": 2158,
+    "wallet": 15463,
     "bank": 864,
     "streak": 1,
-    "lastMessageDate": "2026-05-23",
+    "lastMessageDate": "2026-05-27",
     "lastExpGain": 0,
     "rob": {
-      "lastUsed": 0
+      "lastUsed": 1779884972310
     },
     "inventory": {
       "tempBoost": null,
       "roleBoost": null
     },
     "quests": {
-      "date": "2026-05-23",
+      "date": "2026-05-27",
       "list": [
+        {
+          "id": "msg_13",
+          "cat": "MSG",
+          "label": "Verbeux",
+          "desc": "Envoyer 250 messages",
+          "type": "messages",
+          "target": 250,
+          "rewardExp": 2500,
+          "rewardCoins": 10000,
+          "progress": 83,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "prg_13",
+          "cat": "PRG",
+          "label": "Spendthrift",
+          "desc": "Dépenser 1 000 VTX-Coins",
+          "type": "spend",
+          "target": 1000,
+          "rewardExp": 300,
+          "rewardCoins": 0,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
         {
           "id": "evt_04",
           "cat": "EVT",
@@ -27,28 +53,80 @@
           "target": 1,
           "rewardExp": 500,
           "rewardCoins": 2000,
-          "progress": 1,
+          "progress": 3,
           "completed": true,
           "rewarded": true
         },
         {
-          "id": "voc_04",
-          "cat": "VOC",
-          "label": "Enraciné",
-          "desc": "Rester 1h en vocal",
-          "type": "vocal_min",
-          "target": 60,
-          "rewardExp": 1000,
-          "rewardCoins": 4000,
+          "id": "soc_04",
+          "cat": "SOC",
+          "label": "Vibrant",
+          "desc": "Mettre 30 réactions",
+          "type": "reactions",
+          "target": 30,
+          "rewardExp": 500,
+          "rewardCoins": 2000,
           "progress": 0,
           "completed": false,
           "rewarded": false
         },
         {
-          "id": "prg_10",
-          "cat": "PRG",
-          "label": "Investisseur",
-          "desc": "Déposer de l'argent en banque",
+          "id": "spe_08",
+          "cat": "SPE",
+          "label": "Grind total",
+          "desc": "Envoyer 50 msgs et gagner 2000 XP",
+          "type": "combo_msg_xp",
+          "target": 1,
+          "rewardExp": 1500,
+          "rewardCoins": 6000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_11",
+          "cat": "EVT",
+          "label": "Streak x7",
+          "desc": "Avoir un streak de 7 jours",
+          "type": "streak",
+          "target": 7,
+          "rewardExp": 2000,
+          "rewardCoins": 8000,
+          "progress": 1,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_02",
+          "cat": "VOC",
+          "label": "Fidèle",
+          "desc": "Rester 15 min en vocal",
+          "type": "vocal_min",
+          "target": 15,
+          "rewardExp": 300,
+          "rewardCoins": 1200,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "soc_07",
+          "cat": "SOC",
+          "label": "Spammeur d'émojis",
+          "desc": "Mettre 100 réactions",
+          "type": "reactions",
+          "target": 100,
+          "rewardExp": 1500,
+          "rewardCoins": 6000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_06",
+          "cat": "EVT",
+          "label": "Banquier",
+          "desc": "Utiliser /dep ou /with",
           "type": "bank",
           "target": 1,
           "rewardExp": 150,
@@ -58,111 +136,33 @@
           "rewarded": false
         },
         {
-          "id": "spe_07",
-          "cat": "SPE",
-          "label": "Enrichissement",
-          "desc": "Gagner 1 000 coins et monter de niveau",
-          "type": "combo_coins_lvl",
-          "target": 1,
-          "rewardExp": 1000,
-          "rewardCoins": 0,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "msg_15",
+          "id": "msg_12",
           "cat": "MSG",
-          "label": "Diarrhée verbale",
-          "desc": "Envoyer 600 messages",
+          "label": "Logorrhée",
+          "desc": "Envoyer 75 messages",
           "type": "messages",
-          "target": 600,
-          "rewardExp": 6000,
-          "rewardCoins": 25000,
-          "progress": 6,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "msg_04",
-          "cat": "MSG",
-          "label": "Machine à écrire",
-          "desc": "Envoyer 100 messages",
-          "type": "messages",
-          "target": 100,
-          "rewardExp": 1200,
-          "rewardCoins": 5000,
-          "progress": 6,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "spe_04",
-          "cat": "SPE",
-          "label": "Légende",
-          "desc": "Compléter 8 quêtes en un jour",
-          "type": "quests_done",
-          "target": 8,
-          "rewardExp": 4000,
-          "rewardCoins": 15000,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "spe_11",
-          "cat": "SPE",
-          "label": "Rush",
-          "desc": "Envoyer 100 msgs ET 50 réactions",
-          "type": "combo_msg_react2",
-          "target": 1,
-          "rewardExp": 2000,
-          "rewardCoins": 8000,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "voc_09",
-          "cat": "VOC",
-          "label": "Ermite vocal",
-          "desc": "Rester 90 min en vocal",
-          "type": "vocal_min",
-          "target": 90,
-          "rewardExp": 1500,
-          "rewardCoins": 6000,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "voc_07",
-          "cat": "VOC",
-          "label": "Sociable",
-          "desc": "Être dans un vocal avec 2+ personnes 10 min",
-          "type": "vocal_min",
-          "target": 10,
-          "rewardExp": 250,
-          "rewardCoins": 1000,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
+          "target": 75,
+          "rewardExp": 900,
+          "rewardCoins": 3500,
+          "progress": 75,
+          "completed": true,
+          "rewarded": true
         }
       ]
     },
     "dailyStats": {
-      "date": "2026-05-23",
-      "messages": 6,
-      "coins": 36,
-      "exp": 83,
-      "commands": 0
+      "date": "2026-05-27",
+      "messages": 83,
+      "coins": 5182,
+      "exp": 1940,
+      "commands": 10
     }
   },
   "1454409472633077784": {
     "userId": "1454409472633077784",
     "exp": 802,
     "level": 0,
-    "wallet": 2158,
+    "wallet": 1957,
     "bank": 0,
     "streak": 1,
     "lastMessageDate": "2026-05-15",
@@ -319,12 +319,12 @@
   },
   "1405637417272086588": {
     "userId": "1405637417272086588",
-    "exp": 248,
+    "exp": 2859,
     "level": 0,
-    "wallet": 316,
+    "wallet": 10534,
     "bank": 0,
     "streak": 1,
-    "lastMessageDate": "2026-05-23",
+    "lastMessageDate": "2026-05-27",
     "lastExpGain": 0,
     "rob": {
       "lastUsed": 0
@@ -334,31 +334,749 @@
       "roleBoost": null
     },
     "quests": {
-      "date": "2026-05-23",
+      "date": "2026-05-27",
       "list": [
         {
-          "id": "prg_07",
-          "cat": "PRG",
-          "label": "Fortuné",
-          "desc": "Gagner 2 000 VTX-Coins",
-          "type": "coins_earned",
-          "target": 2000,
-          "rewardExp": 500,
-          "rewardCoins": 0,
-          "progress": 23,
+          "id": "msg_02",
+          "cat": "MSG",
+          "label": "Communicant",
+          "desc": "Envoyer 20 messages",
+          "type": "messages",
+          "target": 20,
+          "rewardExp": 300,
+          "rewardCoins": 1000,
+          "progress": 13,
           "completed": false,
           "rewarded": false
         },
         {
-          "id": "msg_03",
-          "cat": "MSG",
-          "label": "Intarissable",
-          "desc": "Envoyer 50 messages",
-          "type": "messages",
+          "id": "soc_05",
+          "cat": "SOC",
+          "label": "Hyperactif",
+          "desc": "Mettre 50 réactions",
+          "type": "reactions",
           "target": 50,
-          "rewardExp": 700,
+          "rewardExp": 800,
           "rewardCoins": 3000,
-          "progress": 2,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_05",
+          "cat": "VOC",
+          "label": "Colocataire",
+          "desc": "Rester 2h en vocal",
+          "type": "vocal_min",
+          "target": 120,
+          "rewardExp": 2000,
+          "rewardCoins": 8000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "msg_14",
+          "cat": "MSG",
+          "label": "Sans filtre",
+          "desc": "Envoyer 400 messages",
+          "type": "messages",
+          "target": 400,
+          "rewardExp": 4000,
+          "rewardCoins": 16000,
+          "progress": 13,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "prg_15",
+          "cat": "PRG",
+          "label": "XP 500",
+          "desc": "Gagner 500 XP aujourd'hui",
+          "type": "exp",
+          "target": 500,
+          "rewardExp": 0,
+          "rewardCoins": 2000,
+          "progress": 500,
+          "completed": true,
+          "rewarded": true
+        },
+        {
+          "id": "evt_01",
+          "cat": "EVT",
+          "label": "Matinal",
+          "desc": "Envoyer un message avant 9h",
+          "type": "morning",
+          "target": 1,
+          "rewardExp": 200,
+          "rewardCoins": 800,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "spe_03",
+          "cat": "SPE",
+          "label": "Boss du jour",
+          "desc": "Compléter 5 quêtes en un jour",
+          "type": "quests_done",
+          "target": 5,
+          "rewardExp": 2000,
+          "rewardCoins": 8000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_04",
+          "cat": "EVT",
+          "label": "Assidu",
+          "desc": "Maintenir ton streak",
+          "type": "streak",
+          "target": 1,
+          "rewardExp": 500,
+          "rewardCoins": 2000,
+          "progress": 1,
+          "completed": true,
+          "rewarded": true
+        },
+        {
+          "id": "spe_14",
+          "cat": "SPE",
+          "label": "Banquier suprême",
+          "desc": "Avoir 50 000 coins en banque",
+          "type": "bank_amount",
+          "target": 50000,
+          "rewardExp": 1500,
+          "rewardCoins": 0,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_09",
+          "cat": "VOC",
+          "label": "Ermite vocal",
+          "desc": "Rester 90 min en vocal",
+          "type": "vocal_min",
+          "target": 90,
+          "rewardExp": 1500,
+          "rewardCoins": 6000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        }
+      ]
+    },
+    "dailyStats": {
+      "date": "2026-05-27",
+      "messages": 13,
+      "coins": 6185,
+      "exp": 2052,
+      "commands": 0
+    }
+  },
+  "1053403548425134170": {
+    "userId": "1053403548425134170",
+    "exp": 0,
+    "level": 0,
+    "wallet": 201,
+    "bank": 0,
+    "streak": 0,
+    "lastMessageDate": null,
+    "lastExpGain": 0,
+    "rob": {
+      "lastUsed": 1779730849178
+    },
+    "inventory": {
+      "tempBoost": null,
+      "roleBoost": null
+    },
+    "quests": {
+      "date": "2026-05-25",
+      "list": [
+        {
+          "id": "spe_03",
+          "cat": "SPE",
+          "label": "Boss du jour",
+          "desc": "Compléter 5 quêtes en un jour",
+          "type": "quests_done",
+          "target": 5,
+          "rewardExp": 2000,
+          "rewardCoins": 8000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_11",
+          "cat": "EVT",
+          "label": "Streak x7",
+          "desc": "Avoir un streak de 7 jours",
+          "type": "streak",
+          "target": 7,
+          "rewardExp": 2000,
+          "rewardCoins": 8000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_07",
+          "cat": "VOC",
+          "label": "Sociable",
+          "desc": "Être dans un vocal avec 2+ personnes 10 min",
+          "type": "vocal_min",
+          "target": 10,
+          "rewardExp": 250,
+          "rewardCoins": 1000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "msg_05",
+          "cat": "MSG",
+          "label": "Graphomane",
+          "desc": "Envoyer 200 messages",
+          "type": "messages",
+          "target": 200,
+          "rewardExp": 2000,
+          "rewardCoins": 8000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_06",
+          "cat": "VOC",
+          "label": "Animateur",
+          "desc": "Être dans un vocal avec 3+ personnes 20 min",
+          "type": "vocal_min",
+          "target": 20,
+          "rewardExp": 600,
+          "rewardCoins": 2500,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "spe_09",
+          "cat": "SPE",
+          "label": "Vocal + streak",
+          "desc": "Rester 20 min en vocal et maintenir ton streak",
+          "type": "combo_voc_streak",
+          "target": 1,
+          "rewardExp": 800,
+          "rewardCoins": 3200,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "msg_13",
+          "cat": "MSG",
+          "label": "Verbeux",
+          "desc": "Envoyer 250 messages",
+          "type": "messages",
+          "target": 250,
+          "rewardExp": 2500,
+          "rewardCoins": 10000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "spe_05",
+          "cat": "SPE",
+          "label": "Social butterfly",
+          "desc": "Envoyer 20 msgs et mettre 10 réactions",
+          "type": "combo_msg_react",
+          "target": 1,
+          "rewardExp": 700,
+          "rewardCoins": 2800,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "msg_14",
+          "cat": "MSG",
+          "label": "Sans filtre",
+          "desc": "Envoyer 400 messages",
+          "type": "messages",
+          "target": 400,
+          "rewardExp": 4000,
+          "rewardCoins": 16000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_09",
+          "cat": "EVT",
+          "label": "Curieux",
+          "desc": "Utiliser 3 commandes",
+          "type": "commands",
+          "target": 3,
+          "rewardExp": 150,
+          "rewardCoins": 600,
+          "progress": 1,
+          "completed": false,
+          "rewarded": false
+        }
+      ]
+    },
+    "dailyStats": {
+      "date": "2026-05-25",
+      "messages": 0,
+      "coins": 0,
+      "exp": 0,
+      "commands": 1
+    }
+  },
+  "1495864702457217271": {
+    "userId": "1495864702457217271",
+    "exp": 1000,
+    "level": 0,
+    "wallet": 0,
+    "bank": 0,
+    "streak": 0,
+    "lastMessageDate": null,
+    "lastExpGain": 0,
+    "rob": {
+      "lastUsed": 0
+    },
+    "inventory": {
+      "tempBoost": null,
+      "roleBoost": null
+    },
+    "quests": {
+      "date": null,
+      "list": []
+    },
+    "dailyStats": {
+      "date": null,
+      "messages": 0,
+      "coins": 0,
+      "exp": 0,
+      "commands": 0
+    }
+  },
+  "1474039465822519468": {
+    "userId": "1474039465822519468",
+    "exp": 24,
+    "level": 0,
+    "wallet": 10,
+    "bank": 0,
+    "streak": 1,
+    "lastMessageDate": "2026-05-27",
+    "lastExpGain": 0,
+    "rob": {
+      "lastUsed": 0
+    },
+    "inventory": {
+      "tempBoost": null,
+      "roleBoost": null
+    },
+    "quests": {
+      "date": "2026-05-27",
+      "list": [
+        {
+          "id": "voc_06",
+          "cat": "VOC",
+          "label": "Animateur",
+          "desc": "Être dans un vocal avec 3+ personnes 20 min",
+          "type": "vocal_min",
+          "target": 20,
+          "rewardExp": 600,
+          "rewardCoins": 2500,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "prg_04",
+          "cat": "PRG",
+          "label": "Grinder",
+          "desc": "Gagner 3 000 XP aujourd'hui",
+          "type": "exp",
+          "target": 3000,
+          "rewardExp": 0,
+          "rewardCoins": 6000,
+          "progress": 24,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "spe_12",
+          "cat": "SPE",
+          "label": "Omniscient",
+          "desc": "Utiliser 15 commandes différentes",
+          "type": "commands",
+          "target": 15,
+          "rewardExp": 1200,
+          "rewardCoins": 5000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_05",
+          "cat": "VOC",
+          "label": "Colocataire",
+          "desc": "Rester 2h en vocal",
+          "type": "vocal_min",
+          "target": 120,
+          "rewardExp": 2000,
+          "rewardCoins": 8000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_06",
+          "cat": "EVT",
+          "label": "Banquier",
+          "desc": "Utiliser /dep ou /with",
+          "type": "bank",
+          "target": 1,
+          "rewardExp": 150,
+          "rewardCoins": 600,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_11",
+          "cat": "EVT",
+          "label": "Streak x7",
+          "desc": "Avoir un streak de 7 jours",
+          "type": "streak",
+          "target": 7,
+          "rewardExp": 2000,
+          "rewardCoins": 8000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "prg_11",
+          "cat": "PRG",
+          "label": "Économe",
+          "desc": "Avoir 10 000 VTX-Coins en banque",
+          "type": "bank_amount",
+          "target": 10000,
+          "rewardExp": 800,
+          "rewardCoins": 0,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "msg_15",
+          "cat": "MSG",
+          "label": "Diarrhée verbale",
+          "desc": "Envoyer 600 messages",
+          "type": "messages",
+          "target": 600,
+          "rewardExp": 6000,
+          "rewardCoins": 25000,
+          "progress": 1,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "prg_03",
+          "cat": "PRG",
+          "label": "XP addict",
+          "desc": "Gagner 1 500 XP aujourd'hui",
+          "type": "exp",
+          "target": 1500,
+          "rewardExp": 0,
+          "rewardCoins": 3000,
+          "progress": 24,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "prg_12",
+          "cat": "PRG",
+          "label": "Casseur de niveaux",
+          "desc": "Monter de niveau",
+          "type": "levelup",
+          "target": 1,
+          "rewardExp": 0,
+          "rewardCoins": 2000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        }
+      ]
+    },
+    "dailyStats": {
+      "date": "2026-05-27",
+      "messages": 1,
+      "coins": 10,
+      "exp": 24,
+      "commands": 0
+    }
+  },
+  "1340969234959831040": {
+    "userId": "1340969234959831040",
+    "exp": 50,
+    "level": 0,
+    "wallet": 117,
+    "bank": 0,
+    "streak": 1,
+    "lastMessageDate": "2026-05-27",
+    "lastExpGain": 0,
+    "rob": {
+      "lastUsed": 0
+    },
+    "inventory": {
+      "tempBoost": null,
+      "roleBoost": null
+    },
+    "quests": {
+      "date": "2026-05-27",
+      "list": [
+        {
+          "id": "msg_07",
+          "cat": "MSG",
+          "label": "Inépuisable",
+          "desc": "Envoyer 500 messages",
+          "type": "messages",
+          "target": 500,
+          "rewardExp": 5000,
+          "rewardCoins": 20000,
+          "progress": 1,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "spe_02",
+          "cat": "SPE",
+          "label": "Polyvalent",
+          "desc": "Gagner 500 XP et 500 Coins",
+          "type": "combo_xp_coins",
+          "target": 1,
+          "rewardExp": 600,
+          "rewardCoins": 2500,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_04",
+          "cat": "VOC",
+          "label": "Enraciné",
+          "desc": "Rester 1h en vocal",
+          "type": "vocal_min",
+          "target": 60,
+          "rewardExp": 1000,
+          "rewardCoins": 4000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "msg_14",
+          "cat": "MSG",
+          "label": "Sans filtre",
+          "desc": "Envoyer 400 messages",
+          "type": "messages",
+          "target": 400,
+          "rewardExp": 4000,
+          "rewardCoins": 16000,
+          "progress": 1,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_03",
+          "cat": "VOC",
+          "label": "Sédentaire",
+          "desc": "Rester 30 min en vocal",
+          "type": "vocal_min",
+          "target": 30,
+          "rewardExp": 600,
+          "rewardCoins": 2500,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "spe_06",
+          "cat": "SPE",
+          "label": "Tout terrain",
+          "desc": "Utiliser 5 commandes et envoyer 30 msgs",
+          "type": "combo_cmd_msg",
+          "target": 1,
+          "rewardExp": 900,
+          "rewardCoins": 3500,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_15",
+          "cat": "EVT",
+          "label": "Shopaholic",
+          "desc": "Acheter quelque chose en boutique",
+          "type": "spend",
+          "target": 1,
+          "rewardExp": 250,
+          "rewardCoins": 1000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_09",
+          "cat": "VOC",
+          "label": "Ermite vocal",
+          "desc": "Rester 90 min en vocal",
+          "type": "vocal_min",
+          "target": 90,
+          "rewardExp": 1500,
+          "rewardCoins": 6000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "prg_05",
+          "cat": "PRG",
+          "label": "Hardcore",
+          "desc": "Gagner 5 000 XP aujourd'hui",
+          "type": "exp",
+          "target": 5000,
+          "rewardExp": 0,
+          "rewardCoins": 10000,
+          "progress": 50,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_07",
+          "cat": "VOC",
+          "label": "Sociable",
+          "desc": "Être dans un vocal avec 2+ personnes 10 min",
+          "type": "vocal_min",
+          "target": 10,
+          "rewardExp": 250,
+          "rewardCoins": 1000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        }
+      ]
+    },
+    "dailyStats": {
+      "date": "2026-05-27",
+      "messages": 1,
+      "coins": 117,
+      "exp": 50,
+      "commands": 0
+    }
+  },
+  "1449141464411148399": {
+    "userId": "1449141464411148399",
+    "exp": 1403,
+    "level": 0,
+    "wallet": 4433,
+    "bank": 0,
+    "streak": 1,
+    "lastMessageDate": "2026-05-27",
+    "lastExpGain": 0,
+    "rob": {
+      "lastUsed": 0
+    },
+    "inventory": {
+      "tempBoost": null,
+      "roleBoost": null
+    },
+    "quests": {
+      "date": null,
+      "list": []
+    },
+    "dailyStats": {
+      "date": "2026-05-27",
+      "messages": 0,
+      "coins": 4433,
+      "exp": 1403,
+      "commands": 0
+    }
+  },
+  "1072956185667444737": {
+    "userId": "1072956185667444737",
+    "exp": 53,
+    "level": 0,
+    "wallet": 123,
+    "bank": 0,
+    "streak": 1,
+    "lastMessageDate": "2026-05-27",
+    "lastExpGain": 0,
+    "rob": {
+      "lastUsed": 0
+    },
+    "inventory": {
+      "tempBoost": null,
+      "roleBoost": null
+    },
+    "quests": {
+      "date": "2026-05-27",
+      "list": [
+        {
+          "id": "prg_04",
+          "cat": "PRG",
+          "label": "Grinder",
+          "desc": "Gagner 3 000 XP aujourd'hui",
+          "type": "exp",
+          "target": 3000,
+          "rewardExp": 0,
+          "rewardCoins": 6000,
+          "progress": 53,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_12",
+          "cat": "EVT",
+          "label": "Généreux",
+          "desc": "Utiliser /donner",
+          "type": "give",
+          "target": 1,
+          "rewardExp": 200,
+          "rewardCoins": 800,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "spe_10",
+          "cat": "SPE",
+          "label": "Perfectionniste",
+          "desc": "Compléter toutes ses quêtes du jour",
+          "type": "quests_done",
+          "target": 10,
+          "rewardExp": 5000,
+          "rewardCoins": 20000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_05",
+          "cat": "EVT",
+          "label": "Flambeur",
+          "desc": "Utiliser la commande /rob",
+          "type": "rob",
+          "target": 1,
+          "rewardExp": 300,
+          "rewardCoins": 1000,
+          "progress": 0,
           "completed": false,
           "rewarded": false
         },
@@ -376,92 +1094,66 @@
           "rewarded": false
         },
         {
-          "id": "prg_01",
+          "id": "prg_07",
           "cat": "PRG",
-          "label": "Gagne-petit",
-          "desc": "Gagner 100 XP aujourd'hui",
-          "type": "exp",
-          "target": 100,
-          "rewardExp": 0,
-          "rewardCoins": 500,
-          "progress": 39,
+          "label": "Fortuné",
+          "desc": "Gagner 2 000 VTX-Coins",
+          "type": "coins_earned",
+          "target": 2000,
+          "rewardExp": 500,
+          "rewardCoins": 0,
+          "progress": 123,
           "completed": false,
           "rewarded": false
         },
         {
-          "id": "soc_02",
-          "cat": "SOC",
-          "label": "Expressif",
-          "desc": "Mettre 10 réactions",
-          "type": "reactions",
-          "target": 10,
-          "rewardExp": 200,
-          "rewardCoins": 800,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "evt_01",
+          "id": "evt_13",
           "cat": "EVT",
-          "label": "Matinal",
-          "desc": "Envoyer un message avant 9h",
+          "label": "Lève-tôt",
+          "desc": "Envoyer un message avant 8h",
           "type": "morning",
           "target": 1,
+          "rewardExp": 300,
+          "rewardCoins": 1200,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "voc_10",
+          "cat": "VOC",
+          "label": "Marathonien",
+          "desc": "Rester 3h en vocal",
+          "type": "vocal_min",
+          "target": 180,
+          "rewardExp": 3000,
+          "rewardCoins": 12000,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "prg_10",
+          "cat": "PRG",
+          "label": "Investisseur",
+          "desc": "Déposer de l'argent en banque",
+          "type": "bank",
+          "target": 1,
+          "rewardExp": 150,
+          "rewardCoins": 600,
+          "progress": 0,
+          "completed": false,
+          "rewarded": false
+        },
+        {
+          "id": "evt_02",
+          "cat": "EVT",
+          "label": "Noctambule",
+          "desc": "Envoyer un message après 23h",
+          "type": "night",
+          "target": 1,
           "rewardExp": 200,
           "rewardCoins": 800,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "voc_08",
-          "cat": "VOC",
-          "label": "Noctambule",
-          "desc": "Rester 45 min en vocal",
-          "type": "vocal_min",
-          "target": 45,
-          "rewardExp": 800,
-          "rewardCoins": 3200,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "msg_08",
-          "cat": "MSG",
-          "label": "Premier mot",
-          "desc": "Envoyer 1 message",
-          "type": "messages",
-          "target": 1,
-          "rewardExp": 50,
-          "rewardCoins": 200,
-          "progress": 1,
-          "completed": true,
-          "rewarded": true
-        },
-        {
-          "id": "evt_15",
-          "cat": "EVT",
-          "label": "Shopaholic",
-          "desc": "Acheter quelque chose en boutique",
-          "type": "spend",
-          "target": 1,
-          "rewardExp": 250,
-          "rewardCoins": 1000,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
-        },
-        {
-          "id": "spe_14",
-          "cat": "SPE",
-          "label": "Banquier suprême",
-          "desc": "Avoir 50 000 coins en banque",
-          "type": "bank_amount",
-          "target": 50000,
-          "rewardExp": 1500,
-          "rewardCoins": 0,
           "progress": 0,
           "completed": false,
           "rewarded": false
@@ -469,10 +1161,10 @@
       ]
     },
     "dailyStats": {
-      "date": "2026-05-23",
-      "messages": 2,
-      "coins": 23,
-      "exp": 39,
+      "date": "2026-05-27",
+      "messages": 1,
+      "coins": 123,
+      "exp": 53,
       "commands": 0
     }
   }

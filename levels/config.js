@@ -60,15 +60,15 @@ module.exports = {
 
   // ─── EXP ──────────────────────────────────────────────────
   EXP: {
-    MIN_PER_MSG: 15,
-    MAX_PER_MSG: 25,
+    MIN_PER_MSG: 30,
+    MAX_PER_MSG: 60,
     COOLDOWN_MS: 5000,
   },
 
   // ─── Coins ────────────────────────────────────────────────
   COINS: {
-    MIN_PER_MSG: 5,
-    MAX_PER_MSG: 15,
+    MIN_PER_MSG: 80,
+    MAX_PER_MSG: 160,
   },
 
   // ─── Streak ───────────────────────────────────────────────
@@ -79,10 +79,13 @@ module.exports = {
 
   // ─── Rob ──────────────────────────────────────────────────
   ROB: {
-    COOLDOWN_MS: 4 * 60 * 60 * 1000,
-    MIN_PERCENT: 0.05,
-    MAX_PERCENT: 0.2,
-    SUCCESS_RATE: 0.6,
+    COOLDOWN_MS:    4 * 60 * 60 * 1000,
+    MIN_PERCENT:    0.20,   // vole 20–50 % du wallet (était 5–20 %)
+    MAX_PERCENT:    0.50,
+    SUCCESS_RATE:   1.0,    // toujours réussi
+    PENALTY_RATE:   0.03,
+    EMOJI_SUCCESS:  '1509167625685434380',
+    EMOJI_COIN:     '1509174658321223691',
   },
 
   // ─── Boosts temporaires ──────────────────────────────────

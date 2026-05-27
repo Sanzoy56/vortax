@@ -12,7 +12,7 @@ module.exports = {
     .addIntegerOption(o => o.setName('somme').setDescription('Quantité d\'XP à ajouter').setMinValue(1).setRequired(true)),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     const cible  = interaction.options.getUser('membre');
     const somme  = interaction.options.getInteger('somme');

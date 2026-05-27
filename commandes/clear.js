@@ -21,7 +21,7 @@ module.exports = (client) => {
       return interaction.reply({ content: '❌ Je n\'ai pas la permission de supprimer des messages ici.', ephemeral: true });
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
 
     try {
       const supprimes = await salon.bulkDelete(nombre, true);

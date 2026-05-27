@@ -1,14 +1,7 @@
 const { AttachmentBuilder } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 const path = require('path');
-async function getConfig() {
-  try {
-    const res = await fetch('http://localhost:3001/config')
-    return await res.json()
-  } catch {
-    return {}
-  }
-}
+const { getConfig } = require('../config')
 
 const STATUS_COLORS = {
   online: '#43b581', idle: '#faa61a',

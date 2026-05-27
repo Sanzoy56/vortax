@@ -1,12 +1,5 @@
 const { EmbedBuilder, AuditLogEvent, ChannelType } = require('discord.js');
-async function getConfig() {
-  try {
-    const res = await fetch('http://localhost:3001/config')
-    return await res.json()
-  } catch {
-    return {}
-  }
-}
+const { getConfig } = require('../config')
 
 const getType = (type) => {
     const types = {

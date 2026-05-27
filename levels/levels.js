@@ -117,32 +117,50 @@ async function updateStreak(user, member, client) {
     Math.min(user.streak * STREAK.BONUS_PER_DAY, STREAK.MAX_BONUS) * 100
   );
 
-  await channel.send(
-    `🔥 <@${member.id}> **Streak : ${user.streak} jour${user.streak > 1 ? 's' : ''} !** — Bonus EXP : **+${bonusPercent}%**`
-  );
+  const MILESTONES   = [3, 7, 14, 30, 60, 100, 365];
+  const nextMilestone = MILESTONES.find(m => m > user.streak);
+
+  let msg;
+  if (user.streak === 1) {
+    msg = `🔥 <@${member.id}> a commencé un nouveau streak ! Bonus EXP actuel : **+${bonusPercent}%**`;
+  } else {
+    const milestoneInfo = nextMilestone
+      ? ` · Prochain palier dans **${nextMilestone - user.streak}** jour${nextMilestone - user.streak > 1 ? 's' : ''}`
+      : ' · 🏆 Palier maximum atteint !';
+    msg = `🔥 <@${member.id}> **Streak : ${user.streak} jour${user.streak > 1 ? 's' : ''} !** — Bonus EXP : **+${bonusPercent}%**${milestoneInfo}`;
+  }
+
+  await channel.send(msg);
 }
 
 // ─── Level-up handler ────────────────────────────────────────
 async function handleLevelUp(member, client, oldLevel, newLevel, user) {
+  // Lazy require pour éviter la dépendance circulaire canvas ↔ levels
+  const { generateLevelUpCard, generateRankUpCard } = require('./canvas');
+  const { AttachmentBuilder } = require('discord.js');
+
   const guild   = member.guild;
   const oldRank = getRankForLevel(oldLevel);
   const newRank = getRankForLevel(newLevel);
 
-  // Toujours envoyer le message de level-up dans le salon dédié
+  // ── Message de level-up ──────────────────────────────────
   const levelChannel = guild.channels.cache.get(CHANNELS.LEVELS);
   if (levelChannel) {
     if (newLevel > oldLevel) {
+      const buf   = await generateLevelUpCard(member, oldLevel, newLevel, user).catch(() => null);
+      const files = buf ? [new AttachmentBuilder(buf, { name: 'levelup.png' })] : [];
       await levelChannel.send({
-        content: `<@${member.id}> **Félicitations !** Tu es passé du niveau **${oldLevel}** au niveau **${newLevel}** !`,
-      });
+        content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${oldLevel}** au niveau **${newLevel}** !`,
+        files,
+      }).catch(() => {});
     } else {
       await levelChannel.send({
         content: `<@${member.id}> Tu es redescendu au niveau **${newLevel}**.`,
-      });
+      }).catch(() => {});
     }
   }
 
-  // Gérer le changement de rang si besoin
+  // ── Changement de rang ───────────────────────────────────
   if (newRank?.roleId !== oldRank?.roleId) {
     if (oldRank) {
       const oldRole = guild.roles.cache.get(oldRank.roleId);
@@ -154,16 +172,20 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
     }
 
     const rankChannel = guild.channels.cache.get(CHANNELS.RANKS);
-    if (rankChannel) {
-      if (newRank && (!oldRank || newRank.level > oldRank.level)) {
-        await rankChannel.send({
-          content: `<@${member.id}> **Toutes nos félicitations !** Tu as atteint le rang **${newRank.name}** !`,
-        });
-      } else if (oldRank) {
-        await rankChannel.send({
-          content: `<@${member.id}> Tu as perdu le rang **${oldRank.name}**${newRank ? ` et es redescendu en **${newRank.name}**` : ''}.`,
-        });
-      }
+    if (rankChannel && newRank && (!oldRank || newRank.level > oldRank.level)) {
+      const rankIdx = RANKS.indexOf(newRank);
+      const nextRank = rankIdx >= 0 && rankIdx + 1 < RANKS.length ? RANKS[rankIdx + 1] : null;
+
+      const buf   = await generateRankUpCard(member, newRank, nextRank, newLevel, user).catch(() => null);
+      const files = buf ? [new AttachmentBuilder(buf, { name: 'rankup.png' })] : [];
+      await rankChannel.send({
+        content: `🏆 <@${member.id}> **Toutes nos félicitations !** Tu as passé le rang **${newRank.name}** ! Tu obtiens le rôle **${newRank.name}** !`,
+        files,
+      }).catch(() => {});
+    } else if (rankChannel && oldRank) {
+      await rankChannel.send({
+        content: `<@${member.id}> Tu as perdu le rang **${oldRank.name}**${newRank ? ` et es redescendu en **${newRank.name}**` : ''}.`,
+      }).catch(() => {});
     }
   }
 }

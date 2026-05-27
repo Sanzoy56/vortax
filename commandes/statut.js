@@ -43,7 +43,7 @@ module.exports = {
             }
 
             // ⚡ on répond direct proprement
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: 64 });
 
             client.user.setActivity(status, {
                 type: map[type],

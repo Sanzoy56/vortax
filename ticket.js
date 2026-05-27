@@ -5,8 +5,7 @@ const token = require('./token.json');
 // ========== IDs ==========
 const STAFF_ROLE_ID       = '1497331100782039071';
 const CATEGORIE_ID        = '1416145060285648966';
-const LOGS_TICKETS_ID     = '1416181684679741521';
-const LOGS_TRANSCRIPT_ID  = '1473347420648771598';
+const { getConfig } = require('./config')
 
 // ========== HISTORIQUE IA ==========
 const ticketHistories = new Map();
@@ -193,7 +192,7 @@ ${lignesMsgs}
 
 // ========== HELPER LOG ACTION TICKET ==========
 const logTicket = async (guild, emoji, titre, couleur, fields) => {
-  const salon = guild.channels.cache.get(LOGS_TICKETS_ID);
+  (await getConfig()).log_tickets
   if (!salon) return;
   const embed = new EmbedBuilder()
     .setTitle(`${emoji} ${titre}`)
@@ -278,7 +277,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
         const buffer  = Buffer.from(html, 'utf-8');
         const fichier = new AttachmentBuilder(buffer, { name: `transcript-${msgChannel.name}.html` });
 
-        const logsChannel = message.guild.channels.cache.get(LOGS_TRANSCRIPT_ID);
+        (await getConfig()).log_transcripts
         if (logsChannel) {
           const logEmbed = new EmbedBuilder()
             .setTitle('📄 Transcript de ticket')

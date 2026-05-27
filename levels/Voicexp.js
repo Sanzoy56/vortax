@@ -5,10 +5,10 @@ const { addExp, addCoins } = require('./levels');
 // ─── Config XP vocal ─────────────────────────────────────────
 const VOCAL = {
   INTERVAL_MS:  60_000,   // tick toutes les 60 secondes
-  MIN_EXP:      10,       // XP min par tick
-  MAX_EXP:      20,       // XP max par tick
-  MIN_COINS:    3,        // Coins min par tick
-  MAX_COINS:    8,        // Coins max par tick
+  MIN_EXP:      60,       // XP min par tick
+  MAX_EXP:      100,      // XP max par tick
+  MIN_COINS:    200,      // Coins min par tick
+  MAX_COINS:    350,      // Coins max par tick
 };
 
 // ─── Démarrer la boucle vocale ───────────────────────────────

@@ -1,4 +1,5 @@
 'use strict';
+require('dotenv').config();
 
 const {
   Client,
@@ -26,7 +27,8 @@ const meteo      = require('./events/meteo.js');
 const iq         = require('./events/iq.js');
 const suggestion = require('./events/suggestion.js');
 const autorole   = require('./events/autorole.js');
-
+const stats     = require('./events/stats');
+const vocalTemp = require('./events/vocalTemp');
 // ── Command handlers manuels ───────────────────────
 const panel = require('./commandes/panel.js');
 const say   = require('./commandes/say.js');
@@ -122,7 +124,8 @@ panel(client);
 say(client);
 clear(client);
 grok(client);
-
+stats.init(client);
+vocalTemp.init(client);
 // ───────────────────────────────────────────────────
 // Levels : écoute des messages
 // ───────────────────────────────────────────────────
@@ -136,6 +139,9 @@ client.on('messageCreate', async (message) => {
 // ───────────────────────────────────────────────────
 
 client.on('interactionCreate', async (interaction) => {
+  // Ignorer les interactions expirées (Discord buffer les interactions après un redémarrage)
+  if (Date.now() - interaction.createdTimestamp > 2800) return;
+
   try {
     // ───── Boutons boutique / items existants ─────
     if (interaction.isButton()) {
@@ -165,7 +171,10 @@ client.on('interactionCreate', async (interaction) => {
       const { resetDailyStatsIfNeeded }     = require('./levels/levels');
       const { generateDailyQuests, updateQuestProgress } = require('./levels/quests');
 
-      const excluded = ['quetes', 'profil', 'top', 'aide', 'inventaire', 'status'];
+      const excluded = [
+        'quetes', 'profil', 'top', 'aide', 'inventaire', 'status',
+        'adminexpajouter', 'adminexpretirer', 'adminmoneyajouter', 'adminmoneyretirer',
+      ];
 
       const user = getUser(interaction.user.id);
       generateDailyQuests(user);
@@ -173,8 +182,9 @@ client.on('interactionCreate', async (interaction) => {
       user.dailyStats.commands++;
       saveUser(user);
 
+      // Fire-and-forget : ne bloque pas l'interaction (fenêtre Discord = 3s)
       if (!excluded.includes(interaction.commandName)) {
-        await updateQuestProgress(interaction.guild, interaction.user.id, 'commands', 1);
+        updateQuestProgress(interaction.guild, interaction.user.id, 'commands', 1).catch(() => {});
       }
     } catch {}
 
@@ -223,6 +233,10 @@ async function getConfig() {
 process.on('unhandledRejection', (err) => {
   if (err?.code === 10062) return;
   console.error('❌ Erreur non gérée :', err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('❌ Exception non capturée :', err);
 });
 
 client.login(token);
