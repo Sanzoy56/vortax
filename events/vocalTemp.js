@@ -102,6 +102,17 @@ function buildMemberSelect(members, customId, placeholder) {
 // ════════════════════════════════════════════════════════════
 async function onVoiceStateUpdate(oldState, newState) {
   const guild = newState.guild || oldState.guild;
+
+  // ── Quitter un salon temporaire → supprimer si vide (AVANT le check config) ──
+  if (oldState.channelId && tempChannels.has(oldState.channelId)) {
+    const ch = oldState.channel;
+    if (ch && ch.members.size === 0) {
+      await ch.delete().catch(() => {});
+      tempChannels.delete(oldState.channelId);
+      return;
+    }
+  }
+
   const cfg = await getConfig(guild.id);
   if (!cfg.joinChannelId) return;
 
@@ -175,16 +186,6 @@ async function onVoiceStateUpdate(oldState, newState) {
     }
   }
 
-  // ── Quitter un salon temporaire ──
-  if (oldState.channelId && tempChannels.has(oldState.channelId)) {
-    const ch = oldState.channel;
-    const data = tempChannels.get(oldState.channelId);
-
-    if (ch && ch.members.size === 0) {
-      await ch.delete().catch(() => {});
-      tempChannels.delete(oldState.channelId);
-    }
-  }
 }
 
 // ════════════════════════════════════════════════════════════
