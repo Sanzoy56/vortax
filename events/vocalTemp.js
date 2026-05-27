@@ -57,65 +57,36 @@ function buildPanel(channel, data) {
     )
     .setFooter({ text: "Seul le propriétaire peut interagir avec ce panel." });
 
-  // Row 1 — modération membres (5 boutons)
+  // Row 1 — mute/unmute/sourdine/unsourdine/expulser
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("vtmp_mute")
-      .setLabel("Mute")
-      .setEmoji("🔇")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("vtmp_deafen")
-      .setLabel("Sourdine")
-      .setEmoji("🎧")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId("vtmp_kick")
-      .setLabel("Expulser")
-      .setEmoji("👢")
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId("vtmp_blacklist")
-      .setLabel("Blacklist")
-      .setEmoji("🚫")
-      .setStyle(ButtonStyle.Danger),
-    new ButtonBuilder()
-      .setCustomId("vtmp_unblacklist")
-      .setLabel("Unblacklist")
-      .setEmoji("↩️")
-      .setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId("vtmp_mute").setLabel("Mute").setEmoji("🔇").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("vtmp_unmute").setLabel("Unmute").setEmoji("🔊").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("vtmp_deafen").setLabel("Sourdine").setEmoji("🎧").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("vtmp_undeafen").setLabel("Unsourdine").setEmoji("🔉").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("vtmp_kick").setLabel("Expulser").setEmoji("👢").setStyle(ButtonStyle.Danger)
   );
 
-  // Row 2 — gestion du salon (5 boutons)
+  // Row 2 — blacklist/whitelist/privé
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("vtmp_whitelist")
-      .setLabel("Whitelist")
-      .setEmoji("✅")
-      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId("vtmp_blacklist").setLabel("Blacklist").setEmoji("🚫").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("vtmp_blacklist_absent").setLabel("BL Absent").setEmoji("➕").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("vtmp_unblacklist").setLabel("Unblacklist").setEmoji("↩️").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("vtmp_whitelist").setLabel("Whitelist").setEmoji("✅").setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId("vtmp_privacy")
       .setLabel(isPrivate ? "Public" : "Privé")
       .setEmoji(isPrivate ? "🔓" : "🔒")
-      .setStyle(isPrivate ? ButtonStyle.Success : ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId("vtmp_rename")
-      .setLabel("Renommer")
-      .setEmoji("✏️")
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId("vtmp_limit")
-      .setLabel("Limite")
-      .setEmoji("🔢")
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId("vtmp_transfer")
-      .setLabel("Transférer")
-      .setEmoji("👑")
-      .setStyle(ButtonStyle.Secondary)
+      .setStyle(isPrivate ? ButtonStyle.Success : ButtonStyle.Primary)
   );
 
-  return { embed, components: [row1, row2] };
+  // Row 3 — gestion salon
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("vtmp_rename").setLabel("Renommer").setEmoji("✏️").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("vtmp_limit").setLabel("Limite").setEmoji("🔢").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("vtmp_transfer").setLabel("Transférer").setEmoji("👑").setStyle(ButtonStyle.Secondary)
+  );
+
+  return { embed, components: [row1, row2, row3] };
 }
 
 // ── Sélecteur de membres dans la voc ──
@@ -197,6 +168,8 @@ async function onVoiceStateUpdate(oldState, newState) {
       isPrivate: false,
       blacklist: new Set(),
       whitelist: new Set(),
+      mutedMembers: new Set(),
+      deafenedMembers: new Set(),
       panelMessageId: null,
     };
     tempChannels.set(tempChannel.id, data);
@@ -212,9 +185,17 @@ async function onVoiceStateUpdate(oldState, newState) {
     }
   }
 
-  // ── Quitter un salon temporaire → supprimer si vide ──
+  // ── Quitter un salon temporaire ──
   if (oldState.channelId && tempChannels.has(oldState.channelId)) {
     const ch = oldState.channel;
+    const data = tempChannels.get(oldState.channelId);
+
+    // Restaurer le son si le membre était sourdine dans ce salon
+    if (data && data.deafenedMembers.has(oldState.member.id)) {
+      data.deafenedMembers.delete(oldState.member.id);
+      await oldState.member.voice.setDeaf(false).catch(() => {});
+    }
+
     if (ch && ch.members.size === 0) {
       await ch.delete().catch(() => {});
       tempChannels.delete(oldState.channelId);
@@ -241,16 +222,33 @@ async function onInteractionCreate(interaction) {
     const action = interaction.customId.replace("vtmp_", "");
 
     // ─ Actions nécessitant un sélecteur de membres ─
-    const memberSelectActions = ["mute", "deafen", "kick", "blacklist", "whitelist", "unblacklist", "transfer"];
+    // Blacklist absent → modal
+    if (action === "blacklist_absent") {
+      const modal = new ModalBuilder()
+        .setCustomId("vtmp_modal_blacklist_absent")
+        .setTitle("Blacklister un membre absent")
+        .addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId("vtmp_bl_user_id")
+              .setLabel("ID du membre (ou @mention)")
+              .setStyle(TextInputStyle.Short)
+              .setPlaceholder("ex: 123456789012345678")
+              .setRequired(true)
+          )
+        );
+      return interaction.showModal(modal);
+    }
+
+    const memberSelectActions = ["mute", "unmute", "deafen", "undeafen", "kick", "blacklist", "whitelist", "unblacklist", "transfer"];
     if (memberSelectActions.includes(action)) {
       const voiceMembers = channel.members.filter((m) => !m.user.bot && m.id !== data.ownerId);
-      if (voiceMembers.size === 0 && !["unblacklist"].includes(action)) {
-        return interaction.reply({ content: "❌ Aucun autre membre dans la voc.", ephemeral: true });
-      }
 
       const placeholders = {
-        mute: "Choisir qui mute vocal",
+        mute: "Choisir qui mute (vocal)",
+        unmute: "Choisir qui unmute (vocal)",
         deafen: "Choisir qui mute casque",
+        undeafen: "Choisir qui unmute casque",
         kick: "Choisir qui expulser",
         blacklist: "Choisir qui blacklister",
         whitelist: "Choisir qui whitelister",
@@ -260,12 +258,25 @@ async function onInteractionCreate(interaction) {
 
       let members;
       if (action === "unblacklist") {
-        // Montrer les membres blacklistés
         if (data.blacklist.size === 0)
           return interaction.reply({ content: "❌ La blacklist est vide.", ephemeral: true });
         members = await Promise.all([...data.blacklist].map((id) => channel.guild.members.fetch(id).catch(() => null)));
         members = members.filter(Boolean);
+      } else if (action === "unmute") {
+        if (data.mutedMembers.size === 0)
+          return interaction.reply({ content: "❌ Personne n'est mute dans ce salon.", ephemeral: true });
+        members = [...voiceMembers.values()].filter(m => data.mutedMembers.has(m.id));
+        if (members.length === 0)
+          return interaction.reply({ content: "❌ Les membres mutes ne sont plus dans le salon.", ephemeral: true });
+      } else if (action === "undeafen") {
+        if (data.deafenedMembers.size === 0)
+          return interaction.reply({ content: "❌ Personne n'est sourdine dans ce salon.", ephemeral: true });
+        members = [...voiceMembers.values()].filter(m => data.deafenedMembers.has(m.id));
+        if (members.length === 0)
+          return interaction.reply({ content: "❌ Les membres sourdine ne sont plus dans le salon.", ephemeral: true });
       } else {
+        if (voiceMembers.size === 0)
+          return interaction.reply({ content: "❌ Aucun autre membre dans la voc.", ephemeral: true });
         members = [...voiceMembers.values()];
       }
 
@@ -349,11 +360,22 @@ async function onInteractionCreate(interaction) {
     if (!targetMember) return interaction.reply({ content: "❌ Membre introuvable.", ephemeral: true });
 
     if (action === "mute") {
-      await targetMember.voice.setMute(true).catch(() => {});
-      await interaction.reply({ content: `🔇 <@${targetId}> a été mute.`, ephemeral: true });
+      // Mute uniquement dans ce salon (permission override, pas server-wide)
+      await channel.permissionOverwrites.edit(targetId, { Speak: false }).catch(() => {});
+      data.mutedMembers.add(targetId);
+      await interaction.reply({ content: `🔇 <@${targetId}> est mute dans ce salon.`, ephemeral: true });
+    } else if (action === "unmute") {
+      await channel.permissionOverwrites.edit(targetId, { Speak: null }).catch(() => {});
+      data.mutedMembers.delete(targetId);
+      await interaction.reply({ content: `🔊 <@${targetId}> est unmute.`, ephemeral: true });
     } else if (action === "deafen") {
       await targetMember.voice.setDeaf(true).catch(() => {});
-      await interaction.reply({ content: `🎧 <@${targetId}> a été mute casque.`, ephemeral: true });
+      data.deafenedMembers.add(targetId);
+      await interaction.reply({ content: `🎧 <@${targetId}> est sourdine (sera restauré à la sortie).`, ephemeral: true });
+    } else if (action === "undeafen") {
+      await targetMember.voice.setDeaf(false).catch(() => {});
+      data.deafenedMembers.delete(targetId);
+      await interaction.reply({ content: `🔉 <@${targetId}> n'est plus sourdine.`, ephemeral: true });
     } else if (action === "kick") {
       await targetMember.voice.disconnect().catch(() => {});
       await interaction.reply({ content: `👢 <@${targetId}> a été expulsé.`, ephemeral: true });
@@ -408,6 +430,24 @@ async function onInteractionCreate(interaction) {
       const newName = interaction.fields.getTextInputValue("vtmp_new_name");
       await channel.setName(newName).catch(() => {});
       await interaction.reply({ content: `✏️ Salon renommé en **${newName}**.`, ephemeral: true });
+    }
+
+    if (interaction.customId === "vtmp_modal_blacklist_absent") {
+      let input = interaction.fields.getTextInputValue("vtmp_bl_user_id").trim();
+      const match = input.match(/^<@!?(\d+)>$/) || input.match(/^(\d+)$/);
+      if (!match)
+        return interaction.reply({ content: "❌ Format invalide. Utilise un ID ou une mention `<@ID>`.", ephemeral: true });
+      const userId = match[1];
+      if (userId === data.ownerId)
+        return interaction.reply({ content: "❌ Tu ne peux pas te blacklister toi-même.", ephemeral: true });
+      const target = await channel.guild.members.fetch(userId).catch(() => null);
+      if (!target)
+        return interaction.reply({ content: "❌ Membre introuvable sur le serveur.", ephemeral: true });
+      data.blacklist.add(userId);
+      await channel.permissionOverwrites.edit(userId, { Connect: false, ViewChannel: false }).catch(() => {});
+      if (target.voice.channelId === channel.id) await target.voice.disconnect().catch(() => {});
+      await updatePanel(channel, data);
+      return interaction.reply({ content: `🚫 <@${userId}> ajouté à la blacklist — ne pourra pas rejoindre.`, ephemeral: true });
     }
 
     if (interaction.customId === "vtmp_modal_limit") {
