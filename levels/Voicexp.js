@@ -19,24 +19,28 @@ function startVoicexp(client) {
         // Uniquement les salons vocaux
         if (!channel.isVoiceBased()) continue;
 
-        for (const [memberId, member] of channel.members) {
-          // Ignorer les bots
-          if (member.user.bot) continue;
+        // Membres actifs : non-bot, ni muet (soi-même ou modérateur), ni sourd
+        const actifs = [...channel.members.values()].filter(m =>
+          !m.user.bot &&
+          !m.voice.selfMute &&
+          !m.voice.serverMute &&
+          !m.voice.selfDeaf &&
+          !m.voice.serverDeaf
+        );
 
-          // Ignorer les membres muets ET sourds (AFK)
-          if (member.voice.selfDeaf && member.voice.selfMute) continue;
+        // XP seulement si au moins 2 personnes actives dans le salon
+        if (actifs.length < 2) continue;
 
-          // XP
+        for (const member of actifs) {
           const baseExp = Math.floor(
             Math.random() * (VOCAL.MAX_EXP - VOCAL.MIN_EXP + 1) + VOCAL.MIN_EXP
           );
           await addExp(member, client, baseExp).catch(() => {});
 
-          // Coins
           const baseCoins = Math.floor(
             Math.random() * (VOCAL.MAX_COINS - VOCAL.MIN_COINS + 1) + VOCAL.MIN_COINS
           );
-          addCoins(memberId, baseCoins);
+          addCoins(member.id, baseCoins);
         }
       }
     }

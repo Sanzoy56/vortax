@@ -48,35 +48,43 @@ async function onVoiceStateUpdate(oldState, newState) {
   const guildId = (newState.guild || oldState.guild).id;
   const key = `${guildId}:${userId}`;
 
+  const joined  = !oldState.channelId && newState.channelId;
+  const left    = oldState.channelId && !newState.channelId;
+  const changed = oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId;
+
+  // Mute / sourd / server-mute etc. → on ignore (joined/left/changed tous faux)
+  if (!joined && !left && !changed) return;
+
   // Rejoint un salon
-  if (!oldState.channelId && newState.channelId) {
+  if (joined) {
     voiceSessions.set(key, {
       start: Date.now(),
       channelId: newState.channelId,
       channelName: newState.channel?.name || "Inconnu",
     });
+    return;
   }
 
-  // Quitte un salon
-  if (oldState.channelId && voiceSessions.has(key)) {
-    const session = voiceSessions.get(key);
+  // Quitte définitivement OU change de salon → push durée de l'ancienne session
+  if (voiceSessions.has(key)) {
+    const session  = voiceSessions.get(key);
     const duration = Math.floor((Date.now() - session.start) / 1000);
     voiceSessions.delete(key);
 
-    if (duration < 10) return;
-
-    await push("vocal", {
-      guildId,
-      userId,
-      channelId: session.channelId,
-      channelName: session.channelName,
-      duration,
-      date: dayKey(),
-    });
+    if (duration >= 10) {
+      await push("vocal", {
+        guildId,
+        userId,
+        channelId: session.channelId,
+        channelName: session.channelName,
+        duration,
+        date: dayKey(),
+      });
+    }
   }
 
-  // Change de salon → nouvelle session
-  if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+  // Change de salon → nouvelle session pour le nouveau salon
+  if (changed) {
     voiceSessions.set(key, {
       start: Date.now(),
       channelId: newState.channelId,

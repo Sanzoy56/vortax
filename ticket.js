@@ -2,9 +2,6 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFl
 const config = require('./config.json');
 const token = require('./token.json');
 
-// ========== IDs ==========
-const STAFF_ROLE_ID       = '1497331100782039071';
-const CATEGORIE_ID        = '1416145060285648966';
 const { getConfig } = require('./config')
 
 // ========== HISTORIQUE IA ==========
@@ -52,7 +49,7 @@ const askGrok = async (history, ticketType) => {
 };
 
 // ========== GENERATEUR DE TRANSCRIPT HTML ==========
-const genererTranscript = async (channel, fermeParMembre) => {
+const genererTranscript = async (channel, fermeParMembre, staffRoleId) => {
   const messages = [];
   let dernierId  = null;
 
@@ -77,7 +74,7 @@ const genererTranscript = async (channel, fermeParMembre) => {
     const avatar  = auteur.displayAvatarURL({ extension: 'png', size: 64 });
     const pseudo  = msg.member?.displayName || auteur.username;
     const isBot   = auteur.bot;
-    const isStaff = msg.member?.roles?.cache?.has(STAFF_ROLE_ID);
+    const isStaff = msg.member?.roles?.cache?.has(staffRoleId);
     const badge   = isBot ? '<span class="badge bot">BOT</span>' : isStaff ? '<span class="badge staff">STAFF</span>' : '';
     const dateMsgFr = msg.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
@@ -192,7 +189,8 @@ ${lignesMsgs}
 
 // ========== HELPER LOG ACTION TICKET ==========
 const logTicket = async (guild, emoji, titre, couleur, fields) => {
-  (await getConfig()).log_tickets
+  const cfg   = await getConfig();
+  const salon = guild.channels.cache.get(cfg.log_tickets);
   if (!salon) return;
   const embed = new EmbedBuilder()
     .setTitle(`${emoji} ${titre}`)
@@ -211,6 +209,8 @@ module.exports = (client) => {
     if (!message.member) return;
 
     const msgChannel = message.channel;
+    const cfg         = await getConfig();
+    const staffRoleId = cfg.ticket_staff_role;
 
     // ----- Panneau ticket -----
     if (message.content.trim() === '!ticket') {
@@ -253,14 +253,14 @@ Il y a 3 catégories de tickets mis à votre disposition :
       return;
     }
 
-    // ----- Fermer ticket -----
-    if (message.content.trim() === '-fermer') {
+    // ----- Supprimer ticket (transcript + delete) -----
+    if (message.content.trim() === '-delete') {
       const isTicket = msgChannel.name.startsWith('question-') || msgChannel.name.startsWith('recrutement-') || msgChannel.name.startsWith('ia-');
-      if (!isTicket) return message.reply({ content: '❌ Cette commande ne peut être utilisée que dans un ticket.' });
+      if (!isTicket) return message.reply('❌ Cette commande ne peut être utilisée que dans un ticket.');
 
-      const isStaff = message.member.roles.cache.has(STAFF_ROLE_ID);
+      const isStaff = message.member.roles.cache.has(staffRoleId);
       if (!isStaff) {
-        return message.reply({ content: '❌ Tu ne peux pas fermer ce ticket. Seul le staff est autorisé.', fetchReply: true })
+        return message.reply({ content: '❌ Tu ne peux pas supprimer ce ticket. Seul le staff est autorisé.', fetchReply: true })
           .then(reply => {
             setTimeout(() => { reply.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
           });
@@ -269,38 +269,29 @@ Il y a 3 catégories de tickets mis à votre disposition :
       await message.reply({ content: '📄 Génération du transcript en cours...' });
       ticketHistories.delete(msgChannel.id);
 
-      // fileUrl déclaré ici pour être accessible dans tout le bloc
-      let fileUrl = null;
-
       try {
-        const html    = await genererTranscript(msgChannel, message.member);
+        const html    = await genererTranscript(msgChannel, message.member, staffRoleId);
         const buffer  = Buffer.from(html, 'utf-8');
         const fichier = new AttachmentBuilder(buffer, { name: `transcript-${msgChannel.name}.html` });
 
-        (await getConfig()).log_transcripts
+        const logsChannel = msgChannel.guild.channels.cache.get(cfg.log_transcripts);
         if (logsChannel) {
           const logEmbed = new EmbedBuilder()
             .setTitle('📄 Transcript de ticket')
             .setColor(0x5865f2)
             .addFields(
-              { name: '🎫 Ticket',    value: `\`${msgChannel.name}\``, inline: true },
-              { name: '🔒 Fermé par', value: `${message.member}`,      inline: true },
-              { name: '📅 Date',      value: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }), inline: true },
+              { name: '🎫 Ticket',       value: `\`${msgChannel.name}\``, inline: true },
+              { name: '🗑️ Supprimé par', value: `${message.member}`,      inline: true },
+              { name: '📅 Date',         value: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }), inline: true },
             )
             .setFooter({ text: 'Team Vortax — Système de tickets' })
             .setTimestamp();
 
-          // On récupère le message envoyé pour obtenir l'URL du fichier CDN
           const logMsg = await logsChannel.send({ embeds: [logEmbed], files: [fichier] });
-          fileUrl = logMsg.attachments.first()?.url ?? null;
-
-          // Bouton lien direct dans le salon de logs
+          const fileUrl = logMsg.attachments.first()?.url ?? null;
           if (fileUrl) {
             const btnRow = new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setLabel('📄 Voir le transcript')
-                .setStyle(ButtonStyle.Link)
-                .setURL(fileUrl)
+              new ButtonBuilder().setLabel('📄 Voir le transcript').setStyle(ButtonStyle.Link).setURL(fileUrl)
             );
             await logsChannel.send({ content: '🔗 Lien direct vers le transcript :', components: [btnRow] });
           }
@@ -309,51 +300,6 @@ Il y a 3 catégories de tickets mis à votre disposition :
         console.error('[Transcript] Erreur :', err);
       }
 
-      await logTicket(message.guild, '🔒', 'Ticket fermé', 0xe74c3c, [
-        { name: '🎫 Ticket',    value: `\`${msgChannel.name}\``, inline: true },
-        { name: '👤 Fermé par', value: `${message.member}`,      inline: true },
-      ]);
-
-      await msgChannel.permissionOverwrites.set([
-        { id: msgChannel.guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-        { id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-      ]);
-
-      const fermerEmbed = new EmbedBuilder()
-        .setTitle('🔒 Ticket fermé')
-        .setDescription('Ce ticket a été fermé par le staff.\nUtilisez `-delete` pour supprimer définitivement le salon.')
-        .setColor(0xFF0000)
-        .setTimestamp();
-
-      // Bouton lien direct aussi dans le ticket fermé (si le transcript a bien été généré)
-      const components = fileUrl
-        ? [new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setLabel('📄 Voir le transcript')
-              .setStyle(ButtonStyle.Link)
-              .setURL(fileUrl)
-          )]
-        : [];
-
-      await msgChannel.send({ embeds: [fermerEmbed], components });
-      return;
-    }
-
-    // ----- Supprimer ticket -----
-    if (message.content.trim() === '-delete') {
-      const isTicket = msgChannel.name.startsWith('question-') || msgChannel.name.startsWith('recrutement-') || msgChannel.name.startsWith('ia-');
-      if (!isTicket) return message.reply('❌ Cette commande ne peut être utilisée que dans un ticket.');
-
-      const isStaff = message.member.roles.cache.has(STAFF_ROLE_ID);
-      if (!isStaff) {
-        return message.reply({ content: '❌ Tu ne peux pas supprimer ce ticket. Seul le staff est autorisé.', fetchReply: true })
-          .then(reply => {
-            setTimeout(() => { reply.delete().catch(() => {}); message.delete().catch(() => {}); }, 5000);
-          });
-      }
-
-      ticketHistories.delete(msgChannel.id);
-
       await logTicket(message.guild, '🗑️', 'Ticket supprimé', 0x992d22, [
         { name: '🎫 Ticket',       value: `\`${msgChannel.name}\``, inline: true },
         { name: '👤 Supprimé par', value: `${message.member}`,      inline: true },
@@ -361,7 +307,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
       const deleteEmbed = new EmbedBuilder()
         .setTitle('🗑️ Suppression du ticket')
-        .setDescription('Ce salon sera supprimé dans **5 secondes**...')
+        .setDescription('Transcript sauvegardé. Ce salon sera supprimé dans **5 secondes**...')
         .setColor(0xFF0000);
       await msgChannel.send({ embeds: [deleteEmbed] });
       setTimeout(async () => { await msgChannel.delete().catch(console.error); }, 5000);
@@ -380,7 +326,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
     if (!state.iaActive) return;
 
-    const isStaffMember = message.member.roles.cache.has(STAFF_ROLE_ID);
+    const isStaffMember = message.member.roles.cache.has(staffRoleId);
     const isTicketOwner = message.author.id === state.ownerId;
 
     if (isStaffMember && !isTicketOwner) return;
@@ -401,7 +347,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
           .setDescription(`${answer}\n\n> ⚠️ Je ne suis pas en mesure de résoudre ce problème seul. Le staff a été notifié et va prendre le relais !`)
           .setColor(0xFFA500)
           .setFooter({ text: '🤖 Assistance IA — Team Vortax' });
-        await msgChannel.send({ content: `<@&${STAFF_ROLE_ID}>`, embeds: [staffEmbed] });
+        await msgChannel.send({ content: `<@&${staffRoleId}>`, embeds: [staffEmbed] });
       } else {
         const iaEmbed = new EmbedBuilder()
           .setDescription(answer)
@@ -411,7 +357,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
       }
     } catch (err) {
       console.error('[IA Ticket] Erreur Grok :', err);
-      await msgChannel.send({ content: `⚠️ Une erreur est survenue avec l'IA. <@&${STAFF_ROLE_ID}> merci d'intervenir.` });
+      await msgChannel.send({ content: `⚠️ Une erreur est survenue avec l'IA. <@&${staffRoleId}> merci d'intervenir.` });
     }
   });
 
@@ -462,6 +408,9 @@ Il y a 3 catégories de tickets mis à votre disposition :
     // ========== MODALS ==========
     if (interaction.isModalSubmit()) {
       const { customId, member, guild } = interaction;
+      const cfg         = await getConfig();
+      const staffRoleId = cfg.ticket_staff_role;
+      const categorieId = cfg.ticket_category;
 
       // ----- Tickets Staff / Question -----
       if (customId === 'modal_ticket_staff' || customId === 'modal_ticket_question') {
@@ -475,11 +424,11 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
         const salon = await guild.channels.create({
           name: nomSalon,
-          parent: CATEGORIE_ID,
+          parent: categorieId,
           permissionOverwrites: [
             { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
             { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-            { id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+            { id: staffRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
           ],
         });
 
@@ -487,11 +436,11 @@ Il y a 3 catégories de tickets mis à votre disposition :
         const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         const ticketEmbed = new EmbedBuilder()
           .setTitle(typeTicket)
-          .setDescription(`Salut ${member} ! Un <@&${STAFF_ROLE_ID}> va te répondre dans les minutes qui suivent !\nPour fermer le ticket, utilise \`-fermer\` ou \`-delete\` pour le supprimer\n\n**Raison**\n\`\`\`${raison}\`\`\``)
+          .setDescription(`Salut ${member} ! Un <@&${staffRoleId}> va te répondre dans les minutes qui suivent !\nUtilise \`-delete\` pour supprimer le ticket (un transcript sera sauvegardé automatiquement).\n\n**Raison**\n\`\`\`${raison}\`\`\``)
           .setColor(0x2B2D31)
           .setFooter({ text: `Team Vortax - Support • ${dateHeure}` });
 
-        await salon.send({ content: `${member} <@&${STAFF_ROLE_ID}>`, embeds: [ticketEmbed] });
+        await salon.send({ content: `${member} <@&${staffRoleId}>`, embeds: [ticketEmbed] });
         await interaction.editReply({ content: `✅ Ton ticket a été créé : ${salon}` });
 
         await logTicket(guild, '📬', 'Ticket ouvert', 0x2ecc71, [
@@ -512,11 +461,11 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
         const salon = await guild.channels.create({
           name: nomSalon,
-          parent: CATEGORIE_ID,
+          parent: categorieId,
           permissionOverwrites: [
             { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
             { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-            { id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+            { id: staffRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
           ],
         });
 
@@ -553,7 +502,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
               .setDescription(`${answer}\n\n> ⚠️ Cette question nécessite l'intervention du staff. Ils ont été notifiés !`)
               .setColor(0xFFA500)
               .setFooter({ text: '🤖 Assistance IA — Team Vortax' });
-            await salon.send({ content: `<@&${STAFF_ROLE_ID}>`, embeds: [staffEmbed] });
+            await salon.send({ content: `<@&${staffRoleId}>`, embeds: [staffEmbed] });
           } else {
             const iaEmbed = new EmbedBuilder()
               .setDescription(answer)
@@ -563,7 +512,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
           }
         } catch (err) {
           console.error('[IA Ticket] Erreur Grok :', err);
-          await salon.send({ content: `⚠️ L'IA rencontre un problème. <@&${STAFF_ROLE_ID}> merci d'intervenir.` });
+          await salon.send({ content: `⚠️ L'IA rencontre un problème. <@&${staffRoleId}> merci d'intervenir.` });
         }
 
         await logTicket(guild, '🤖', 'Ticket IA ouvert', 0x5865f2, [
