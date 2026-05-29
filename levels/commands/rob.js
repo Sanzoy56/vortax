@@ -58,8 +58,8 @@ module.exports = {
     saveUser(robber);
     saveUser(victim);
 
-    const emojiSuccess = interaction.guild.emojis.cache.get(ROB.EMOJI_SUCCESS)?.toString() ?? '🤑';
-    const emojiCoin    = interaction.guild.emojis.cache.get(ROB.EMOJI_COIN)?.toString()    ?? '🪙';
+    const emojiSuccess = ROB.EMOJI_SUCCESS;
+    const emojiCoin    = ROB.EMOJI_COIN;
 
     return interaction.reply({
       embeds: [
