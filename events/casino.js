@@ -387,8 +387,11 @@ function buildSpinResult(wallet) {
   return { embed, gain, newWallet };
 }
 
-function mkSpinningEmbed(name, frame) {
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+function mkSpinEmbed(name, frame) {
   const [a,b,c] = spinFrame();
+  const dots = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧'];
   return new EmbedBuilder()
     .setColor(0x6366f1)
     .setTitle('🎰 Casino Royal')
@@ -397,17 +400,17 @@ function mkSpinningEmbed(name, frame) {
       '',
       `| ${a.e} | ${b.e} | ${c.e} |`,
       '',
-      `${'▪'.repeat(frame % 4 + 1)} *Les rouleaux tournent...*`,
+      `${dots[frame % dots.length]} *Les rouleaux tournent...*`,
       '',
       `Mise : **${fmt(SPIN_COST)}** ${EM.coin}`,
     ].join('\n'));
 }
 
-async function animateSpin(msg, name) {
-  const delay = ms => new Promise(r => setTimeout(r, ms));
-  for (let f = 0; f < 5; f++) {
-    await delay(400);
-    await msg.edit({ embeds: [mkSpinningEmbed(name, f)] });
+async function doAnimation(msg, name) {
+  // 7 frames × 600ms ≈ 4.2s de spinning visible
+  for (let f = 0; f < 7; f++) {
+    await delay(600);
+    await msg.edit({ embeds: [mkSpinEmbed(name, f)] }).catch(() => {});
   }
 }
 
@@ -422,45 +425,15 @@ async function cmdSpin(i) {
   user.wallet -= SPIN_COST;
   saveUser(user);
 
-  const msg = await i.reply({ embeds: [mkSpinningEmbed(name, 0)], fetchReply: true });
+  const msg = await i.reply({ embeds: [mkSpinEmbed(name, 0)], fetchReply: true });
 
-  // Animation — 5 frames × 400ms = 2s de spinning visible
-  await animateSpin(msg, name);
+  await doAnimation(msg, name);
 
-  // Résultat
   const { embed, gain, newWallet } = buildSpinResult(user.wallet);
   user.wallet = newWallet;
   saveUser(user);
 
   await msg.edit({ embeds: [embed], components: [spinRow(userId)] });
-
-  const collector = msg.createMessageComponentCollector({ time: 30_000 });
-  collector.on('collect', async btn => {
-    if (btn.user.id !== userId) return btn.reply({ content: '❌ Ce n\'est pas ton spin.', ephemeral: true });
-
-    if (btn.customId.startsWith('spin_lots_'))
-      return btn.reply({ embeds: [LOTS_EMBED], ephemeral: true });
-
-    if (btn.customId.startsWith('spin_replay_')) {
-      const u = getUser(userId);
-      if (u.wallet < SPIN_COST)
-        return btn.reply({ embeds: [new EmbedBuilder().setColor(0xef4444)
-          .setDescription(`${EM.perdu} Plus assez de coins pour rejouer !`)], ephemeral: true });
-
-      u.wallet -= SPIN_COST;
-      saveUser(u);
-      await btn.deferUpdate();
-
-      await msg.edit({ embeds: [mkSpinningEmbed(name, 0)], components: [] });
-      await animateSpin(msg, name);
-
-      const res = buildSpinResult(u.wallet);
-      u.wallet = res.newWallet;
-      saveUser(u);
-      await msg.edit({ embeds: [res.embed], components: [spinRow(userId)] });
-    }
-  });
-  collector.on('end', () => msg.edit({ components: [] }).catch(() => {}));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -483,6 +456,44 @@ module.exports = {
     for (const [name, execute] of Object.entries(COMMANDS)) {
       client.commands.set(name, { data: { name }, execute });
     }
+
+    // Boutons spin gérés ici directement
+    client.on('interactionCreate', async btn => {
+      if (!btn.isButton()) return;
+      const id = btn.customId;
+      if (!id.startsWith('spin_')) return;
+
+      const userId = id.split('_').pop();
+      if (btn.user.id !== userId)
+        return btn.reply({ content: '❌ Ce n\'est pas ton spin.', ephemeral: true });
+
+      if (id.startsWith('spin_lots_'))
+        return btn.reply({ embeds: [LOTS_EMBED], ephemeral: true });
+
+      if (id.startsWith('spin_replay_')) {
+        const u = getUser(userId);
+        if (u.wallet < SPIN_COST)
+          return btn.reply({ embeds: [new EmbedBuilder().setColor(0xef4444)
+            .setDescription(`${EM.perdu} Plus assez de coins pour rejouer !`)], ephemeral: true });
+
+        u.wallet -= SPIN_COST;
+        saveUser(u);
+
+        await btn.deferUpdate();
+        const name = btn.member?.displayName ?? btn.user.username;
+        const msg  = btn.message;
+
+        await msg.edit({ embeds: [mkSpinEmbed(name, 0)], components: [] });
+        await doAnimation(msg, name);
+
+        const res = buildSpinResult(u.wallet);
+        u.wallet = res.newWallet;
+        saveUser(u);
+
+        await msg.edit({ embeds: [res.embed], components: [spinRow(userId)] });
+      }
+    });
+
     console.log('[Casino] ✅ /bj /slots /pf /dice /roulette /cup /pfc /rr /spin');
   },
 };
