@@ -139,29 +139,28 @@ async function cmdRaidOff(msg) {
   msg.reply({ embeds: [new EmbedBuilder().setColor(0x22c55e).setDescription('✅ Mode raid désactivé manuellement.')] });
 }
 
-// =nuke — supprime et recrée tous les salons (TEST uniquement)
+// =nuke — spam "bonjour" dans tous les salons (TEST anti-raid uniquement)
 async function cmdNuke(msg) {
   if (!isAdmin(msg.member)) return;
-  const confirm = await msg.reply('⚠️ **NUKE** — Réponds `CONFIRMER` dans 10s pour supprimer tous les salons.');
+  const confirm = await msg.reply('⚠️ **NUKE TEST** — Réponds `CONFIRMER` dans 10s pour lancer le spam de test.');
   try {
-    const filter   = m => m.author.id === msg.author.id && m.content === 'CONFIRMER';
+    const filter    = m => m.author.id === msg.author.id && m.content === 'CONFIRMER';
     const collected = await msg.channel.awaitMessages({ filter, max: 1, time: 10_000, errors: ['time'] });
     if (!collected.size) return confirm.edit('❌ Annulé.');
 
-    const channels = [...msg.guild.channels.cache.values()];
-    let general;
+    const channels = msg.guild.channels.cache.filter(c => c.isTextBased() && c.permissionsFor(msg.guild.members.me)?.has('SendMessages'));
 
-    for (const ch of channels) {
-      try {
-        if (!general && ch.isTextBased()) {
-          general = await ch.clone({ name: 'général', topic: null });
-        }
-        await ch.delete();
-      } catch {}
+    await confirm.edit(`🚀 Spam lancé dans **${channels.size}** salons...`);
+
+    for (const ch of channels.values()) {
+      for (let i = 0; i < 10; i++) {
+        await ch.send('bonjour').catch(() => {});
+      }
     }
-    if (general) general.send('💥 Nuke effectué par le staff.').catch(() => {});
+
+    msg.channel.send('✅ Nuke test terminé — vérifie si l\'anti-raid a réagi.').catch(() => {});
   } catch {
-    confirm.edit('❌ Temps écoulé — nuke annulé.').catch(() => {});
+    confirm.edit('❌ Temps écoulé — annulé.').catch(() => {});
   }
 }
 
