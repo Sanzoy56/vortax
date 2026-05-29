@@ -179,6 +179,23 @@ async function cmdNuke(msg) {
   });
 }
 
+// =simulate-raid — injecte de faux joins pour déclencher la détection
+async function cmdSimulateRaid(msg) {
+  if (!isAdmin(msg.member)) return;
+  if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.');
+
+  await msg.reply(`🧪 Simulation de raid en cours — injection de **${CFG.JOIN_THRESHOLD + 2}** joins...`);
+
+  // Injecte de faux timestamps dans le joinLog pour dépasser le seuil
+  const now = Date.now();
+  for (let i = 0; i < CFG.JOIN_THRESHOLD + 2; i++) {
+    joinLog.push({ id: `fake_${i}`, ts: now - i * 100 });
+  }
+
+  // Déclenche manuellement la détection avec le member réel pour tester
+  await onMemberAdd(msg.member);
+}
+
 // =massban <nombre> — ban les X derniers membres (test)
 async function cmdMassban(msg, args) {
   if (!isAdmin(msg.member)) return;
@@ -203,8 +220,9 @@ module.exports = {
       if (msg.author.bot || !msg.guild) return;
       const [cmd, ...args] = msg.content.trim().split(/\s+/);
       if (cmd === '=raid')    { if (args[0] === 'status') return cmdRaidStatus(msg); if (args[0] === 'off') return cmdRaidOff(msg); }
-      if (cmd === '=nuke')    { if (!isTestServer(msg)) return msg.reply('❌ Commande disponible uniquement sur le serveur test.'); return cmdNuke(msg); }
-      if (cmd === '=massban') { if (!isTestServer(msg)) return msg.reply('❌ Commande disponible uniquement sur le serveur test.'); return cmdMassban(msg, args); }
+      if (cmd === '=nuke')            { if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.'); return cmdNuke(msg); }
+      if (cmd === '=massban')         { if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.'); return cmdMassban(msg, args); }
+      if (cmd === '=simulate-raid')   return cmdSimulateRaid(msg);
     });
 
     console.log('[AntiRaid] ✅ Détection raid + =raid status/off + =nuke + =massban');
