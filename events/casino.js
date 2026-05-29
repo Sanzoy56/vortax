@@ -321,15 +321,15 @@ async function cmdBJ(i) {
 // ════════════════════════════════════════════════════════════
 const SPIN_COST = 2500;
 
-// Symboles spin (différents des slots)
+// Symboles spin
 const SPIN_SYMS = [
-  { e: '🏆', w: 1,  m: 50 },   // JACKPOT
-  { e: '⭐', w: 5,  m: 15 },
-  { e: '💜', w: 10, m: 8  },
-  { e: '💎', w: 15, m: 5  },
-  { e: '🔵', w: 20, m: 3  },
-  { e: '🟡', w: 25, m: 2  },
-  { e: '🔴', w: 30, m: 1.5},
+  { e: '🏆', w: 1,  m: 50 },  // JACKPOT
+  { e: '💎', w: 4,  m: 20 },
+  { e: '⭐', w: 8,  m: 10 },
+  { e: '💜', w: 12, m: 6  },
+  { e: '🍒', w: 20, m: 3  },
+  { e: '🍊', w: 25, m: 2  },
+  { e: '🍋', w: 30, m: 1.5},
 ];
 const SPIN_TOT = SPIN_SYMS.reduce((s,x)=>s+x.w,0);
 function spinOne() { let r=Math.random()*SPIN_TOT; for(const s of SPIN_SYMS){r-=s.w;if(r<=0)return s;} return SPIN_SYMS[0]; }
@@ -340,12 +340,12 @@ const LOTS_EMBED = new EmbedBuilder()
   .setTitle('🎰 Lots — /spin')
   .setDescription([
     '🏆 🏆 🏆 → **x50** (JACKPOT)',
-    '⭐ ⭐ ⭐ → **x15**',
-    '💜 💜 💜 → **x8**',
-    '💎 💎 💎 → **x5**',
-    '🔵 🔵 🔵 → **x3**',
-    '🟡 🟡 🟡 → **x2**',
-    '🔴 🔴 🔴 → **x1.5**',
+    '💎 💎 💎 → **x20**',
+    '⭐ ⭐ ⭐ → **x10**',
+    '💜 💜 💜 → **x6**',
+    '🍒 🍒 🍒 → **x3**',
+    '🍊 🍊 🍊 → **x2**',
+    '🍋 🍋 🍋 → **x1.5**',
     '2 identiques → **remboursé**',
     'Aucune combinaison → **perdu**',
   ].join('\n'));
