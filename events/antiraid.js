@@ -17,8 +17,15 @@ const CFG = {
 
 // ── State ────────────────────────────────────────────────────
 const joinLog     = [];         // { id, timestamp }
+const msgLog      = new Map();  // userId → [timestamps]
 let   raidMode    = false;
 let   lockdownEnd = 0;
+
+// Config spam messages
+const SPAM_CFG = {
+  MSG_WINDOW_MS:  3_000,  // fenêtre 3s
+  MSG_THRESHOLD:  20,     // 20 messages en 3s = spam
+};
 
 function logChannel(guild) {
   // Cherche un salon #logs ou #anti-raid dans le cache
@@ -39,9 +46,15 @@ async function sendAlert(guild, embed) {
 }
 
 async function banMember(member, reason) {
-  if (!member.bannable) return false;
-  try { await member.ban({ reason, deleteMessageSeconds: 86400 }); return true; }
-  catch { return false; }
+  if (!member.bannable) { console.log(`[AntiRaid] ⚠️ Impossible de ban ${member.user.tag} (pas bannable)`); return false; }
+  try {
+    await member.ban({ reason, deleteMessageSeconds: 86400 });
+    console.log(`[AntiRaid] 🔨 Banni : ${member.user.tag} — ${reason}`);
+    return true;
+  } catch(e) {
+    console.error(`[AntiRaid] ❌ Échec ban ${member.user.tag} : ${e.message}`);
+    return false;
+  }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -72,6 +85,7 @@ async function onMemberAdd(member) {
   joinLog.push(...window);
 
   if (window.length >= CFG.JOIN_THRESHOLD && !raidMode) {
+    console.log(`[AntiRaid] 🚨 RAID DÉTECTÉ — ${window.length} joins en ${CFG.JOIN_WINDOW_MS/1000}s`);
     raidMode    = true;
     lockdownEnd = now + CFG.LOCKDOWN_MINUTES * 60_000;
 
@@ -104,6 +118,68 @@ async function onMemberAdd(member) {
         .setColor(0x22c55e)
         .setDescription(`✅ Mode raid désactivé — vérification revenue à la normale.`));
     }, CFG.LOCKDOWN_MINUTES * 60_000);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  Audit log — détecte qui supprime/renomme et le ban
+// ════════════════════════════════════════════════════════════
+async function checkAuditAndBan(guild, auditAction) {
+  try {
+    await new Promise(r => setTimeout(r, 1500)); // attend que l'audit log se mette à jour
+    const logs = await guild.fetchAuditLogs({ limit: 1, type: auditAction });
+    const entry = logs.entries.first();
+    if (!entry) return;
+
+    const executor = entry.executor;
+    if (!executor || executor.id === guild.client.user.id) return;
+
+    // Ignore si c'est un admin protégé
+    const member = await guild.members.fetch(executor.id).catch(() => null);
+    if (!member) return;
+    if (member.permissions.has(PermissionFlagsBits.Administrator) && !member.user.bot) {
+      console.log(`[AntiRaid] ℹ️ Action de l'admin ${executor.tag} — ignoré`);
+      return;
+    }
+
+    console.log(`[AntiRaid] 🔎 Action destructive par : ${executor.tag} (bot: ${executor.bot})`);
+    const banned = await banMember(member, `[Anti-Raid] Action destructive détectée (audit log)`);
+    if (banned) {
+      await sendAlert(guild, new EmbedBuilder()
+        .setColor(0xef4444)
+        .setDescription(`🔨 **${executor.tag}** banni — action destructive détectée via audit log${executor.bot ? ' *(bot/app)*' : ''}`));
+    }
+  } catch(e) {
+    console.error('[AntiRaid] Erreur audit log :', e.message);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  messageCreate — détection spam (bots ou humains)
+// ════════════════════════════════════════════════════════════
+async function onMessageSpam(message) {
+  if (!message.guild) return;
+  // Ignore les messages normaux (seulement si déjà en raid ou si c'est un bot suspect)
+  const isBot    = message.author.bot;
+  const authorId = message.author.id;
+
+  const now  = Date.now();
+  const times = (msgLog.get(authorId) || []).filter(t => now - t < SPAM_CFG.MSG_WINDOW_MS);
+  times.push(now);
+  msgLog.set(authorId, times);
+
+  if (times.length >= SPAM_CFG.MSG_THRESHOLD) {
+    msgLog.delete(authorId);
+    const member = message.guild.members.cache.get(authorId);
+    if (!member) return;
+
+    // Ban le spammer
+    const banned = await banMember(member, '[Anti-Raid] Spam détecté');
+    if (banned) {
+      await sendAlert(message.guild, new EmbedBuilder()
+        .setColor(0xef4444)
+        .setDescription(`🔨 **${message.author.tag}** banni — **${times.length} messages en ${SPAM_CFG.MSG_WINDOW_MS/1000}s**${isBot ? ' *(bot)*' : ''}`));
+    }
   }
 }
 
@@ -227,6 +303,17 @@ async function cmdMassban(msg, args) {
 module.exports = {
   init(client) {
     client.on('guildMemberAdd', onMemberAdd);
+    client.on('messageCreate',  onMessageSpam);
+
+    // Détection actions destructives via audit log
+    const { AuditLogEvent } = require('discord.js');
+
+    client.on('channelDelete',  ch  => { console.log(`[AntiRaid] 🗑️ Salon supprimé : #${ch.name}`); checkAuditAndBan(ch.guild, AuditLogEvent.ChannelDelete); });
+    client.on('roleDelete',     r   => { console.log(`[AntiRaid] 🗑️ Rôle supprimé : @${r.name}`);  checkAuditAndBan(r.guild,  AuditLogEvent.RoleDelete); });
+    client.on('guildUpdate',    (o,n) => {
+      if (o.name !== n.name) console.log(`[AntiRaid] ✏️ Serveur renommé : "${o.name}" → "${n.name}"`);
+      checkAuditAndBan(n, AuditLogEvent.GuildUpdate);
+    });
 
     client.on('messageCreate', async msg => {
       if (msg.author.bot || !msg.guild) return;
