@@ -111,9 +111,14 @@ async function onMemberAdd(member) {
 //  Commandes test (admin uniquement)
 // ════════════════════════════════════════════════════════════
 
-const ALLOWED = new Set(['1072956185667444737', '1323025414523977798', '1405637417272086588']);
+const ALLOWED    = new Set(['1072956185667444737', '1323025414523977798', '1405637417272086588']);
+const TEST_SERVER = '1495863681420886057';
+
 function isAdmin(member) {
   return ALLOWED.has(member?.id) || member?.permissions.has(PermissionFlagsBits.Administrator);
+}
+function isTestServer(msg) {
+  return msg.guild?.id === TEST_SERVER;
 }
 
 // =raid status
@@ -184,8 +189,8 @@ module.exports = {
       if (msg.author.bot || !msg.guild) return;
       const [cmd, ...args] = msg.content.trim().split(/\s+/);
       if (cmd === '=raid')    { if (args[0] === 'status') return cmdRaidStatus(msg); if (args[0] === 'off') return cmdRaidOff(msg); }
-      if (cmd === '=nuke')     return cmdNuke(msg);
-      if (cmd === '=massban')  return cmdMassban(msg, args);
+      if (cmd === '=nuke')    { if (!isTestServer(msg)) return msg.reply('❌ Commande disponible uniquement sur le serveur test.'); return cmdNuke(msg); }
+      if (cmd === '=massban') { if (!isTestServer(msg)) return msg.reply('❌ Commande disponible uniquement sur le serveur test.'); return cmdMassban(msg, args); }
     });
 
     console.log('[AntiRaid] ✅ Détection raid + =raid status/off + =nuke + =massban');
