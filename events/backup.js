@@ -108,10 +108,12 @@ function buildPerms(overwrites, guild) {
 // ════════════════════════════════════════════════════════════
 //  Alerte d'urgence
 // ════════════════════════════════════════════════════════════
+const ADMIN_CHANNELS = {
+  '1360965444974022686': '1415319451729133749',
+};
 function adminChannel(guild) {
-  return guild.channels.cache.find(c =>
-    c.isTextBased() && /log|admin|mod|alert|urgence/i.test(c.name)
-  );
+  if (ADMIN_CHANNELS[guild.id]) return guild.channels.cache.get(ADMIN_CHANNELS[guild.id]) || null;
+  return guild.channels.cache.find(c => c.isTextBased() && /log|admin|mod|alert|urgence/i.test(c.name));
 }
 
 async function sendEmergencyAlert(guild, deleted) {
@@ -162,7 +164,9 @@ async function sendEmergencyAlert(guild, deleted) {
       collector.stop();
       await btn.update({ embeds: [new EmbedBuilder().setColor(0x6366f1).setDescription('🔄 Restauration en cours...')], components: [] });
       const nb = await restoreChannels(guild, backup);
-      m.edit({ embeds: [new EmbedBuilder().setColor(0x22c55e).setDescription(`✅ **${nb}** salons restaurés depuis la sauvegarde.`)], components: [] }).catch(() => {});
+      const glados = `Les salons ont été recréés. L'architecture est identique à la sauvegarde. Vos efforts de destruction étaient... médiocres. Cette fois.`;
+      m.edit({ embeds: [new EmbedBuilder().setColor(0x22c55e)
+        .setDescription(`✅ **${nb}** salons restaurés.\n\n*${glados}*`)], components: [] }).catch(() => {});
     }
   });
   collector.on('end', (_, r) => { if (r === 'time') m.edit({ components: [] }).catch(() => {}); });
@@ -212,6 +216,7 @@ async function cmdRestore(msg) {
 //  EXPORT
 // ════════════════════════════════════════════════════════════
 module.exports = {
+  _restore: restoreChannels,
   init(client) {
     // Détection suppression de salons
     client.on('channelDelete', ch => {

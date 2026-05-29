@@ -48,7 +48,7 @@ module.exports = (client) => {
 
         const config = await getConfig()
         const logSalon = channel.guild.channels.cache.get(config.log_salons);
-        if (!logSalon) return console.error('❌ [SALON CREATE] Salon introuvable ! ID:', config.logs?.salons);
+        if (!logSalon) return;
         await logSalon.send({ embeds: [embed] });
     });
 
@@ -75,7 +75,7 @@ module.exports = (client) => {
 
         const config = await getConfig()
         const logSalon = channel.guild.channels.cache.get(config.log_salons);
-        if (!logSalon) return console.error('❌ [SALON DELETE] Salon introuvable ! ID:', config.logs?.salons);
+        if (!logSalon) return;
         await logSalon.send({ embeds: [embed] });
     });
 
@@ -119,7 +119,7 @@ module.exports = (client) => {
 
         const config = await getConfig()
         const logSalon = newChannel.guild.channels.cache.get(config.log_salons);
-        if (!logSalon) return console.error('❌ [SALON UPDATE] Salon introuvable ! ID:', config.logs?.salons);
+        if (!logSalon) return;
         await logSalon.send({ embeds: [embed] });
     });
 };

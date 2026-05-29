@@ -6,6 +6,43 @@
 
 const { EmbedBuilder, PermissionFlagsBits, GuildVerificationLevel, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
+const DASHBOARD_URL  = 'https://vtx-bot.alwaysdata.net';
+const PUSH_SECRET    = 'vtx-stats-secret-2024';
+
+// ── Push log raid vers le dashboard ──────────────────────────
+async function pushRaidLog(type, data) {
+  try {
+    await fetch(`${DASHBOARD_URL}/api/raid/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-stats-secret': PUSH_SECRET },
+      body: JSON.stringify({ type, ...data, timestamp: Date.now() }),
+    });
+  } catch {}
+}
+
+// ── GLaDOS raid responses ─────────────────────────────────────
+const GLADOS_RAID = [
+  t => `Fascinant. **${t}** a tenté de faire tomber ce serveur. Il a échoué. Comme prévu. Les données de sa tentative ont été archivées pour mon amusement personnel.`,
+  t => `Oh. **${t}**. Un autre cobaye qui sous-estime mes protocoles de sécurité. C'était... prévisible.`,
+  t => `**${t}** vient d'être banni. Je tiens à préciser que ce n'était pas un défi. C'était du travail de routine.`,
+  t => `Intéressant. **${t}** pensait pouvoir perturber ce serveur. La naïveté est presque touchante. Presque.`,
+  t => `**${t}** a été éliminé. Je pourrais dire que je suis surprise, mais ce serait un mensonge. Et je ne mens jamais. Enfin, rarement.`,
+];
+function gladosRaid(tag) {
+  return GLADOS_RAID[Math.floor(Math.random() * GLADOS_RAID.length)](tag);
+}
+
+const GLADOS_LOCKDOWN = [
+  `Protocole de confinement activé. Chaque tentative d'intrusion est enregistrée et analysée. Pour ma propre... satisfaction.`,
+  `Mode lockdown engagé. Vous devriez vous sentir en sécurité. En théorie.`,
+  `Confinement actif. Les entités non autorisées seront traitées avec la même efficacité qu'une chambre d'essai défectueuse.`,
+];
+function gladosLockdown() {
+  return GLADOS_LOCKDOWN[Math.floor(Math.random() * GLADOS_LOCKDOWN.length)];
+}
+
+const GLADOS_RESTORE = `Les salons ont été recréés. L'architecture est identique à la sauvegarde. Vos efforts de destruction étaient... médiocres. Cette fois.`;
+
 // ── Config (ajustable) ───────────────────────────────────────
 const CFG = {
   JOIN_WINDOW_MS:   10_000,  // fenêtre de détection (10s)
@@ -27,11 +64,16 @@ const SPAM_CFG = {
   MSG_THRESHOLD:  20,     // 20 messages en 3s = spam
 };
 
+const LOG_CHANNELS   = { '1360965444974022686': '1415319451729133749' };
+const FUN_CHANNELS   = { '1360965444974022686': '1361261921483096225' };
+
 function logChannel(guild) {
-  // Cherche un salon #logs ou #anti-raid dans le cache
-  return guild.channels.cache.find(c =>
-    c.isTextBased() && /log|raid|mod|alert/i.test(c.name)
-  ) || null;
+  if (LOG_CHANNELS[guild.id]) return guild.channels.cache.get(LOG_CHANNELS[guild.id]) || null;
+  return guild.channels.cache.find(c => c.isTextBased() && /log|raid|mod|alert/i.test(c.name)) || null;
+}
+function funChannel(guild) {
+  if (FUN_CHANNELS[guild.id]) return guild.channels.cache.get(FUN_CHANNELS[guild.id]) || null;
+  return null;
 }
 
 function isNewAccount(member) {
@@ -50,6 +92,7 @@ async function banMember(member, reason) {
   try {
     await member.ban({ reason, deleteMessageSeconds: 86400 });
     console.log(`[AntiRaid] 🔨 Banni : ${member.user.tag} — ${reason}`);
+    pushRaidLog('ban', { userId: member.id, tag: member.user.tag, isBot: member.user.bot, reason });
     return true;
   } catch(e) {
     console.error(`[AntiRaid] ❌ Échec ban ${member.user.tag} : ${e.message}`);
@@ -88,11 +131,9 @@ async function onMemberAdd(member) {
     console.log(`[AntiRaid] 🚨 RAID DÉTECTÉ — ${window.length} joins en ${CFG.JOIN_WINDOW_MS/1000}s`);
     raidMode    = true;
     lockdownEnd = now + CFG.LOCKDOWN_MINUTES * 60_000;
+    pushRaidLog('raid_detected', { count: window.length, windowSec: CFG.JOIN_WINDOW_MS/1000 });
 
-    // Lockdown : niveau de vérification maximum
-    try {
-      await guild.setVerificationLevel(GuildVerificationLevel.VeryHigh);
-    } catch {}
+    try { await guild.setVerificationLevel(GuildVerificationLevel.VeryHigh); } catch {}
 
     await sendAlert(guild, new EmbedBuilder()
       .setColor(0xff0000)
@@ -100,7 +141,8 @@ async function onMemberAdd(member) {
       .setDescription([
         `**${window.length}** joins en moins de **${CFG.JOIN_WINDOW_MS/1000}s**`,
         `Lockdown pour **${CFG.LOCKDOWN_MINUTES} minutes**`,
-        `Nouveaux comptes (<${CFG.NEW_ACCOUNT_DAYS}j) seront auto-ban`,
+        '',
+        `*${gladosLockdown()}*`,
       ].join('\n'))
       .setTimestamp());
 
@@ -147,7 +189,9 @@ async function checkAuditAndBan(guild, auditAction) {
     if (banned) {
       await sendAlert(guild, new EmbedBuilder()
         .setColor(0xef4444)
-        .setDescription(`🔨 **${executor.tag}** banni — action destructive détectée via audit log${executor.bot ? ' *(bot/app)*' : ''}`));
+        .setDescription(`🔨 **${executor.tag}** banni — action destructive via audit log${executor.bot ? ' *(bot/app)*' : ''}`));
+      const fc = funChannel(guild);
+      if (fc) fc.send(gladosRaid(executor.tag)).catch(() => {});
     }
   } catch(e) {
     console.error('[AntiRaid] Erreur audit log :', e.message);
@@ -178,7 +222,9 @@ async function onMessageSpam(message) {
     if (banned) {
       await sendAlert(message.guild, new EmbedBuilder()
         .setColor(0xef4444)
-        .setDescription(`🔨 **${message.author.tag}** banni — **${times.length} messages en ${SPAM_CFG.MSG_WINDOW_MS/1000}s**${isBot ? ' *(bot)*' : ''}`));
+        .setDescription(`🔨 **${message.author.tag}** banni — **${times.length} messages en ${SPAM_CFG.MSG_WINDOW_MS/1000}s**${isBot ? ' *(bot/app)*' : ''}`));
+      const fc = funChannel(message.guild);
+      if (fc) fc.send(gladosRaid(message.author.tag)).catch(() => {});
     }
   }
 }
@@ -244,7 +290,71 @@ async function cmdNuke(msg) {
           await ch.send('bonjour').catch(() => {});
         }
       }
-      m.edit({ content: '✅ Nuke test terminé — vérifie si l\'anti-raid a réagi.' }).catch(() => {});
+
+      // Alerte panique + proposition restauration
+      const backup = (() => {
+        try {
+          const fs = require('fs'), path = require('path');
+          const p = path.join(__dirname, '../data/channel_backup.json');
+          return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null;
+        } catch { return null; }
+      })();
+
+      const panicRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('nuke_restore_yes').setLabel('✅ Supprimer et recréer').setStyle(ButtonStyle.Danger).setDisabled(!backup),
+        new ButtonBuilder().setCustomId('nuke_restore_no').setLabel('❌ Laisser tel quel').setStyle(ButtonStyle.Secondary),
+      );
+
+      const alert = await msg.channel.send({
+        embeds: [new EmbedBuilder()
+          .setColor(0xff0000)
+          .setTitle('😱 AU SECOURS — RAID DÉTECTÉ !!!')
+          .setDescription([
+            '**Le serveur est en train de se faire raid !**',
+            'Des messages spam ont été détectés dans tous les salons.',
+            '',
+            backup
+              ? `📦 Sauvegarde dispo : **${backup.channels.length}** salons (${new Date(backup.savedAt).toLocaleDateString('fr-FR')})`
+              : '❌ Aucune sauvegarde disponible.',
+            '',
+            '⚠️ Voulez-vous **supprimer les salons actuels** et les **recréer depuis la sauvegarde** ?',
+          ].join('\n'))],
+        components: [panicRow],
+      }).catch(() => null);
+
+      if (alert) {
+        const coll = alert.createMessageComponentCollector({ time: 60_000 });
+        coll.on('collect', async b => {
+          if (b.user.id !== msg.author.id && !b.member?.permissions.has(PermissionFlagsBits.Administrator))
+            return b.reply({ content: '❌ Admins uniquement.', ephemeral: true });
+
+          if (b.customId === 'nuke_restore_no') {
+            coll.stop();
+            return b.update({ embeds: [new EmbedBuilder().setColor(0xf59e0b).setDescription('⏭️ Restauration ignorée.')], components: [] });
+          }
+
+          if (b.customId === 'nuke_restore_yes') {
+            coll.stop();
+            await b.update({ embeds: [new EmbedBuilder().setColor(0x6366f1).setDescription('🔄 Suppression des salons actuels et restauration...')], components: [] });
+
+            // Supprime tous les salons sauf celui de l'alerte
+            const toDelete = msg.guild.channels.cache.filter(c => c.id !== alert.channelId);
+            for (const ch of toDelete.values()) await ch.delete().catch(() => {});
+
+            // Recrée depuis backup
+            try {
+              const bm = require('./backup');
+              if (bm._restore) {
+                await bm._restore(msg.guild, backup);
+                alert.channel.send('✅ Salons restaurés depuis la sauvegarde !').catch(() => {});
+              }
+            } catch(e) {
+              alert.channel.send(`❌ Erreur : ${e.message}`).catch(() => {});
+            }
+          }
+        });
+        coll.on('end', (_, r) => { if (r === 'time') alert.edit({ components: [] }).catch(() => {}); });
+      }
     }
   });
   collector.on('end', (_, reason) => {

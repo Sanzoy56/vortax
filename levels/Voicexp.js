@@ -49,7 +49,7 @@ function startVoicexp(client) {
         }
       }
     }
-  }, VOCAL.INTERVAL_MS);
+  }, 60_000);
 }
 
 module.exports = { startVoiceXp: startVoicexp };
