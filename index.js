@@ -30,6 +30,7 @@ const autorole   = require('./events/autorole.js');
 const stats     = require('./events/stats');
 const vocalTemp = require('./events/vocalTemp');
 const casino    = require('./events/casino');
+const prefix    = require('./events/prefix');
 // ── Command handlers manuels ───────────────────────
 const panel = require('./commandes/panel.js');
 const say   = require('./commandes/say.js');
@@ -128,6 +129,7 @@ grok(client);
 stats.init(client);
 vocalTemp.init(client);
 casino.init(client);
+prefix.init(client);
 // ───────────────────────────────────────────────────
 // Levels : écoute des messages
 // ───────────────────────────────────────────────────

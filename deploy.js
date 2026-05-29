@@ -216,91 +216,12 @@ const commands = [
         )
         .toJSON(),
 
-    // ─── LEVELS / ÉCONOMIE ────────────────────────────────────────
-    new SlashCommandBuilder()
-        .setName('profil')
-        .setDescription('Voir le profil d\'une personne')
-        .addUserOption(option =>
-            option.setName('membre')
-                .setDescription('Voir le profil d\'une personne')
-                .setRequired(false)
-        )
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('bal')
-        .setDescription('Voir le solde d\'un membre')
-        .addUserOption(option =>
-            option.setName('membre')
-                .setDescription('Le membre à inspecter (toi par défaut)')
-                .setRequired(false)
-        )
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('top')
-        .setDescription('Classement des membres')
-        .addStringOption(o =>
-            o.setName('mode')
-             .setDescription('Classer par EXP ou VTX-Coins')
-             .addChoices(
-                 { name: '🏆 EXP',       value: 'exp'   },
-                 { name: '💰 VTX-Coins', value: 'coins' }
-             )
-        )
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('rob')
-        .setDescription('Tente de voler de l\'argent à un membre')
-        .addUserOption(option =>
-            option.setName('cible')
-                .setDescription('Membre à voler')
-                .setRequired(true)
-        )
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('donner')
-        .setDescription('Donner de la money à un membre')
-        .addUserOption(option =>
-            option.setName('membre')
-                .setDescription('Choisissez la personne à qui donner')
-                .setRequired(false)
-        )
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('dep')
-        .setDescription('Déposer de l\'argent en banque')
-        .addStringOption(o =>
-            o.setName('montant')
-             .setDescription('Montant à déposer ou "all"')
-             .setRequired(true)
-        )
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('with')
-        .setDescription('Retirer de l\'argent de la banque')
-        .addStringOption(o =>
-            o.setName('montant')
-             .setDescription('Montant à retirer ou "all"')
-             .setRequired(true)
-        )
-        .toJSON(),
-
+    // ─── Commandes conservées en slash ───────────────────────────
     new SlashCommandBuilder()
         .setName('boutique')
         .setDescription('Accéder à la boutique')
-        .addSubcommand(sub =>
-            sub.setName('boost')
-               .setDescription('Boosts temporaires d\'EXP / Coins (max 1h)')
-        )
-        .addSubcommand(sub =>
-            sub.setName('role')
-               .setDescription('Boosts permanents via rôle (min 1M VTX-Coins)')
-        )
+        .addSubcommand(sub => sub.setName('boost').setDescription('Boosts temporaires d\'EXP / Coins (max 1h)'))
+        .addSubcommand(sub => sub.setName('role').setDescription('Boosts permanents via rôle (min 1M VTX-Coins)'))
         .toJSON(),
 
     new SlashCommandBuilder()
@@ -308,81 +229,6 @@ const commands = [
         .setDescription('Voir et gérer ton inventaire de boosts')
         .toJSON(),
 
-    new SlashCommandBuilder()
-        .setName('quetes')
-        .setDescription('Voir tes quêtes journalières')
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('aide')
-        .setDescription('Aide sur les commandes disponibles')
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('work')
-        .setDescription('Travaille pour gagner des coins (cooldown 4h)')
-        .toJSON(),
-
-    // ─── CASINO ───────────────────────────────────────────────────
-    new SlashCommandBuilder()
-        .setName('bj')
-        .setDescription('Blackjack — joue contre le croupier')
-        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('slots')
-        .setDescription(`Machine à sous (coût ${2500}, max 200k, 10 spins / 4h)`)
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('pf')
-        .setDescription('Pile ou face — double ou perd ta mise')
-        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
-        .addStringOption(o => o.setName('choix').setDescription('Pile ou Face').setRequired(true)
-            .addChoices({name:'🪙 Pile',value:'pile'},{name:'💫 Face',value:'face'}))
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('dice')
-        .setDescription('Lance un dé — devine le numéro (x5) ou mise sur ≥4')
-        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
-        .addIntegerOption(o => o.setName('numéro').setDescription('Numéro exact 1-6 (optionnel, x5)').setMinValue(1).setMaxValue(6).setRequired(false))
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('roulette')
-        .setDescription('Roulette casino — rouge/noir x2, vert x14')
-        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
-        .addStringOption(o => o.setName('couleur').setDescription('Ta couleur').setRequired(true)
-            .addChoices({name:'🔴 Rouge (x2)',value:'rouge'},{name:'⚫ Noir (x2)',value:'noir'},{name:'🟢 Vert (x14)',value:'vert'}))
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('cup')
-        .setDescription('Jeu des gobelets — trouve la balle, gagne x2')
-        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
-        .addIntegerOption(o => o.setName('gobelet').setDescription('Ton gobelet 1, 2 ou 3').setMinValue(1).setMaxValue(3).setRequired(true))
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('pfc')
-        .setDescription('Pierre Feuille Ciseaux — gagne x2')
-        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
-        .addStringOption(o => o.setName('choix').setDescription('Ton choix').setRequired(true)
-            .addChoices({name:'🪨 Pierre',value:'pierre'},{name:'📄 Feuille',value:'feuille'},{name:'✂️ Ciseaux',value:'ciseaux'}))
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('rr')
-        .setDescription('Roulette russe — 1/6 de tout perdre, sinon +50%')
-        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
-        .toJSON(),
-
-    new SlashCommandBuilder()
-        .setName('spin')
-        .setDescription(`Machine à sous animée (coût ${2500} coins)`)
-        .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
