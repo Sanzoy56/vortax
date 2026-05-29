@@ -4,10 +4,21 @@ const { getUser, saveUser } = require('../levels/db');
 
 const PREFIX = '=';
 
+const EM = {
+  coin:    '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>',
+  billet:  '<:fdfc6b7c937741879c66a369a1d2b635:1510005089073369148>',
+  barre:   '<:Capture_d_cran_20260529_213837re:1510004586990145556>',
+  jackpot: '<:jackpot:1510003670388047943>',
+  perdu:   '<:26643crossmark:1509170295921971300>',
+};
+
 function fmt(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
   if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'k';
   return Math.abs(n).toLocaleString('fr-FR');
+}
+function e(color, desc) {
+  return { embeds: [new EmbedBuilder().setColor(color).setDescription(desc)] };
 }
 function parseMise(str) {
   if (!str) return null;
@@ -32,10 +43,8 @@ async function cmdPF(msg, args) {
   user.wallet += win ? mise : -mise;
   saveUser(user);
 
-  msg.reply({ embeds: [new EmbedBuilder()
-    .setColor(win ? 0x22c55e : 0xef4444)
-    .setTitle(win ? '🎉 Gagné !' : '💸 Perdu !')
-    .setDescription(`Résultat : **${result === 'pile' ? '🪙 Pile' : '💫 Face'}**\n${win ? `+${fmt(mise)}` : `-${fmt(mise)}`} 💵 · Solde : **${fmt(user.wallet)}** 💵`)]});
+  msg.reply(e(win ? 0x22c55e : 0xef4444,
+    `${result === 'pile' ? '🪙 Pile' : '💫 Face'} — ${win ? `${EM.billet} +${fmt(mise)}` : `${EM.barre} -${fmt(mise)}`} ${EM.coin} · Solde : **${fmt(user.wallet)}** ${EM.coin}`));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -66,10 +75,7 @@ async function cmdDice(msg, args) {
   user.wallet += gain - mise;
   saveUser(user);
 
-  msg.reply({ embeds: [new EmbedBuilder()
-    .setColor(gain >= mise ? 0x22c55e : 0xef4444)
-    .setTitle('🎲 Lancer de dé')
-    .setDescription(desc + `\nSolde : **${fmt(user.wallet)}** 💵`)]});
+  msg.reply(e(gain >= mise ? 0x22c55e : 0xef4444, `🎲 ${desc} · Solde : **${fmt(user.wallet)}** ${EM.coin}`));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -96,10 +102,8 @@ async function cmdRoulette(msg, args) {
   user.wallet += gain - mise;
   saveUser(user);
 
-  msg.reply({ embeds: [new EmbedBuilder()
-    .setColor(win ? 0x22c55e : 0xef4444)
-    .setTitle('🎡 Roulette')
-    .setDescription(`Bille sur : **${icon} ${result}**\n${win ? `+${fmt(gain-mise)} 💵 (x${multi[choix]})` : `-${fmt(mise)} 💵`}\nSolde : **${fmt(user.wallet)}** 💵`)]});
+  msg.reply(e(win ? 0x22c55e : 0xef4444,
+    `🎡 ${icon} **${result}** — ${win ? `${EM.billet} +${fmt(gain-mise)} (x${multi[choix]})` : `${EM.barre} -${fmt(mise)}`} ${EM.coin} · Solde : **${fmt(user.wallet)}** ${EM.coin}`));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -119,11 +123,9 @@ async function cmdCup(msg, args) {
   user.wallet  += win ? mise * 2 : -mise;
   saveUser(user);
 
-  const cups = [1,2,3].map(n => n === correct ? `🏆 **[${n}]**` : `🥤 ${n}`).join('  ');
-  msg.reply({ embeds: [new EmbedBuilder()
-    .setColor(win ? 0x22c55e : 0xef4444)
-    .setTitle('🥤 Jeu des gobelets')
-    .setDescription(`${cups}\n${win ? `✅ Bonne pioche ! **+${fmt(mise*2)}** 💵` : `❌ La balle était sous le **${correct}** ! **-${fmt(mise)}** 💵`}\nSolde : **${fmt(user.wallet)}** 💵`)]});
+  const cups = [1,2,3].map(n => n === correct ? `🏆**${n}**` : `🥤${n}`).join(' ');
+  msg.reply(e(win ? 0x22c55e : 0xef4444,
+    `${cups} — ${win ? `${EM.billet} +${fmt(mise*2)}` : `${EM.perdu} Balle sous le **${correct}** ! -${fmt(mise)}`} ${EM.coin} · Solde : **${fmt(user.wallet)}** ${EM.coin}`));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -149,10 +151,8 @@ async function cmdRPS(msg, args) {
   else if (!draw) user.wallet -= mise;
   saveUser(user);
 
-  msg.reply({ embeds: [new EmbedBuilder()
-    .setColor(win ? 0x22c55e : draw ? 0xf59e0b : 0xef4444)
-    .setTitle('✊ Pierre Feuille Ciseaux')
-    .setDescription(`${ICONS[choix]} vs ${ICONS[bot]}\n${win ? `+${fmt(mise)} 💵` : draw ? `Égalité — remboursé` : `-${fmt(mise)} 💵`}\nSolde : **${fmt(user.wallet)}** 💵`)]});
+  msg.reply(e(win ? 0x22c55e : draw ? 0xf59e0b : 0xef4444,
+    `${ICONS[choix]} vs ${ICONS[bot]} — ${win ? `${EM.billet} +${fmt(mise)}` : draw ? `Égalité, remboursé` : `${EM.perdu} -${fmt(mise)}`} ${EM.coin} · Solde : **${fmt(user.wallet)}** ${EM.coin}`));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -171,12 +171,10 @@ async function cmdRR(msg, args) {
   else       { user.wallet += Math.floor(mise * 0.5); }
   saveUser(user);
 
-  msg.reply({ embeds: [new EmbedBuilder()
-    .setColor(fired ? 0xef4444 : 0x22c55e)
-    .setTitle(fired ? '💥 BANG !' : '😮‍💨 Click...')
-    .setDescription(fired
-      ? `🔫 Le barillet était chargé ! **-${fmt(loss)}** 💵\nSolde : **${fmt(user.wallet)}** 💵`
-      : `🔫 Chambre vide — tu survis ! **+${fmt(Math.floor(mise*0.5))}** 💵\nSolde : **${fmt(user.wallet)}** 💵`)]});
+  msg.reply(e(fired ? 0xef4444 : 0x22c55e,
+    fired
+      ? `💥 BANG ! ${EM.barre} -${fmt(loss)} ${EM.coin} · Solde : **${fmt(user.wallet)}** ${EM.coin}`
+      : `😮‍💨 Click... ${EM.billet} +${fmt(Math.floor(mise*0.5))} ${EM.coin} · Solde : **${fmt(user.wallet)}** ${EM.coin}`));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -222,21 +220,19 @@ async function cmdSlots(msg) {
 
   if (r1.e===r2.e && r2.e===r3.e) {
     gain = Math.min(SLOTS_COST * r1.m, SLOTS_MAX);
-    line = r1.m >= 50 ? `🎰 **JACKPOT x${r1.m} !!** +${fmt(gain)} 💵` : `✨ **3x ${r1.e} — x${r1.m}** +${fmt(gain)} 💵`;
+    line = r1.m >= 50 ? `${EM.jackpot} **JACKPOT x${r1.m} !!** +${fmt(gain)}` : `${EM.billet} **3x ${r1.e} — x${r1.m}** +${fmt(gain)}`;
   } else if (r1.e===r2.e || r2.e===r3.e || r1.e===r3.e) {
     gain = SLOTS_COST;
-    line = `🔄 **2 identiques** — mise remboursée`;
+    line = `🔄 2 identiques — remboursé`;
   } else {
-    line = `💸 Aucune combinaison — **-${fmt(SLOTS_COST)}** 💵`;
+    line = `${EM.barre} Aucune combinaison -${fmt(SLOTS_COST)}`;
   }
 
   user.wallet += gain;
   saveUser(user);
 
-  msg.reply({ embeds: [new EmbedBuilder()
-    .setColor(gain > SLOTS_COST ? 0x22c55e : gain===SLOTS_COST ? 0xf59e0b : 0xef4444)
-    .setTitle('🎰 Machine à sous')
-    .setDescription(`╔ ${r1.e}  ${r2.e}  ${r3.e} ╗\n${line}\nSolde : **${fmt(user.wallet)}** 💵 · Spins : **${data.spins}/${SLOTS_MAX_SPINS}**`)]});
+  msg.reply(e(gain > SLOTS_COST ? 0x22c55e : gain===SLOTS_COST ? 0xf59e0b : 0xef4444,
+    `${r1.e} ${r2.e} ${r3.e} — ${line} ${EM.coin} · Solde : **${fmt(user.wallet)}** ${EM.coin} · Spins : **${data.spins}/${SLOTS_MAX_SPINS}**`));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -259,13 +255,10 @@ function hstr(h, hide=false) {
 }
 function bjEmbed(g, reveal, title, color) {
   const pv = hval(g.player), dv = hval(g.dealer);
-  return new EmbedBuilder().setColor(color)
-    .setTitle(title ?? '🃏 Blackjack')
-    .setDescription(`Mise : **${fmt(g.mise)}** 💵`)
-    .addFields(
-      { name: `Croupier${reveal?` (${dv})`:''}`, value: hstr(g.dealer, !reveal), inline: true },
-      { name: `Toi (${pv})`, value: hstr(g.player), inline: true },
-    );
+  const dealer = `Croupier${reveal?` (${dv})`:''}: ${hstr(g.dealer, !reveal)}`;
+  const player = `Toi (${pv}): ${hstr(g.player)}`;
+  const desc   = title ? `${title}\n${dealer} | ${player}` : `${dealer} | ${player}\nMise : **${fmt(g.mise)}** 💵`;
+  return new EmbedBuilder().setColor(color).setDescription(desc);
 }
 function bjRow(uid, canDouble) {
   return new ActionRowBuilder().addComponents(
@@ -340,9 +333,9 @@ async function cmdBJ(msg, args) {
       while(hval(game.dealer)<17) game.dealer.push(game.deck.pop());
       const pv3=hval(game.player), dv2=hval(game.dealer);
       let color, title2;
-      if (dv2>21||pv3>dv2)      { u.wallet+=game.mise*2; title2=`🎉 Victoire ! +${fmt(game.mise)} 💵`; color=0x22c55e; }
-      else if (pv3===dv2)        { u.wallet+=game.mise;   title2=`🤝 Égalité — remboursé`;             color=0xf59e0b; }
-      else                       {                        title2=`💸 Défaite ! -${fmt(game.mise)} 💵`; color=0xef4444; }
+      if (dv2>21||pv3>dv2)      { u.wallet+=game.mise*2; title2=`${EM.billet} Victoire ! +${fmt(game.mise)} ${EM.coin}`; color=0x22c55e; }
+      else if (pv3===dv2)        { u.wallet+=game.mise;   title2=`🤝 Égalité — remboursé`;                              color=0xf59e0b; }
+      else                       {                        title2=`${EM.perdu} Défaite ! -${fmt(game.mise)} ${EM.coin}`; color=0xef4444; }
       saveUser(u);
       return i.update({ embeds: [bjEmbed(game, true, title2, color)], components: [] });
     }
