@@ -31,6 +31,7 @@ const stats     = require('./events/stats');
 const vocalTemp = require('./events/vocalTemp');
 const casino    = require('./events/casino');
 const prefix    = require('./events/prefix');
+const antiraid  = require('./events/antiraid');
 // ── Command handlers manuels ───────────────────────
 const panel = require('./commandes/panel.js');
 const say   = require('./commandes/say.js');
@@ -130,6 +131,7 @@ stats.init(client);
 vocalTemp.init(client);
 casino.init(client);
 prefix.init(client);
+antiraid.init(client);
 // ───────────────────────────────────────────────────
 // Levels : écoute des messages
 // ───────────────────────────────────────────────────
