@@ -179,6 +179,24 @@ async function cmdNuke(msg) {
   });
 }
 
+// =testban — se ban soi-même puis se déban (test du mécanisme de ban)
+async function cmdTestban(msg) {
+  if (!isAdmin(msg.member)) return;
+  if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.');
+
+  const userId = msg.author.id;
+  await msg.reply('🧪 Test ban en cours...');
+
+  try {
+    await msg.guild.members.ban(userId, { reason: '[TEST] Anti-raid ban test', deleteMessageSeconds: 0 });
+    await new Promise(r => setTimeout(r, 2000));
+    await msg.guild.bans.remove(userId, '[TEST] Auto-déban après test');
+    msg.channel.send(`✅ Ban test réussi — <@${userId}> a bien été banni puis débanni.`).catch(() => {});
+  } catch (e) {
+    msg.channel.send(`❌ Échec du ban : ${e.message}`).catch(() => {});
+  }
+}
+
 // =simulate-raid — injecte de faux joins pour déclencher la détection
 async function cmdSimulateRaid(msg) {
   if (!isAdmin(msg.member)) return;
@@ -223,6 +241,7 @@ module.exports = {
       if (cmd === '=nuke')            { if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.'); return cmdNuke(msg); }
       if (cmd === '=massban')         { if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.'); return cmdMassban(msg, args); }
       if (cmd === '=simulate-raid')   return cmdSimulateRaid(msg);
+      if (cmd === '=testban')         return cmdTestban(msg);
     });
 
     console.log('[AntiRaid] ✅ Détection raid + =raid status/off + =nuke + =massban');
