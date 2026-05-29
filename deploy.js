@@ -322,6 +322,62 @@ const commands = [
         .setName('work')
         .setDescription('Travaille pour gagner des coins (cooldown 4h)')
         .toJSON(),
+
+    // ─── CASINO ───────────────────────────────────────────────────
+    new SlashCommandBuilder()
+        .setName('bj')
+        .setDescription('Blackjack — joue contre le croupier')
+        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('slots')
+        .setDescription(`Machine à sous (coût ${2500}, max 200k, 10 spins / 4h)`)
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('pf')
+        .setDescription('Pile ou face — double ou perd ta mise')
+        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
+        .addStringOption(o => o.setName('choix').setDescription('Pile ou Face').setRequired(true)
+            .addChoices({name:'🪙 Pile',value:'pile'},{name:'💫 Face',value:'face'}))
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('dice')
+        .setDescription('Lance un dé — devine le numéro (x5) ou mise sur ≥4')
+        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
+        .addIntegerOption(o => o.setName('numéro').setDescription('Numéro exact 1-6 (optionnel, x5)').setMinValue(1).setMaxValue(6).setRequired(false))
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('roulette')
+        .setDescription('Roulette casino — rouge/noir x2, vert x14')
+        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
+        .addStringOption(o => o.setName('couleur').setDescription('Ta couleur').setRequired(true)
+            .addChoices({name:'🔴 Rouge (x2)',value:'rouge'},{name:'⚫ Noir (x2)',value:'noir'},{name:'🟢 Vert (x14)',value:'vert'}))
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('cup')
+        .setDescription('Jeu des gobelets — trouve la balle, gagne x2')
+        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
+        .addIntegerOption(o => o.setName('gobelet').setDescription('Ton gobelet 1, 2 ou 3').setMinValue(1).setMaxValue(3).setRequired(true))
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('rps')
+        .setDescription('Pierre Feuille Ciseaux — gagne x2')
+        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
+        .addStringOption(o => o.setName('choix').setDescription('Ton choix').setRequired(true)
+            .addChoices({name:'🪨 Pierre',value:'pierre'},{name:'📄 Feuille',value:'feuille'},{name:'✂️ Ciseaux',value:'ciseaux'}))
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('rr')
+        .setDescription('Roulette russe — 1/6 de tout perdre, sinon +50%')
+        .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
+        .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
