@@ -123,7 +123,6 @@ function isTestServer(msg) {
 
 // =raid status
 async function cmdRaidStatus(msg) {
-  if (!isAdmin(msg.member)) return;
   msg.reply({ embeds: [new EmbedBuilder()
     .setColor(raidMode ? 0xef4444 : 0x22c55e)
     .setDescription(raidMode
@@ -133,7 +132,6 @@ async function cmdRaidStatus(msg) {
 
 // =raid off — désactive manuellement le mode raid
 async function cmdRaidOff(msg) {
-  if (!isAdmin(msg.member)) return;
   raidMode = false;
   try { await msg.guild.setVerificationLevel(GuildVerificationLevel.Low); } catch {}
   msg.reply({ embeds: [new EmbedBuilder().setColor(0x22c55e).setDescription('✅ Mode raid désactivé manuellement.')] });
@@ -141,7 +139,6 @@ async function cmdRaidOff(msg) {
 
 // =nuke — spam "bonjour" dans tous les salons (TEST anti-raid uniquement)
 async function cmdNuke(msg) {
-  if (!isAdmin(msg.member)) return;
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('nuke_confirm').setLabel('✅ Confirmer').setStyle(ButtonStyle.Danger),
@@ -181,7 +178,6 @@ async function cmdNuke(msg) {
 
 // =testban — se ban soi-même puis se déban (test du mécanisme de ban)
 async function cmdTestban(msg) {
-  if (!isAdmin(msg.member)) return;
   if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.');
 
   const userId = msg.author.id;
@@ -199,7 +195,6 @@ async function cmdTestban(msg) {
 
 // =simulate-raid — injecte de faux joins pour déclencher la détection
 async function cmdSimulateRaid(msg) {
-  if (!isAdmin(msg.member)) return;
   if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.');
 
   await msg.reply(`🧪 Simulation de raid en cours — injection de **${CFG.JOIN_THRESHOLD + 2}** joins...`);
@@ -216,7 +211,6 @@ async function cmdSimulateRaid(msg) {
 
 // =massban <nombre> — ban les X derniers membres (test)
 async function cmdMassban(msg, args) {
-  if (!isAdmin(msg.member)) return;
   const nb = Math.min(parseInt(args[0]) || 5, 20);
   const members = [...msg.guild.members.cache.values()]
     .filter(m => !m.user.bot && m.id !== msg.author.id)
