@@ -64,11 +64,24 @@ const SPAM_CFG = {
   MSG_THRESHOLD:  20,     // 20 messages en 3s = spam
 };
 
-const LOG_CHANNELS   = { '1360965444974022686': '1415319451729133749' };
-const FUN_CHANNELS   = { '1360965444974022686': '1361261921483096225' };
+const FUN_CHANNELS = { '1360965444974022686': '1361261921483096225' };
 
-function logChannel(guild) {
-  if (LOG_CHANNELS[guild.id]) return guild.channels.cache.get(LOG_CHANNELS[guild.id]) || null;
+// Config depuis le dashboard (cache 5 min)
+let _cfg = null, _cfgAt = 0;
+async function getConfig() {
+  if (_cfg && Date.now() - _cfgAt < 5 * 60 * 1000) return _cfg;
+  try {
+    const res = await fetch('https://vtx-bot.alwaysdata.net/config');
+    _cfg = await res.json();
+    _cfgAt = Date.now();
+  } catch {}
+  return _cfg || {};
+}
+
+async function logChannel(guild) {
+  const cfg = await getConfig();
+  const id  = cfg.log_raid;
+  if (id) return guild.channels.cache.get(id) || null;
   return guild.channels.cache.find(c => c.isTextBased() && /log|raid|mod|alert/i.test(c.name)) || null;
 }
 function funChannel(guild) {
@@ -83,7 +96,7 @@ function isNewAccount(member) {
 }
 
 async function sendAlert(guild, embed) {
-  const ch = logChannel(guild);
+  const ch = await logChannel(guild);
   if (ch) ch.send({ embeds: [embed] }).catch(() => {});
 }
 
