@@ -321,33 +321,47 @@ async function cmdBJ(i) {
 // ════════════════════════════════════════════════════════════
 const SPIN_COST = 2500;
 
-// Symboles spin
+// Symboles spin — multiplicateurs garantissent min 3k de profit (x2.5 min sur 2500 = 6250, profit 3750)
 const SPIN_SYMS = [
-  { e: '🏆', w: 1,  m: 50 },  // JACKPOT
-  { e: '💎', w: 4,  m: 20 },
-  { e: '⭐', w: 8,  m: 10 },
-  { e: '💜', w: 12, m: 6  },
-  { e: '🍒', w: 20, m: 3  },
-  { e: '🍊', w: 25, m: 2  },
-  { e: '🍋', w: 30, m: 1.5},
+  { e: '🏆', w: 1,  m: 50 },  // JACKPOT — 125 000
+  { e: '💎', w: 4,  m: 20 },  // 50 000
+  { e: '⭐', w: 10, m: 10 },  // 25 000
+  { e: '🍒', w: 20, m: 5  },  // 12 500, profit 10 000
+  { e: '🍊', w: 30, m: 3  },  // 7 500, profit 5 000
+  { e: '🍋', w: 35, m: 2.5},  // 6 250, profit 3 750 ← minimum
 ];
-const SPIN_TOT = SPIN_SYMS.reduce((s,x)=>s+x.w,0);
+const SPIN_TOT = SPIN_SYMS.reduce((s,x)=>s+x.w, 0);
 function spinOne() { let r=Math.random()*SPIN_TOT; for(const s of SPIN_SYMS){r-=s.w;if(r<=0)return s;} return SPIN_SYMS[0]; }
-function spinFrame() { return [spinOne(),spinOne(),spinOne()]; }
+
+// 3 symboles différents pour un spin perdant
+function spinLose() {
+  const s = [...SPIN_SYMS];
+  const r1 = spinOne();
+  const pool2 = s.filter(x => x.e !== r1.e);
+  const tot2  = pool2.reduce((a,x)=>a+x.w, 0);
+  let rr = Math.random()*tot2; let r2 = pool2[0];
+  for(const x of pool2){ rr-=x.w; if(rr<=0){r2=x;break;} }
+  const pool3 = s.filter(x => x.e !== r1.e && x.e !== r2.e);
+  const tot3  = pool3.reduce((a,x)=>a+x.w, 0);
+  let rrr = Math.random()*tot3; let r3 = pool3[0];
+  for(const x of pool3){ rrr-=x.w; if(rrr<=0){r3=x;break;} }
+  return [r1, r2, r3];
+}
+
+function spinFrame() { return [spinOne(), spinOne(), spinOne()]; }
 
 const LOTS_EMBED = new EmbedBuilder()
   .setColor(0x6366f1)
   .setTitle('🎰 Lots — /spin')
   .setDescription([
-    '🏆 🏆 🏆 → **x50** (JACKPOT)',
-    '💎 💎 💎 → **x20**',
-    '⭐ ⭐ ⭐ → **x10**',
-    '💜 💜 💜 → **x6**',
-    '🍒 🍒 🍒 → **x3**',
-    '🍊 🍊 🍊 → **x2**',
-    '🍋 🍋 🍋 → **x1.5**',
-    '2 identiques → **remboursé**',
-    'Aucune combinaison → **perdu**',
+    '🏆 🏆 🏆 → **x50** — 125 000 coins (JACKPOT)',
+    '💎 💎 💎 → **x20** — 50 000 coins',
+    '⭐ ⭐ ⭐ → **x10** — 25 000 coins',
+    '🍒 🍒 🍒 → **x5**  — 12 500 coins',
+    '🍊 🍊 🍊 → **x3**  — 7 500 coins',
+    '🍋 🍋 🍋 → **x2.5** — 6 250 coins',
+    '',
+    '🎲 **70% de chance de gagner**',
   ].join('\n'));
 
 function spinRow(userId) {
@@ -358,22 +372,27 @@ function spinRow(userId) {
 }
 
 function buildSpinResult(wallet) {
-  const [r1,r2,r3] = spinFrame();
-  let gain=0, resultLine, flavour;
+  let r1, r2, r3, gain = 0, resultLine, flavour;
 
-  if (r1.e===r2.e && r2.e===r3.e) {
-    gain = Math.min(Math.floor(SPIN_COST * r1.m), SLOTS_MAX);
-    resultLine = r1.e==='🏆' ? `${EM.jackpot} **JACKPOT !!!** +${fmt(gain)} ${EM.coin}` : `${EM.billet} **Gagné !** +${fmt(gain)} ${EM.coin}`;
-    flavour    = r1.e==='🏆' ? '🏆 Incroyable !!!' : 'Bien joué !';
-  } else if (r1.e===r2.e || r2.e===r3.e || r1.e===r3.e) {
-    gain=SPIN_COST; resultLine=`🔄 Remboursé`; flavour='Presque...';
+  if (Math.random() < 0.70) {
+    // 70% → victoire garantie (3-of-a-kind)
+    const sym = spinOne();
+    r1 = r2 = r3 = sym;
+    gain = Math.min(Math.floor(SPIN_COST * sym.m), SLOTS_MAX);
+    resultLine = sym.e === '🏆'
+      ? `${EM.jackpot} **JACKPOT !!! +${fmt(gain)}** ${EM.coin}`
+      : `${EM.billet} **Gagné ! +${fmt(gain)}** ${EM.coin}`;
+    flavour = sym.e === '🏆' ? '🏆 Incroyable !!!' : 'Bien joué !';
   } else {
-    resultLine=`${EM.perdu} PERDU`; flavour='Pas de chance...';
+    // 30% → défaite (3 symboles différents)
+    [r1, r2, r3] = spinLose();
+    resultLine = `${EM.perdu} **PERDU**`;
+    flavour    = 'Pas de chance...';
   }
 
   const newWallet = wallet + gain - SPIN_COST;
   const embed = new EmbedBuilder()
-    .setColor(gain>SPIN_COST ? 0x22c55e : gain===SPIN_COST ? 0xf59e0b : 0xef4444)
+    .setColor(gain > 0 ? 0x22c55e : 0xef4444)
     .setTitle('🎰 Casino Royal')
     .setDescription([
       `| ${r1.e} | ${r2.e} | ${r3.e} |`,
