@@ -378,6 +378,11 @@ const commands = [
         .setDescription('Roulette russe — 1/6 de tout perdre, sinon +50%')
         .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
         .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('spin')
+        .setDescription(`Machine à sous animée (coût ${2500} coins)`)
+        .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);
