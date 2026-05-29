@@ -366,7 +366,7 @@ const commands = [
         .toJSON(),
 
     new SlashCommandBuilder()
-        .setName('rps')
+        .setName('pfc')
         .setDescription('Pierre Feuille Ciseaux — gagne x2')
         .addIntegerOption(o => o.setName('mise').setDescription('Montant à miser (min 100)').setMinValue(100).setRequired(true))
         .addStringOption(o => o.setName('choix').setDescription('Ton choix').setRequired(true)

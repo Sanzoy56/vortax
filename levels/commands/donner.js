@@ -1,6 +1,8 @@
 'use strict';
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>';
+function re(color, desc) { return { embeds: [new EmbedBuilder().setColor(color).setDescription(desc)] }; }
 const { getDB, saveDB, getUser, withLock } = require('../db.js');
 
 module.exports = {
@@ -45,18 +47,8 @@ module.exports = {
       receveur.coins += montant;
       saveDB(db);
 
-      const embed = new EmbedBuilder()
-        .setTitle('✅ Don effectué !')
-        .setColor(0x2ecc71)
-        .setDescription(
-          `<@${interaction.user.id}> a donné **${montant.toLocaleString()} VTX-Coins** à <@${cible.id}> !\n\n` +
-          `Ton solde : **${donneur.coins.toLocaleString()} VTX-Coins**\n` +
-          `Solde de <@${cible.id}> : **${receveur.coins.toLocaleString()} VTX-Coins**`
-        )
-        .setFooter({ text: 'Team Vortax 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) })
-        .setTimestamp();
-
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply(re(0x22c55e,
+        `💸 <@${interaction.user.id}> → <@${cible.id}> **${montant.toLocaleString()}** ${COIN} · Ton solde : **${donneur.coins.toLocaleString()}**`));
     });
   },
 };

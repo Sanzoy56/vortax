@@ -1,5 +1,6 @@
 'use strict';
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>';
 const { getUser, saveUser } = require('../db');
 
 const COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4h
@@ -58,13 +59,7 @@ module.exports = {
     user.wallet       += earned;
     saveUser(user);
 
-    const embed = new EmbedBuilder()
-      .setColor(0x6366f1)
-      .setTitle('💼 Tu as travaillé !')
-      .setDescription(`${job} et tu as gagné **${fmt(earned)}** 💵`)
-      .addFields({ name: 'Solde', value: `**${fmt(user.wallet)}** 💵`, inline: true })
-      .setFooter({ text: 'Reviens dans 4h pour retravailler' });
-
-    return interaction.reply({ embeds: [embed] });
+    return interaction.reply({ embeds: [new EmbedBuilder().setColor(0x6366f1)
+      .setDescription(`💼 ${job} — +**${fmt(earned)}** ${COIN} · Solde : **${fmt(user.wallet)}** ${COIN}`)] });
   },
 };

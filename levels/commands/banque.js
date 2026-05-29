@@ -1,7 +1,9 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUser, saveUser } = require('../db');
 const { fmt } = require('../levels');
 const { updateQuestProgress } = require('../quests');
+const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>';
+function re(color, desc) { return { embeds: [new EmbedBuilder().setColor(color).setDescription(desc)] }; }
 
 // ─── /dep ────────────────────────────────────────────────────
 const dep = {
@@ -42,9 +44,7 @@ const dep = {
     // Quête : utiliser des commandes
     await updateQuestProgress(interaction.guild, interaction.user.id, 'commands', 1);
 
-    return interaction.reply({
-      content: `🏦 **${fmt(amount)} VTX-Coins** déposés en banque !\n💼 Portefeuille : **${fmt(user.wallet)}** | 🏦 Banque : **${fmt(user.bank)}**`,
-    });
+    return interaction.reply(re(0x6366f1, `🏦 +**${fmt(amount)}** en banque ${COIN} · Portefeuille : **${fmt(user.wallet)}** · Banque : **${fmt(user.bank)}**`));
   },
 };
 
@@ -82,9 +82,7 @@ const withCmd = {
     await updateQuestProgress(interaction.guild, interaction.user.id, 'bank', 1);
     await updateQuestProgress(interaction.guild, interaction.user.id, 'commands', 1);
 
-    return interaction.reply({
-      content: `💸 **${fmt(amount)} VTX-Coins** retirés de la banque !\n💼 Portefeuille : **${fmt(user.wallet)}** | 🏦 Banque : **${fmt(user.bank)}**`,
-    });
+    return interaction.reply(re(0x6366f1, `💸 +**${fmt(amount)}** sur toi ${COIN} · Portefeuille : **${fmt(user.wallet)}** · Banque : **${fmt(user.bank)}**`));
   },
 };
 

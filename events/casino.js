@@ -41,21 +41,34 @@ async function cmdDice(i) {
   const numero = i.options.getInteger('numéro');
   const user   = getUser(i.user.id);
   if (user.wallet < mise) return i.reply({ content: `❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`, ephemeral: true });
-  const DICE = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣'];
+  const FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
   const roll  = Math.floor(Math.random() * 6) + 1;
-  let gain = 0, desc;
+  let gain = 0, result;
   if (numero) {
     const win = roll === numero;
     gain = win ? mise * 5 : 0;
-    desc = win ? `${DICE[roll-1]} Exact ! ${EM.billet} +${fmt(mise*4)} ${EM.coin}` : `${DICE[roll-1]} Raté ! ${EM.barre} -${fmt(mise)} ${EM.coin}`;
+    result = win
+      ? `✅ Exact ! Le dé affiche **${roll}**. Tu gagnes ${EM.billet} +${fmt(mise * 4)} ${EM.coin}`
+      : `❌ Raté ! Le dé affiche **${roll}**, pas **${numero}**.`;
   } else {
     const win = roll >= 4;
     gain = win ? mise * 2 : 0;
-    desc = win ? `${DICE[roll-1]} (≥4) ${EM.billet} +${fmt(mise)} ${EM.coin}` : `${DICE[roll-1]} (≤3) ${EM.barre} -${fmt(mise)} ${EM.coin}`;
+    result = win
+      ? `✅ Haut (≥4) ! Tu gagnes ${EM.billet} +${fmt(mise)} ${EM.coin}`
+      : `❌ Bas (≤3) ! Tu perds ${EM.barre} -${fmt(mise)} ${EM.coin}`;
   }
   user.wallet += gain - mise;
   saveUser(user);
-  i.reply(re(gain >= mise ? 0x22c55e : 0xef4444, `🎲 ${desc} · Solde : **${fmt(user.wallet)}** ${EM.coin}`));
+  i.reply({ embeds: [new EmbedBuilder()
+    .setColor(gain >= mise ? 0x22c55e : 0xef4444)
+    .setTitle('🎲 Dé')
+    .setDescription([
+      `${FACES[roll-1]} Ton dé : **${roll}**`,
+      '',
+      result,
+      '',
+      `Mise : ${fmt(mise)} ${EM.coin}`,
+    ].join('\n'))] });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -92,9 +105,14 @@ async function cmdCup(i) {
   const win     = choix === correct;
   user.wallet  += win ? mise * 2 : -mise;
   saveUser(user);
-  const cups = [1,2,3].map(n => n === correct ? `🏆**${n}**` : `🥤${n}`).join(' ');
-  i.reply(re(win ? 0x22c55e : 0xef4444,
-    `${cups} — ${win ? `${EM.billet} +${fmt(mise*2)}` : `${EM.perdu} Balle sous le **${correct}** ! -${fmt(mise)}`} ${EM.coin} · Solde : **${fmt(user.wallet)}** ${EM.coin}`));
+  const cups = [1,2,3].map(n => `Gobelet ${n}: ${n === correct ? '🏆' : '💀'}`).join('\n');
+  const result = win
+    ? `✅ Bonne pioche ! Tu gagnes ${EM.billet} +${fmt(mise * 2)} ${EM.coin}`
+    : `❌ Raté ! C'était le gobelet **${correct}**. Tu perds ${EM.barre} ${fmt(mise)} ${EM.coin}.`;
+  i.reply({ embeds: [new EmbedBuilder()
+    .setColor(win ? 0x22c55e : 0xef4444)
+    .setTitle('🥤 Jeu des Gobelets')
+    .setDescription([cups, '', result, '', `Mise : ${fmt(mise)} ${EM.coin}`].join('\n'))] });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -104,6 +122,7 @@ async function cmdRPS(i) {
   const mise  = i.options.getInteger('mise');
   const choix = i.options.getString('choix');
   const ICONS = { pierre: '🪨', feuille: '📄', ciseaux: '✂️' };
+  const CAP   = s => s.charAt(0).toUpperCase() + s.slice(1);
   const user  = getUser(i.user.id);
   if (user.wallet < mise) return i.reply({ content: `❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`, ephemeral: true });
   const keys  = Object.keys(ICONS);
@@ -114,8 +133,21 @@ async function cmdRPS(i) {
   if (win)        user.wallet += mise;
   else if (!draw) user.wallet -= mise;
   saveUser(user);
-  i.reply(re(win ? 0x22c55e : draw ? 0xf59e0b : 0xef4444,
-    `${ICONS[choix]} vs ${ICONS[bot]} — ${win ? `${EM.billet} +${fmt(mise)}` : draw ? `Égalité, remboursé` : `${EM.perdu} -${fmt(mise)}`} ${EM.coin} · Solde : **${fmt(user.wallet)}** ${EM.coin}`));
+  const result = win
+    ? `✅ Tu gagnes ! ${EM.billet} +${fmt(mise)} ${EM.coin}`
+    : draw
+    ? `🤝 Égalité — mise remboursée`
+    : `❌ Tu perds ! ${EM.barre} -${fmt(mise)} ${EM.coin}`;
+  i.reply({ embeds: [new EmbedBuilder()
+    .setColor(win ? 0x22c55e : draw ? 0xf59e0b : 0xef4444)
+    .setTitle('✊ Pierre Feuille Ciseaux')
+    .setDescription([
+      `${ICONS[choix]} **${CAP(choix)}** vs ${ICONS[bot]} **${CAP(bot)}**`,
+      '',
+      result,
+      '',
+      `Mise : ${fmt(mise)} ${EM.coin}`,
+    ].join('\n'))] });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -181,21 +213,33 @@ async function cmdSlots(i) {
 //  BLACKJACK
 // ════════════════════════════════════════════════════════════
 const bjGames = new Map();
-const SUITS=['♠','♥','♦','♣'], VALS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const SUITS=['♠️','♥️','♦️','♣️'], VALS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 function mkDeck() { return SUITS.flatMap(s=>VALS.map(v=>({s,v}))).sort(()=>Math.random()-.5); }
 function cval(c) { if(['J','Q','K'].includes(c.v))return 10; if(c.v==='A')return 11; return+c.v; }
 function hval(h) { let t=h.reduce((s,c)=>s+cval(c),0),a=h.filter(c=>c.v==='A').length; while(t>21&&a--)t-=10; return t; }
-function hstr(h,hide=false) { if(hide&&h.length>1)return`${h[0].v}${h[0].s} 🂠`; return h.map(c=>`${c.v}${c.s}`).join(' '); }
-function bjEmbed(g,reveal,title,color) {
-  const pv=hval(g.player),dv=hval(g.dealer);
-  const desc=`${title?title+'\n':''}Croupier${reveal?` (${dv})`:''}: ${hstr(g.dealer,!reveal)}  |  Toi (${pv}): ${hstr(g.player)}${!title?`\nMise : **${fmt(g.mise)}** ${EM.coin}`:''}`;
-  return new EmbedBuilder().setColor(color).setDescription(desc);
+function hstr(h,hide=false) {
+  if(hide&&h.length>1) return `${h[0].v}${h[0].s} **??**`;
+  return h.map(c=>`${c.v}${c.s}`).join(' ');
 }
-function bjRow(uid,canDouble) {
+function bjEmbed(g, reveal, title, color, resultLine) {
+  const pv=hval(g.player), dv=hval(g.dealer);
+  const embed = new EmbedBuilder()
+    .setColor(color)
+    .setTitle(title || '🎰 Black Jack')
+    .addFields(
+      { name: 'Votre main',        value: `${hstr(g.player)}\n\nValeur: **${pv}**`,                        inline: true },
+      { name: 'Main du croupier',  value: `${hstr(g.dealer, !reveal)}\n\nValeur: **${reveal ? dv : '??'}**`, inline: true },
+    );
+  if (resultLine) embed.setDescription(resultLine);
+  if (!reveal) embed.addFields({ name: '​', value: `Cartes restantes: **${g.deck.length}**\nMise : **${fmt(g.mise)}** ${EM.coin}`, inline: false });
+  return embed;
+}
+function bjRow(uid, canDouble) {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`bj_hit_${uid}`).setLabel('🃏 Tirer').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`bj_stand_${uid}`).setLabel('✋ Rester').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`bj_double_${uid}`).setLabel('⬆️ Doubler').setStyle(ButtonStyle.Success).setDisabled(!canDouble),
+    new ButtonBuilder().setCustomId(`bj_hit_${uid}`).setLabel('Hit').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`bj_stand_${uid}`).setLabel('Stand').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`bj_double_${uid}`).setLabel('Double Down').setStyle(ButtonStyle.Secondary).setDisabled(!canDouble),
+    new ButtonBuilder().setCustomId(`bj_split_${uid}`).setLabel('Split').setStyle(ButtonStyle.Secondary).setDisabled(true),
   );
 }
 
@@ -213,9 +257,9 @@ async function cmdBJ(i) {
   if (pv===21) {
     bjGames.delete(userId);
     const u=getUser(userId);
-    if (dv===21) { u.wallet+=mise; saveUser(u); return i.reply({embeds:[bjEmbed(g,true,`🤝 Double Blackjack — Égalité`,0xf59e0b)]}); }
+    if (dv===21) { u.wallet+=mise; saveUser(u); return i.reply({embeds:[bjEmbed(g,true,'🎰 Black Jack — Résultat',0xf59e0b,`🤝 Égalité ! (${pv} vs ${dv}) Mise remboursée`)]}); }
     const won=Math.floor(mise*2.5); u.wallet+=won; saveUser(u);
-    return i.reply({embeds:[bjEmbed(g,true,`${EM.jackpot} Blackjack ! +${fmt(won-mise)} ${EM.coin}`,0x22c55e)]});
+    return i.reply({embeds:[bjEmbed(g,true,'🎰 Black Jack — Résultat',0x22c55e,`${EM.jackpot} Blackjack ! (${pv}) +${fmt(won-mise)} ${EM.coin}`)]});
   }
   const u2=getUser(userId);
   const m = await i.reply({embeds:[bjEmbed(g,false,null,0x6366f1)],components:[bjRow(userId,u2.wallet>=mise)],fetchReply:true});
@@ -232,18 +276,18 @@ async function cmdBJ(i) {
     const pv2=hval(game.player);
     if (pv2>21) {
       bjGames.delete(userId); collector.stop();
-      return btn.update({embeds:[bjEmbed(game,true,`${EM.perdu} Bust ! -${fmt(game.mise)} ${EM.coin}`,0xef4444)],components:[]});
+      return btn.update({embeds:[bjEmbed(game,true,'🎰 Black Jack — Bust !',0xef4444,`${EM.perdu} Tu dépasses 21 ! Tu perds ${EM.coin} **${fmt(game.mise)}**.`)],components:[]});
     }
     if (act==='stand'||act==='double'||pv2===21) {
       bjGames.delete(userId); collector.stop();
       while(hval(game.dealer)<17) game.dealer.push(game.deck.pop());
       const pv3=hval(game.player),dv2=hval(game.dealer);
-      let color,title2;
-      if (dv2>21||pv3>dv2)  { u.wallet+=game.mise*2; title2=`${EM.billet} Victoire ! +${fmt(game.mise)} ${EM.coin}`; color=0x22c55e; }
-      else if (pv3===dv2)    { u.wallet+=game.mise;   title2=`🤝 Égalité — remboursé`;                               color=0xf59e0b; }
-      else                   {                        title2=`${EM.perdu} Défaite ! -${fmt(game.mise)} ${EM.coin}`;  color=0xef4444; }
+      let color,result;
+      if (dv2>21||pv3>dv2)  { u.wallet+=game.mise*2; result=`✅ Victoire ! (${pv3} vs ${dv2}) +${fmt(game.mise)} ${EM.coin}`; color=0x22c55e; }
+      else if (pv3===dv2)    { u.wallet+=game.mise;   result=`🤝 Égalité ! (${pv3} vs ${dv2}) Mise remboursée`;               color=0xf59e0b; }
+      else                   {                        result=`${EM.perdu} Défaite ! (${pv3} vs ${dv2}) -${fmt(game.mise)} ${EM.coin}`; color=0xef4444; }
       saveUser(u);
-      return btn.update({embeds:[bjEmbed(game,true,title2,color)],components:[]});
+      return btn.update({embeds:[bjEmbed(game,true,'🎰 Black Jack — Résultat',color,result)],components:[]});
     }
     btn.update({embeds:[bjEmbed(game,false,null,0x6366f1)],components:[bjRow(userId,false)]});
   });
@@ -259,7 +303,7 @@ async function cmdBJ(i) {
 // ════════════════════════════════════════════════════════════
 //  EXPORT
 // ════════════════════════════════════════════════════════════
-const COMMANDS = { bj: cmdBJ, slots: cmdSlots, pf: cmdPF, dice: cmdDice, roulette: cmdRoulette, cup: cmdCup, rps: cmdRPS, rr: cmdRR };
+const COMMANDS = { bj: cmdBJ, slots: cmdSlots, pf: cmdPF, dice: cmdDice, roulette: cmdRoulette, cup: cmdCup, pfc: cmdRPS, rr: cmdRR };
 
 module.exports = {
   init(client) {
@@ -272,6 +316,6 @@ module.exports = {
       if (!i.isButton() || !i.customId.startsWith('bj_')) return;
       // handled inside cmdBJ collector
     });
-    console.log('[Casino] ✅ /bj /slots /pf /dice /roulette /cup /rps /rr');
+    console.log('[Casino] ✅ /bj /slots /pf /dice /roulette /cup /pfc /rr');
   },
 };
