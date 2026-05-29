@@ -141,8 +141,8 @@ client.on('messageCreate', async (message) => {
 // ───────────────────────────────────────────────────
 
 client.on('interactionCreate', async (interaction) => {
-  // Ignorer les interactions expirées (Discord buffer les interactions après un redémarrage)
-  if (Date.now() - interaction.createdTimestamp > 2800) return;
+  // Ignorer les interactions buffered après un redémarrage (> 5s)
+  if (Date.now() - interaction.createdTimestamp > 5000) return;
 
   try {
     // ───── Boutons boutique / items existants ─────

@@ -308,21 +308,24 @@ async function cmdBJ(i) {
 }
 
 // ════════════════════════════════════════════════════════════
-//  EXPORT
+//  EXPORT — enregistre dans client.commands comme les autres
 // ════════════════════════════════════════════════════════════
-const COMMANDS = { bj: cmdBJ, slots: cmdSlots, pf: cmdPF, dice: cmdDice, roulette: cmdRoulette, cup: cmdCup, pfc: cmdRPS, rr: cmdRR };
+const COMMANDS = {
+  bj:       cmdBJ,
+  slots:    cmdSlots,
+  pf:       cmdPF,
+  dice:     cmdDice,
+  roulette: cmdRoulette,
+  cup:      cmdCup,
+  pfc:      cmdRPS,
+  rr:       cmdRR,
+};
 
 module.exports = {
   init(client) {
-    client.on('interactionCreate', async i => {
-      if (!i.isChatInputCommand()) return;
-      const handler = COMMANDS[i.commandName];
-      if (handler) { try { await handler(i); } catch(e) { console.error('[Casino]', e.message); } }
-    });
-    client.on('interactionCreate', async i => {
-      if (!i.isButton() || !i.customId.startsWith('bj_')) return;
-      // handled inside cmdBJ collector
-    });
+    for (const [name, execute] of Object.entries(COMMANDS)) {
+      client.commands.set(name, { data: { name }, execute });
+    }
     console.log('[Casino] ✅ /bj /slots /pf /dice /roulette /cup /pfc /rr');
   },
 };
