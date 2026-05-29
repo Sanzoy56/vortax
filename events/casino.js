@@ -321,17 +321,31 @@ async function cmdBJ(i) {
 // ════════════════════════════════════════════════════════════
 const SPIN_COST = 2500;
 
+// Symboles spin (différents des slots)
+const SPIN_SYMS = [
+  { e: '🏆', w: 1,  m: 50 },   // JACKPOT
+  { e: '⭐', w: 5,  m: 15 },
+  { e: '💜', w: 10, m: 8  },
+  { e: '💎', w: 15, m: 5  },
+  { e: '🔵', w: 20, m: 3  },
+  { e: '🟡', w: 25, m: 2  },
+  { e: '🔴', w: 30, m: 1.5},
+];
+const SPIN_TOT = SPIN_SYMS.reduce((s,x)=>s+x.w,0);
+function spinOne() { let r=Math.random()*SPIN_TOT; for(const s of SPIN_SYMS){r-=s.w;if(r<=0)return s;} return SPIN_SYMS[0]; }
+function spinFrame() { return [spinOne(),spinOne(),spinOne()]; }
+
 const LOTS_EMBED = new EmbedBuilder()
   .setColor(0x6366f1)
-  .setTitle('🎰 Lots possibles')
+  .setTitle('🎰 Lots — /spin')
   .setDescription([
-    '7️⃣ 7️⃣ 7️⃣ → **x50** (JACKPOT)',
-    '💎 💎 💎 → **x25**',
-    '🔔 🔔 🔔 → **x10**',
-    '🍇 🍇 🍇 → **x6**',
-    '🍊 🍊 🍊 → **x4**',
-    '🍋 🍋 🍋 → **x3**',
-    '🍒 🍒 🍒 → **x2**',
+    '🏆 🏆 🏆 → **x50** (JACKPOT)',
+    '⭐ ⭐ ⭐ → **x15**',
+    '💜 💜 💜 → **x8**',
+    '💎 💎 💎 → **x5**',
+    '🔵 🔵 🔵 → **x3**',
+    '🟡 🟡 🟡 → **x2**',
+    '🔴 🔴 🔴 → **x1.5**',
     '2 identiques → **remboursé**',
     'Aucune combinaison → **perdu**',
   ].join('\n'));
@@ -343,27 +357,23 @@ function spinRow(userId) {
   );
 }
 
-async function runSpin(userId, name, wallet) {
-  const [r1, r2, r3] = [spinSym(), spinSym(), spinSym()];
-  let gain = 0, resultLine, flavour;
+function buildSpinResult(wallet) {
+  const [r1,r2,r3] = spinFrame();
+  let gain=0, resultLine, flavour;
 
   if (r1.e===r2.e && r2.e===r3.e) {
-    gain = Math.min(SPIN_COST * r1.m, SLOTS_MAX);
-    resultLine = r1.m >= 50 ? `${EM.jackpot} JACKPOT !!! +${fmt(gain)} ${EM.coin}` : `${EM.billet} Gagné ! +${fmt(gain)} ${EM.coin}`;
-    flavour    = r1.m >= 50 ? '🏆 Incroyable !!!' : 'Bien joué !';
+    gain = Math.min(Math.floor(SPIN_COST * r1.m), SLOTS_MAX);
+    resultLine = r1.e==='🏆' ? `${EM.jackpot} **JACKPOT !!!** +${fmt(gain)} ${EM.coin}` : `${EM.billet} **Gagné !** +${fmt(gain)} ${EM.coin}`;
+    flavour    = r1.e==='🏆' ? '🏆 Incroyable !!!' : 'Bien joué !';
   } else if (r1.e===r2.e || r2.e===r3.e || r1.e===r3.e) {
-    gain    = SPIN_COST;
-    resultLine = `🔄 Remboursé`;
-    flavour    = 'Presque...';
+    gain=SPIN_COST; resultLine=`🔄 Remboursé`; flavour='Presque...';
   } else {
-    resultLine = `${EM.perdu} PERDU`;
-    flavour    = 'Pas de chance...';
+    resultLine=`${EM.perdu} PERDU`; flavour='Pas de chance...';
   }
 
   const newWallet = wallet + gain - SPIN_COST;
-
   const embed = new EmbedBuilder()
-    .setColor(gain > SPIN_COST ? 0x22c55e : gain === SPIN_COST ? 0xf59e0b : 0xef4444)
+    .setColor(gain>SPIN_COST ? 0x22c55e : gain===SPIN_COST ? 0xf59e0b : 0xef4444)
     .setTitle('🎰 Casino Royal')
     .setDescription([
       `| ${r1.e} | ${r2.e} | ${r3.e} |`,
@@ -374,11 +384,36 @@ async function runSpin(userId, name, wallet) {
       `Mise : **${fmt(SPIN_COST)}** | Nouveau cash : **${fmt(newWallet)}** ${EM.coin}`,
     ].join('\n'));
 
-  return { embed, gain, newWallet, reels: [r1, r2, r3] };
+  return { embed, gain, newWallet };
+}
+
+function mkSpinningEmbed(name, frame) {
+  const [a,b,c] = spinFrame();
+  return new EmbedBuilder()
+    .setColor(0x6366f1)
+    .setTitle('🎰 Casino Royal')
+    .setDescription([
+      `**${name}** tire le levier...`,
+      '',
+      `| ${a.e} | ${b.e} | ${c.e} |`,
+      '',
+      `${'▪'.repeat(frame % 4 + 1)} *Les rouleaux tournent...*`,
+      '',
+      `Mise : **${fmt(SPIN_COST)}** ${EM.coin}`,
+    ].join('\n'));
+}
+
+async function animateSpin(msg, name) {
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+  for (let f = 0; f < 5; f++) {
+    await delay(400);
+    await msg.edit({ embeds: [mkSpinningEmbed(name, f)] });
+  }
 }
 
 async function cmdSpin(i) {
   const userId = i.user.id;
+  const name   = i.member?.displayName ?? i.user.username;
   const user   = getUser(userId);
 
   if (user.wallet < SPIN_COST)
@@ -387,63 +422,41 @@ async function cmdSpin(i) {
   user.wallet -= SPIN_COST;
   saveUser(user);
 
-  // Phase 1 — spinning
-  const fakeSyms = () => `| ${spinSym().e} | ${spinSym().e} | ${spinSym().e} |`;
-  const spinEmbed = (syms, loading) => new EmbedBuilder()
-    .setColor(0x6366f1)
-    .setTitle('🎰 Casino Royal')
-    .setDescription([
-      `**${i.member?.displayName ?? i.user.username}** tire le levier...`,
-      '',
-      syms,
-      '',
-      loading ? '🔄 *Les rouleaux tournent...*' : '',
-      `Mise : **${fmt(SPIN_COST)}** ${EM.coin}`,
-    ].join('\n'));
+  const msg = await i.reply({ embeds: [mkSpinningEmbed(name, 0)], fetchReply: true });
 
-  const msg = await i.reply({ embeds: [spinEmbed(fakeSyms(), true)], fetchReply: true });
+  // Animation — 5 frames × 400ms = 2s de spinning visible
+  await animateSpin(msg, name);
 
-  await new Promise(r => setTimeout(r, 700));
-  await msg.edit({ embeds: [spinEmbed(fakeSyms(), true)] });
-  await new Promise(r => setTimeout(r, 700));
-
-  // Phase 2 — résultat
-  const { embed, gain, newWallet } = await runSpin(userId, i.user.username, user.wallet);
-  user.wallet += gain;
+  // Résultat
+  const { embed, gain, newWallet } = buildSpinResult(user.wallet);
+  user.wallet = newWallet;
   saveUser(user);
 
   await msg.edit({ embeds: [embed], components: [spinRow(userId)] });
 
-  // Boutons
   const collector = msg.createMessageComponentCollector({ time: 30_000 });
   collector.on('collect', async btn => {
     if (btn.user.id !== userId) return btn.reply({ content: '❌ Ce n\'est pas ton spin.', ephemeral: true });
 
-    if (btn.customId.startsWith('spin_lots_')) {
+    if (btn.customId.startsWith('spin_lots_'))
       return btn.reply({ embeds: [LOTS_EMBED], ephemeral: true });
-    }
 
     if (btn.customId.startsWith('spin_replay_')) {
       const u = getUser(userId);
-      if (u.wallet < SPIN_COST) {
+      if (u.wallet < SPIN_COST)
         return btn.reply({ embeds: [new EmbedBuilder().setColor(0xef4444)
           .setDescription(`${EM.perdu} Plus assez de coins pour rejouer !`)], ephemeral: true });
-      }
+
       u.wallet -= SPIN_COST;
       saveUser(u);
-
       await btn.deferUpdate();
 
-      const s1 = `| ${spinSym().e} | ${spinSym().e} | ${spinSym().e} |`;
-      await msg.edit({ embeds: [spinEmbed(s1, true)], components: [] });
-      await new Promise(r => setTimeout(r, 700));
-      await msg.edit({ embeds: [spinEmbed(`| ${spinSym().e} | ${spinSym().e} | ${spinSym().e} |`, true)] });
-      await new Promise(r => setTimeout(r, 700));
+      await msg.edit({ embeds: [mkSpinningEmbed(name, 0)], components: [] });
+      await animateSpin(msg, name);
 
-      const res = await runSpin(userId, i.user.username, u.wallet);
-      u.wallet += res.gain;
+      const res = buildSpinResult(u.wallet);
+      u.wallet = res.newWallet;
       saveUser(u);
-
       await msg.edit({ embeds: [res.embed], components: [spinRow(userId)] });
     }
   });
