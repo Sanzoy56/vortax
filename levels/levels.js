@@ -44,8 +44,8 @@ function getRankForLevel(level) {
 }
 
 // ─── Ajouter de l'EXP et gérer le level-up ──────────────────
-async function addExp(member, client, baseExp) {
-  const user = getUser(member.id);
+async function addExp(member, client, baseExp, existingUser = null) {
+  const user = existingUser || getUser(member.id);
 
   const streakBonus = Math.min(user.streak * STREAK.BONUS_PER_DAY, STREAK.MAX_BONUS);
   let multiplier    = 1 + streakBonus;
@@ -102,6 +102,8 @@ async function updateStreak(user, member, client) {
   yesterday.setDate(yesterday.getDate() - 1);
   const yStr = yesterday.toISOString().slice(0, 10);
 
+  const hadStreak = !!user.lastMessageDate && user.lastMessageDate !== todayStr;
+
   if (user.lastMessageDate === yStr) {
     user.streak++;
   } else {
@@ -122,7 +124,9 @@ async function updateStreak(user, member, client) {
 
   let msg;
   if (user.streak === 1) {
-    msg = `🔥 <@${member.id}> a commencé un nouveau streak ! Bonus EXP actuel : **+${bonusPercent}%**`;
+    msg = hadStreak
+      ? `💔 <@${member.id}> a perdu son streak… mais repart à 1 ! Bonus EXP : **+${bonusPercent}%**`
+      : `🔥 <@${member.id}> a commencé un nouveau streak ! Bonus EXP actuel : **+${bonusPercent}%**`;
   } else {
     const milestoneInfo = nextMilestone
       ? ` · Prochain palier dans **${nextMilestone - user.streak}** jour${nextMilestone - user.streak > 1 ? 's' : ''}`

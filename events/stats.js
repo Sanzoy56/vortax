@@ -13,6 +13,13 @@ const PUSH_SECRET   = "vtx-stats-secret-2024"; // même valeur dans le dashboard
 // ── Sessions vocales en cours (mémoire) ──
 const voiceSessions = new Map();
 
+// ── Calcul du level depuis l'XP total (même formule que levels.js) ──
+function levelFromExp(totalExp) {
+  let level = 0, needed = 0;
+  while (needed + (100 + level * 50) <= totalExp) { needed += (100 + level * 50); level++; }
+  return level;
+}
+
 // ── Clé par jour ──
 function dayKey(ts = Date.now()) {
   const d = new Date(ts);
@@ -158,7 +165,7 @@ async function syncFromLevelDB(guildId) {
     for (const [userId, user] of Object.entries(db)) {
       users[userId] = {
         xp: user.exp || 0,
-        level: user.level || 0,
+        level: levelFromExp(user.exp || 0),
         balance: (user.wallet || 0) + (user.bank || 0),
       };
     }

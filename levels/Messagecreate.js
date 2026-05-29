@@ -38,10 +38,7 @@ module.exports = {
     saveUser(user);
 
     await updateQuestProgress(guild, userId, 'messages', 1);
-
-    // Streak (valeur absolue, pas un incrément)
-    const freshUser = getUser(userId);
-    await updateQuestProgress(guild, userId, 'streak', freshUser.streak);
+    await updateQuestProgress(guild, userId, 'streak', user.streak);
 
     // Quêtes horaires (morning / night)
     if (hour < 8)        await updateQuestProgress(guild, userId, 'morning', 1); // avant 8h  → Lève-tôt
@@ -61,7 +58,8 @@ module.exports = {
     const expMax  = prog.msg_exp_max   ?? EXP.MAX_PER_MSG;
     const baseExp = Math.floor(Math.random() * (expMax - expMin + 1)) + expMin;
     const member  = message.member ?? await message.guild.members.fetch(userId).catch(() => null);
-    if (member) await addExp(member, client, baseExp);
+    // On passe l'objet user déjà chargé pour éviter un double getUser qui peut écraser lastMessageDate
+    if (member) await addExp(member, client, baseExp, user);
 
     // Quête EXP (XP gagné aujourd'hui)
     await updateQuestProgress(guild, userId, 'exp', baseExp);
