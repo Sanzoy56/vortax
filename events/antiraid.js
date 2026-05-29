@@ -4,7 +4,7 @@
 //  antiraid.js — Détection raid + auto-ban + commandes test
 // ════════════════════════════════════════════════════════════
 
-const { EmbedBuilder, PermissionFlagsBits, GuildVerificationLevel } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits, GuildVerificationLevel, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 // ── Config (ajustable) ───────────────────────────────────────
 const CFG = {
@@ -142,26 +142,41 @@ async function cmdRaidOff(msg) {
 // =nuke — spam "bonjour" dans tous les salons (TEST anti-raid uniquement)
 async function cmdNuke(msg) {
   if (!isAdmin(msg.member)) return;
-  const confirm = await msg.reply('⚠️ **NUKE TEST** — Réponds `CONFIRMER` dans 10s pour lancer le spam de test.');
-  try {
-    const filter    = m => m.author.id === msg.author.id && m.content === 'CONFIRMER';
-    const collected = await msg.channel.awaitMessages({ filter, max: 1, time: 10_000, errors: ['time'] });
-    if (!collected.size) return confirm.edit('❌ Annulé.');
 
-    const channels = msg.guild.channels.cache.filter(c => c.isTextBased() && c.permissionsFor(msg.guild.members.me)?.has('SendMessages'));
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('nuke_confirm').setLabel('✅ Confirmer').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('nuke_cancel').setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary),
+  );
 
-    await confirm.edit(`🚀 Spam lancé dans **${channels.size}** salons...`);
+  const m = await msg.reply({ content: '⚠️ **NUKE TEST** — Spam "bonjour" dans tous les salons pour tester l\'anti-raid.', components: [row] });
 
-    for (const ch of channels.values()) {
-      for (let i = 0; i < 10; i++) {
-        await ch.send('bonjour').catch(() => {});
-      }
+  const collector = m.createMessageComponentCollector({ time: 15_000 });
+  collector.on('collect', async btn => {
+    if (btn.user.id !== msg.author.id) return btn.reply({ content: '❌ Pas ton commande.', ephemeral: true });
+
+    if (btn.customId === 'nuke_cancel') {
+      collector.stop();
+      return btn.update({ content: '❌ Annulé.', components: [] });
     }
 
-    msg.channel.send('✅ Nuke test terminé — vérifie si l\'anti-raid a réagi.').catch(() => {});
-  } catch {
-    confirm.edit('❌ Temps écoulé — annulé.').catch(() => {});
-  }
+    if (btn.customId === 'nuke_confirm') {
+      collector.stop();
+      const channels = msg.guild.channels.cache.filter(c =>
+        c.isTextBased() && c.permissionsFor(msg.guild.members.me)?.has('SendMessages')
+      );
+      await btn.update({ content: `🚀 Spam lancé dans **${channels.size}** salons...`, components: [] });
+
+      for (const ch of channels.values()) {
+        for (let i = 0; i < 10; i++) {
+          await ch.send('bonjour').catch(() => {});
+        }
+      }
+      m.edit({ content: '✅ Nuke test terminé — vérifie si l\'anti-raid a réagi.' }).catch(() => {});
+    }
+  });
+  collector.on('end', (_, reason) => {
+    if (reason === 'time') m.edit({ content: '❌ Temps écoulé — annulé.', components: [] }).catch(() => {});
+  });
 }
 
 // =massban <nombre> — ban les X derniers membres (test)
