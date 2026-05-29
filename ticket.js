@@ -7,6 +7,19 @@ const { getConfig } = require('./config')
 // ========== HISTORIQUE IA ==========
 const ticketHistories = new Map();
 
+// ========== PUSH DASHBOARD ==========
+const DASH_URL    = 'https://vtx-bot.alwaysdata.net';
+const PUSH_SECRET = 'vtx-stats-secret-2024';
+async function pushTicket(data) {
+  try {
+    await fetch(`${DASH_URL}/api/tickets/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-stats-secret': PUSH_SECRET },
+      body: JSON.stringify(data),
+    });
+  } catch {}
+}
+
 // ========== GROK IA ==========
 const askGrok = async (history, ticketType) => {
   const typeContext = ticketType === 'recrutement'
@@ -304,6 +317,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
         { name: '🎫 Ticket',       value: `\`${msgChannel.name}\``, inline: true },
         { name: '👤 Supprimé par', value: `${message.member}`,      inline: true },
       ]);
+      pushTicket({ event: 'close', channelId: msgChannel.id, channelName: msgChannel.name, closedById: message.author.id, closedByName: message.author.username });
 
       const deleteEmbed = new EmbedBuilder()
         .setTitle('🗑️ Suppression du ticket')
@@ -449,6 +463,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
           { name: '📂 Type',       value: typeTicket,          inline: true },
           { name: '📝 Raison',     value: raison.length > 200 ? raison.slice(0, 200) + '...' : raison, inline: false },
         ]);
+        pushTicket({ event: 'open', channelId: salon.id, channelName: nomSalon, creatorId: member.id, creatorName: member.user.username, type: typeTicket, reason: raison });
       }
 
       // ----- Ticket IA -----
