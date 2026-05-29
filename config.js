@@ -10,7 +10,7 @@ function getLocalConfig() {
 
 async function getConfig() {
   const ctrl  = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 4_000); // timeout 4s
+  const timer = setTimeout(() => ctrl.abort(), 15_000); // timeout 15s (alwaysdata cold start)
   try {
     const res = await fetch('https://vtx-bot.alwaysdata.net/config', { signal: ctrl.signal });
     clearTimeout(timer);
