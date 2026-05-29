@@ -1,7 +1,7 @@
 'use strict';
 const { EXP, COINS } = require('./config');
 const { getUser, saveUser } = require('./db');
-const { addExp, addCoins, resetDailyStatsIfNeeded } = require('./levels');
+const { addExp, addCoins, resetDailyStatsIfNeeded, updateStreak } = require('./levels');
 const { updateQuestProgress, generateDailyQuests } = require('./quests');
 
 const cooldowns = new Map();
@@ -58,8 +58,10 @@ module.exports = {
     const expMax  = prog.msg_exp_max   ?? EXP.MAX_PER_MSG;
     const baseExp = Math.floor(Math.random() * (expMax - expMin + 1)) + expMin;
     const member  = message.member ?? await message.guild.members.fetch(userId).catch(() => null);
-    // On passe l'objet user déjà chargé pour éviter un double getUser qui peut écraser lastMessageDate
-    if (member) await addExp(member, client, baseExp, user);
+    if (member) await addExp(member, client, baseExp);
+
+    // Streak — appelé ici uniquement (pas dans addExp) pour éviter que la voc XP le déclenche
+    await updateStreak(getUser(userId), member || message.member, client);
 
     // Quête EXP (XP gagné aujourd'hui)
     await updateQuestProgress(guild, userId, 'exp', baseExp);

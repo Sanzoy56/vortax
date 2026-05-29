@@ -65,8 +65,7 @@ async function addExp(member, client, baseExp, existingUser = null) {
   resetDailyStatsIfNeeded(user);
   user.dailyStats.exp += gained;
 
-  await updateStreak(user, member, client);
-
+  // updateStreak N'est plus appelé ici — uniquement depuis messageCreate
   saveUser(user);
 
   if (newLevel > oldLevel) {
@@ -124,9 +123,8 @@ async function updateStreak(user, member, client) {
 
   let msg;
   if (user.streak === 1) {
-    msg = hadStreak
-      ? `💔 <@${member.id}> a perdu son streak… mais repart à 1 ! Bonus EXP : **+${bonusPercent}%**`
-      : `🔥 <@${member.id}> a commencé un nouveau streak ! Bonus EXP actuel : **+${bonusPercent}%**`;
+    if (hadStreak) return; // Streak perdu → pas d'annonce, relance silencieuse
+    msg = `🔥 <@${member.id}> a commencé un nouveau streak ! Bonus EXP actuel : **+${bonusPercent}%**`;
   } else {
     const milestoneInfo = nextMilestone
       ? ` · Prochain palier dans **${nextMilestone - user.streak}** jour${nextMilestone - user.streak > 1 ? 's' : ''}`
