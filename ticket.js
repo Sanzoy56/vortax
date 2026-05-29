@@ -428,42 +428,50 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
       // ----- Tickets Staff / Question -----
       if (customId === 'modal_ticket_staff' || customId === 'modal_ticket_question') {
-  try {
-    await interaction.deferReply({ flags: 64 });
-  } catch { return; }
+        try { await interaction.deferReply({ flags: 64 }); } catch { return; }
+
+        if (!staffRoleId || !categorieId) {
+          return interaction.editReply({ content: '❌ Configuration incomplète (ticket_staff_role ou ticket_category manquant dans le dashboard).' });
+        }
+
         const raison     = interaction.fields.getTextInputValue('raison');
         const isStaff    = customId === 'modal_ticket_staff';
         const nomSalon   = isStaff ? `recrutement-${member.user.username}` : `question-${member.user.username}`;
         const typeTicket = isStaff ? '🛡️ Gestion Staff' : '❓ Question / Signalement';
 
-        const salon = await guild.channels.create({
-          name: nomSalon,
-          parent: categorieId,
-          permissionOverwrites: [
-            { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-            { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-            { id: staffRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-          ],
-        });
+        try {
+          const salon = await guild.channels.create({
+            name: nomSalon,
+            parent: categorieId,
+            permissionOverwrites: [
+              { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
+              { id: member.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+              { id: staffRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+            ],
+          });
 
-        const now       = new Date();
-        const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        const ticketEmbed = new EmbedBuilder()
-          .setTitle(typeTicket)
-          .setDescription(`Salut ${member} ! Un <@&${staffRoleId}> va te répondre dans les minutes qui suivent !\nUtilise \`-delete\` pour supprimer le ticket (un transcript sera sauvegardé automatiquement).\n\n**Raison**\n\`\`\`${raison}\`\`\``)
-          .setColor(0x2B2D31)
-          .setFooter({ text: `Team Vortax - Support • ${dateHeure}` });
+          const now       = new Date();
+          const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const ticketEmbed = new EmbedBuilder()
+            .setTitle(typeTicket)
+            .setDescription(`Salut ${member} ! Un <@&${staffRoleId}> va te répondre dans les minutes qui suivent !\nUtilise \`-delete\` pour supprimer le ticket (un transcript sera sauvegardé automatiquement).\n\n**Raison**\n\`\`\`${raison}\`\`\``)
+            .setColor(0x2B2D31)
+            .setFooter({ text: `Team Vortax - Support • ${dateHeure}` });
 
-        await salon.send({ content: `${member} <@&${staffRoleId}>`, embeds: [ticketEmbed] });
-        await interaction.editReply({ content: `✅ Ton ticket a été créé : ${salon}` });
+          await salon.send({ content: `${member} <@&${staffRoleId}>`, embeds: [ticketEmbed] });
+          await interaction.editReply({ content: `✅ Ton ticket a été créé : ${salon}` });
 
-        await logTicket(guild, '📬', 'Ticket ouvert', 0x2ecc71, [
-          { name: '🎫 Ticket',     value: `\`${nomSalon}\``, inline: true },
-          { name: '👤 Ouvert par', value: `${member}`,        inline: true },
-          { name: '📂 Type',       value: typeTicket,          inline: true },
-          { name: '📝 Raison',     value: raison.length > 200 ? raison.slice(0, 200) + '...' : raison, inline: false },
-        ]);
-        pushTicket({ event: 'open', channelId: salon.id, channelName: nomSalon, creatorId: member.id, creatorName: member.user.username, type: typeTicket, reason: raison });
+          await logTicket(guild, '📬', 'Ticket ouvert', 0x2ecc71, [
+            { name: '🎫 Ticket',     value: `\`${nomSalon}\``, inline: true },
+            { name: '👤 Ouvert par', value: `${member}`,        inline: true },
+            { name: '📂 Type',       value: typeTicket,          inline: true },
+            { name: '📝 Raison',     value: raison.length > 200 ? raison.slice(0, 200) + '...' : raison, inline: false },
+          ]);
+          pushTicket({ event: 'open', channelId: salon.id, channelName: nomSalon, creatorId: member.id, creatorName: member.user.username, type: typeTicket, reason: raison });
+        } catch(e) {
+          console.error('[Ticket] Erreur création :', e.message);
+          interaction.editReply({ content: `❌ Erreur lors de la création du ticket : ${e.message}` }).catch(() => {});
+        }
       }
 
       // ----- Ticket IA -----
