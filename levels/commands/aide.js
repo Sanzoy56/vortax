@@ -20,48 +20,74 @@ module.exports = {
         },
         {
           name: '🎯 Quêtes',
-          value: [
-            '`/quetes` — Voir tes quêtes journalières + réclamer les récompenses',
-          ].join('\n'),
+          value: '`/quetes` — Voir tes quêtes journalières + réclamer les récompenses',
         },
         {
           name: '💰 Économie',
           value: [
+            '`/bal [membre]` — Voir son solde (wallet + banque)',
             '`/dep <montant|all>` — Déposer en banque',
             '`/with <montant|all>` — Retirer de la banque',
-            '`/rob <@membre>` — Voler un membre (cooldown 4h, argent sur soi uniquement)',
+            '`/donner <@membre> <montant>` — Donner des coins à un membre',
+            '`/rob <@membre>` — Voler un membre (cooldown 4h, wallet uniquement)',
           ].join('\n'),
         },
         {
           name: '🛒 Boutique & Inventaire',
           value: [
-            '`/boutique boost` — Acheter des boosts temporaires (max 1h)',
-            '`/boutique role` — Acheter des boosts permanents (min 1M VTX-Coins)',
+            '`/boutique boost` — Acheter des boosts temporaires (XP / Coins)',
+            '`/boutique role` — Acheter des boosts permanents',
             '`/inventaire` — Gérer et équiper tes boosts',
           ].join('\n'),
         },
         {
-          name: '🔥 Système de Streak',
+          name: '🎙️ Salon vocal temporaire',
           value: [
-            'Parle chaque jour pour maintenir ton streak.',
-            'Chaque jour de streak = **+2% EXP** (max +50%).',
-            'Tu perds ton streak si tu ne parles pas le lendemain.',
+            'Rejoins le salon **"Créer ta voc"** pour ouvrir ton salon vocal privé.',
+            'Un panel s\'envoie dans le salon — boutons : **Expulser, Blacklist, Whitelist, Privé, Renommer, Limite, Transférer**.',
+            'Le salon se supprime automatiquement quand tout le monde part.',
           ].join('\n'),
         },
         {
-          name: '🏅 Rangs',
-          value: 'Les rôles sont attribués automatiquement selon ton niveau. Progresse pour débloquer Plastique, Carton, Bronze... jusqu\'au **GOAT** !',
+          name: '🎫 Tickets',
+          value: [
+            'Clique sur le bouton de création de ticket pour ouvrir un ticket de support.',
+            '`-delete` — Génère le transcript + supprime le ticket (staff uniquement)',
+          ].join('\n'),
         },
         {
-          name: '🪙 VTX-Coins',
+          name: '🤖 IA (VTX-BOT)',
           value: [
-            'Gagnes des VTX-Coins en envoyant des messages.',
-            'Utilise `/dep` pour mettre tes coins en sécurité à la banque.',
-            'L\'argent en banque ne peut pas être volé.',
+            'Mentionne le bot en langage naturel pour des actions de modération :',
+            '> *"vtxbot mute @membre 10 minutes pour spam"*',
+            '> *"vtxbot crée le salon #général"*',
+            '> *"vtxbot donne le rôle Membre à @pseudo"*',
+            'Le bot comprend les fautes de frappe et accents manquants.',
+          ].join('\n'),
+        },
+        {
+          name: '🔥 Streak',
+          value: [
+            'Parle chaque jour pour maintenir ton streak.',
+            'Chaque jour = **+2% EXP** bonus (max +50%).',
+            'Tu perds ton streak si tu n\'écris pas le lendemain.',
+          ].join('\n'),
+        },
+        {
+          name: '🏅 Rangs automatiques',
+          value: 'Rôles attribués automatiquement selon ton niveau : Plastique → Carton → Bronze → Fer → Or → Diamant → Émeraude → Rubis → Légendaire → Mythique → **GOAT**',
+        },
+        {
+          name: '🛡️ Administration',
+          value: [
+            '`/adminexpajouter <@membre> <xp>` — Ajouter de l\'XP',
+            '`/adminexpretirer <@membre> <xp>` — Retirer de l\'XP',
+            '`/adminmoneyajouter <@membre> <coins>` — Ajouter des coins',
+            '`/adminmoneyretirer <@membre> <coins>` — Retirer des coins',
           ].join('\n'),
         },
       )
-      .setFooter({ text: 'Bot développé pour le serveur Vortax' })
+      .setFooter({ text: 'Bot développé pour le serveur Vortax • Les gains d\'XP et Coins sont configurables depuis le panel' })
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });
