@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -6,6 +6,11 @@ module.exports = {
     .setDescription('Affiche toutes les commandes disponibles'),
 
   async execute(interaction) {
+    const isStaff = interaction.memberPermissions.has(PermissionFlagsBits.ModerateMembers)
+      || interaction.memberPermissions.has(PermissionFlagsBits.BanMembers)
+      || interaction.memberPermissions.has(PermissionFlagsBits.Administrator)
+    const isAdmin = interaction.memberPermissions.has(PermissionFlagsBits.Administrator)
+
     const embed = new EmbedBuilder()
       .setTitle('📖 Aide — Commandes disponibles')
       .setColor(0x7c5cfc)
@@ -50,21 +55,20 @@ module.exports = {
         },
         {
           name: '🎫 Tickets',
-          value: [
-            'Clique sur le bouton de création de ticket pour ouvrir un ticket de support.',
-            '`-delete` — Génère le transcript + supprime le ticket (staff uniquement)',
-          ].join('\n'),
+          value: isStaff
+            ? 'Clique sur le bouton de création de ticket pour ouvrir un ticket.\n`-delete` — Génère le transcript + supprime le ticket *(staff)*'
+            : 'Clique sur le bouton de création de ticket pour ouvrir un ticket de support.',
         },
-        {
-          name: '🤖 IA (VTX-BOT)',
+        ...(isStaff ? [{
+          name: '🤖 IA (VTX-BOT) — Staff',
           value: [
             'Mentionne le bot en langage naturel pour des actions de modération :',
             '> *"vtxbot mute @membre 10 minutes pour spam"*',
+            '> *"vtxbot ban @membre pour publicité"*',
             '> *"vtxbot crée le salon #général"*',
             '> *"vtxbot donne le rôle Membre à @pseudo"*',
-            'Le bot comprend les fautes de frappe et accents manquants.',
           ].join('\n'),
-        },
+        }] : []),
         {
           name: '🔥 Streak',
           value: [
@@ -77,7 +81,7 @@ module.exports = {
           name: '🏅 Rangs automatiques',
           value: 'Rôles attribués automatiquement selon ton niveau : Plastique → Carton → Bronze → Fer → Or → Diamant → Émeraude → Rubis → Légendaire → Mythique → **GOAT**',
         },
-        {
+        ...(isAdmin ? [{
           name: '🛡️ Administration',
           value: [
             '`/adminexpajouter <@membre> <xp>` — Ajouter de l\'XP',
@@ -85,7 +89,7 @@ module.exports = {
             '`/adminmoneyajouter <@membre> <coins>` — Ajouter des coins',
             '`/adminmoneyretirer <@membre> <coins>` — Retirer des coins',
           ].join('\n'),
-        },
+        }] : []),
       )
       .setFooter({ text: 'Bot développé pour le serveur Vortax • Les gains d\'XP et Coins sont configurables depuis le panel' })
       .setTimestamp();
