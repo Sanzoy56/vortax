@@ -18,6 +18,12 @@ function fmt(n) {
   return Math.abs(n).toLocaleString('fr-FR');
 }
 function re(color, desc) { return { embeds: [new EmbedBuilder().setColor(color).setDescription(desc)] }; }
+function noFunds(user, cost) {
+  const needed = cost - user.wallet;
+  if (user.bank >= needed)
+    return re(0xef4444, `${EM.perdu} Pas assez sur toi ! Fais \`=with ${needed}\` pour retirer de la banque ${EM.coin}`);
+  return re(0xef4444, `${EM.perdu} Pas assez de coins ! (${fmt(user.wallet)} sur toi · ${fmt(user.bank)} en banque) ${EM.coin}`);
+}
 
 // ── Cooldowns ────────────────────────────────────────────────
 const CDS = { pf: 10, dice: 10, roulette: 10, cup: 10, pfc: 10, rr: 30, spin: 30 };
@@ -42,7 +48,7 @@ async function cmdPF(msg, args) {
   if (!mise || mise < 100) return msg.reply('❌ Usage : `=pf <mise> <pile|face>` (min 100)');
   if (!['pile','face'].includes(choix)) return msg.reply('❌ Choisis `pile` ou `face`.');
   const user = getUser(userId);
-  if (user.wallet < mise) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`);
+  if (user.wallet < mise) return msg.reply(noFunds(user, mise));
   const result = Math.random() < 0.5 ? 'pile' : 'face';
   const win    = result === choix;
   user.wallet += win ? mise : -mise;
@@ -62,7 +68,7 @@ async function cmdDice(msg, args) {
   if (!mise || mise < 100) return msg.reply('❌ Usage : `=dice <mise> [1-6]` (min 100)');
   if (numero !== null && (numero < 1 || numero > 6)) return msg.reply('❌ Numéro entre 1 et 6.');
   const user = getUser(userId);
-  if (user.wallet < mise) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`);
+  if (user.wallet < mise) return msg.reply(noFunds(user, mise));
   const FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
   const roll  = Math.floor(Math.random() * 6) + 1;
   let gain = 0, result;
@@ -89,7 +95,7 @@ async function cmdRoulette(msg, args) {
   if (!mise || mise < 100) return msg.reply('❌ Usage : `=roulette <mise> <rouge|noir|vert>` (min 100)');
   if (!['rouge','noir','vert'].includes(choix)) return msg.reply('❌ Choisis `rouge`, `noir` ou `vert`.');
   const user = getUser(userId);
-  if (user.wallet < mise) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`);
+  if (user.wallet < mise) return msg.reply(noFunds(user, mise));
   const r = Math.random();
   let result, icon;
   if (r < 0.027) { result = 'vert'; icon = '🟢'; }
@@ -113,7 +119,7 @@ async function cmdCup(msg, args) {
   if (!mise || mise < 100) return msg.reply('❌ Usage : `=cup <mise> <1|2|3>` (min 100)');
   if (![1,2,3].includes(choix)) return msg.reply('❌ Choisis le gobelet 1, 2 ou 3.');
   const user = getUser(userId);
-  if (user.wallet < mise) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`);
+  if (user.wallet < mise) return msg.reply(noFunds(user, mise));
   const correct = Math.floor(Math.random() * 3) + 1;
   const win = choix === correct;
   user.wallet += win ? mise * 2 : -mise; saveUser(user); setCD(userId, 'cup');
@@ -136,7 +142,7 @@ async function cmdPFC(msg, args) {
   if (!mise || mise < 100) return msg.reply('❌ Usage : `=pfc <mise> <pierre|feuille|ciseaux>` (min 100)');
   if (!ICONS[choix]) return msg.reply('❌ Choix : `pierre`, `feuille`, `ciseaux`.');
   const user = getUser(userId);
-  if (user.wallet < mise) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`);
+  if (user.wallet < mise) return msg.reply(noFunds(user, mise));
   const keys = Object.keys(ICONS), bot = keys[Math.floor(Math.random() * 3)];
   const beats = { pierre: 'ciseaux', feuille: 'pierre', ciseaux: 'feuille' };
   const win = beats[choix] === bot, draw = choix === bot;
@@ -156,7 +162,7 @@ async function cmdRR(msg, args) {
   const mise = parseInt(args[0]);
   if (!mise || mise < 100) return msg.reply('❌ Usage : `=rr <mise>` (min 100)');
   const user = getUser(userId);
-  if (user.wallet < mise) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`);
+  if (user.wallet < mise) return msg.reply(noFunds(user, mise));
   const fired = Math.random() < 1/6;
   const loss  = Math.min(mise * 3, user.wallet);
   if (fired) user.wallet -= loss; else user.wallet += Math.floor(mise * 0.5);
@@ -177,7 +183,7 @@ function spinSym() { let r=Math.random()*SYMS_TOT; for(const s of SYMS){r-=s.w;i
 
 async function cmdSlots(msg) {
   const userId = msg.author.id, user = getUser(userId);
-  if (user.wallet < SLOTS_COST) return msg.reply(`❌ Il faut **${fmt(SLOTS_COST)}** ${EM.coin}.`);
+  if (user.wallet < SLOTS_COST) return msg.reply(noFunds(user, SLOTS_COST));
   const now = Date.now(), data = slotsData.get(userId) || { spins: 0, resetAt: now + SLOTS_CD };
   if (now > data.resetAt) { data.spins = 0; data.resetAt = now + SLOTS_CD; }
   if (data.spins >= SLOTS_MAX_SPINS) {
@@ -234,7 +240,7 @@ async function cmdBJ(msg, args) {
   const mise = parseInt(args[0]);
   if (!mise || mise < 100) return msg.reply('❌ Usage : `=bj <mise>` (min 100)');
   const user = getUser(userId);
-  if (user.wallet < mise) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`);
+  if (user.wallet < mise) return msg.reply(noFunds(user, mise));
   user.wallet -= mise; saveUser(user);
   const d = mkDeck();
   const g = { deck:d, player:[d.pop(),d.pop()], dealer:[d.pop(),d.pop()], mise, userId, startedAt:Date.now() };
@@ -325,7 +331,7 @@ async function cmdSpin(msg) {
   const userId = msg.author.id;
   const s = checkCD(userId, 'spin'); if (s) return msg.reply(cdMsg(s));
   const user = getUser(userId);
-  if (user.wallet < SPIN_COST) return msg.reply(`❌ Il faut **${fmt(SPIN_COST)}** ${EM.coin}.`);
+  if (user.wallet < SPIN_COST) return msg.reply(noFunds(user, SPIN_COST));
   user.wallet -= SPIN_COST; saveUser(user);
   const name = msg.member?.displayName ?? msg.author.username;
   const m = await msg.reply({ embeds: [mkSpinEmbed(name, 0)] });

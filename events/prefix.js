@@ -10,11 +10,18 @@ const { fmt }                              = require('../levels/levels');
 const { updateQuestProgress }              = require('../levels/quests');
 const { PROTECTED_USERS, ROB }             = require('../levels/config');
 
-const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>';
+const COIN   = '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>';
+const PERDU  = '<:26643crossmark:1509170295921971300>';
 const PREFIX = '=';
 
 function re(color, desc) {
   return { embeds: [new EmbedBuilder().setColor(color).setDescription(desc)] };
+}
+function noFunds(user, cost) {
+  const needed = cost - user.wallet;
+  if (user.bank >= needed)
+    return re(0xef4444, `${PERDU} Pas assez sur toi ! Fais \`=with ${needed}\` pour retirer de la banque ${COIN}`);
+  return re(0xef4444, `${PERDU} Pas assez de coins ! (${fmt(user.wallet)} sur toi · ${fmt(user.bank)} en banque) ${COIN}`);
 }
 
 // ── =dep <montant|all> ───────────────────────────────────────
@@ -70,7 +77,7 @@ async function cmdDonner(msg, args) {
   if (!montant || montant < 1) return msg.reply('❌ Montant invalide.');
   const donneur  = getUser(msg.author.id);
   const receveur = getUser(target.id);
-  if (donneur.wallet < montant) return msg.reply(`❌ Tu n'as que **${fmt(donneur.wallet)}** ${COIN} sur toi.`);
+  if (donneur.wallet < montant) return msg.reply(noFunds(donneur, montant));
   donneur.wallet  -= montant;
   receveur.wallet += montant;
   saveUser(donneur); saveUser(receveur);
