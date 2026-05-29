@@ -109,6 +109,43 @@ async function onMessageCreate(message) {
 }
 
 // ════════════════════════════════════════════════════════════
+//  APPLY PENDING RESETS — applique les resets demandés via le panel
+// ════════════════════════════════════════════════════════════
+async function applyPendingResets() {
+  try {
+    const BASE = DASHBOARD_URL.replace("/api/stats/push", "");
+    const res  = await fetch(`${BASE}/api/admin/pending-resets`, {
+      headers: { "x-stats-secret": PUSH_SECRET },
+    });
+    const pending = await res.json();
+    if (!Object.keys(pending).length) return;
+
+    const dbPath = path.join(__dirname, "../level.json");
+    if (!fs.existsSync(dbPath)) return;
+    const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+
+    let changed = false;
+    for (const [userId, flags] of Object.entries(pending)) {
+      if (!db[userId]) continue;
+      if (flags.xp)    { db[userId].exp = 0; db[userId].level = 0; changed = true; }
+      if (flags.coins) { db[userId].wallet = 0; db[userId].bank = 0; changed = true; }
+    }
+
+    if (changed) {
+      fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+      console.log("[Stats] Resets appliqués :", Object.keys(pending).join(", "));
+    }
+
+    await fetch(`${BASE}/api/admin/pending-resets`, {
+      method: "DELETE",
+      headers: { "x-stats-secret": PUSH_SECRET },
+    });
+  } catch (e) {
+    console.error("[Stats] Erreur applyPendingResets :", e.message);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
 //  SYNC XP & MONEY — envoie tout le level.json au dashboard
 // ════════════════════════════════════════════════════════════
 async function syncFromLevelDB(guildId) {
@@ -145,7 +182,8 @@ module.exports = {
       console.warn("[Stats] ⚠️ GUILD_ID manquant dans .env");
     } else {
       syncFromLevelDB(guildId);
-      setInterval(() => syncFromLevelDB(guildId), 5 * 60 * 1000);
+      applyPendingResets();
+      setInterval(() => { syncFromLevelDB(guildId); applyPendingResets(); }, 5 * 60 * 1000);
     }
 
     console.log("[Stats] ✅ Tracker chargé.");
