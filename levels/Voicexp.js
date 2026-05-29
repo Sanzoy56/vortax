@@ -1,15 +1,19 @@
 'use strict';
-const { EXP, COINS } = require('./config');
 const { addExp, addCoins } = require('./levels');
 
-// ─── Config XP vocal ─────────────────────────────────────────
-const VOCAL = {
-  INTERVAL_MS:  60_000,   // tick toutes les 60 secondes
-  MIN_EXP:      60,       // XP min par tick
-  MAX_EXP:      100,      // XP max par tick
-  MIN_COINS:    200,      // Coins min par tick
-  MAX_COINS:    350,      // Coins max par tick
-};
+const VOCAL_DEFAULTS = { MIN_EXP: 60, MAX_EXP: 100, MIN_COINS: 200, MAX_COINS: 350 };
+
+// ─── Config progression (cache 5 min depuis le dashboard) ────
+let _progCache = null, _progFetchedAt = 0;
+async function getProgConfig() {
+  if (_progCache && Date.now() - _progFetchedAt < 5 * 60 * 1000) return _progCache;
+  try {
+    const res = await fetch('https://vtx-bot.alwaysdata.net/api/progression');
+    _progCache = await res.json();
+    _progFetchedAt = Date.now();
+  } catch {}
+  return _progCache || {};
+}
 
 // ─── Démarrer la boucle vocale ───────────────────────────────
 function startVoicexp(client) {
@@ -31,15 +35,16 @@ function startVoicexp(client) {
         // XP seulement si au moins 2 personnes actives dans le salon
         if (actifs.length < 2) continue;
 
-        for (const member of actifs) {
-          const baseExp = Math.floor(
-            Math.random() * (VOCAL.MAX_EXP - VOCAL.MIN_EXP + 1) + VOCAL.MIN_EXP
-          );
-          await addExp(member, client, baseExp).catch(() => {});
+        const prog     = await getProgConfig();
+        const expMin   = prog.voc_exp_min   ?? VOCAL_DEFAULTS.MIN_EXP;
+        const expMax   = prog.voc_exp_max   ?? VOCAL_DEFAULTS.MAX_EXP;
+        const coinsMin = prog.voc_coins_min ?? VOCAL_DEFAULTS.MIN_COINS;
+        const coinsMax = prog.voc_coins_max ?? VOCAL_DEFAULTS.MAX_COINS;
 
-          const baseCoins = Math.floor(
-            Math.random() * (VOCAL.MAX_COINS - VOCAL.MIN_COINS + 1) + VOCAL.MIN_COINS
-          );
+        for (const member of actifs) {
+          const baseExp   = Math.floor(Math.random() * (expMax   - expMin   + 1) + expMin);
+          const baseCoins = Math.floor(Math.random() * (coinsMax - coinsMin + 1) + coinsMin);
+          await addExp(member, client, baseExp).catch(() => {});
           addCoins(member.id, baseCoins);
         }
       }

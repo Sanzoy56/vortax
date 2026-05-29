@@ -6,6 +6,18 @@ const { updateQuestProgress, generateDailyQuests } = require('./quests');
 
 const cooldowns = new Map();
 
+// ─── Config progression (cache 5 min depuis le dashboard) ────
+let _progCache = null, _progFetchedAt = 0;
+async function getProgConfig() {
+  if (_progCache && Date.now() - _progFetchedAt < 5 * 60 * 1000) return _progCache;
+  try {
+    const res = await fetch('https://vtx-bot.alwaysdata.net/api/progression');
+    _progCache = await res.json();
+    _progFetchedAt = Date.now();
+  } catch {}
+  return _progCache || {};
+}
+
 module.exports = {
   name: 'messageCreate',
 
@@ -37,13 +49,17 @@ module.exports = {
     if (hour >= 23)      await updateQuestProgress(guild, userId, 'night',   1); // après 23h → Noctambule
     if (hour === 0)      await updateQuestProgress(guild, userId, 'night',   1); // minuit    → Nuit blanche
 
-    // Anti-spam cooldown 5s pour XP/coins
+    // Anti-spam cooldown
+    const prog     = await getProgConfig();
+    const cooldown = prog.msg_cooldown ?? EXP.COOLDOWN_MS;
     const lastGain = cooldowns.get(userId) || 0;
-    if (now - lastGain < EXP.COOLDOWN_MS) return;
+    if (now - lastGain < cooldown) return;
     cooldowns.set(userId, now);
 
     // EXP
-    const baseExp = Math.floor(Math.random() * (EXP.MAX_PER_MSG - EXP.MIN_PER_MSG + 1)) + EXP.MIN_PER_MSG;
+    const expMin  = prog.msg_exp_min   ?? EXP.MIN_PER_MSG;
+    const expMax  = prog.msg_exp_max   ?? EXP.MAX_PER_MSG;
+    const baseExp = Math.floor(Math.random() * (expMax - expMin + 1)) + expMin;
     const member  = message.member ?? await message.guild.members.fetch(userId).catch(() => null);
     if (member) await addExp(member, client, baseExp);
 
@@ -51,7 +67,9 @@ module.exports = {
     await updateQuestProgress(guild, userId, 'exp', baseExp);
 
     // Coins
-    const baseCoins = Math.floor(Math.random() * (COINS.MAX_PER_MSG - COINS.MIN_PER_MSG + 1)) + COINS.MIN_PER_MSG;
+    const coinsMin  = prog.msg_coins_min ?? COINS.MIN_PER_MSG;
+    const coinsMax  = prog.msg_coins_max ?? COINS.MAX_PER_MSG;
+    const baseCoins = Math.floor(Math.random() * (coinsMax - coinsMin + 1)) + coinsMin;
     const gained    = addCoins(userId, baseCoins);
 
     // CORRIGÉ : 'coins_earned' pour les coins gagnés par messages (pas 'coins')
