@@ -246,12 +246,19 @@ function bjRow(uid, canDouble) {
 async function cmdBJ(i) {
   const userId = i.user.id;
   const mise   = i.options.getInteger('mise');
-  if (bjGames.has(userId)) return i.reply({ content: '⚠️ Termine ta partie en cours !', ephemeral: true });
+
+  // Nettoie les parties bloquées (>2 min sans réponse)
+  if (bjGames.has(userId)) {
+    const stale = bjGames.get(userId);
+    if (Date.now() - stale.startedAt < 120_000)
+      return i.reply({ content: '⚠️ Termine ta partie en cours !', ephemeral: true });
+    bjGames.delete(userId);
+  }
   const user = getUser(userId);
   if (user.wallet < mise) return i.reply({ content: `❌ Tu n'as que **${fmt(user.wallet)}** ${EM.coin}.`, ephemeral: true });
   user.wallet -= mise; saveUser(user);
   const d = mkDeck();
-  const g = { deck:d, player:[d.pop(),d.pop()], dealer:[d.pop(),d.pop()], mise, userId };
+  const g = { deck:d, player:[d.pop(),d.pop()], dealer:[d.pop(),d.pop()], mise, userId, startedAt: Date.now() };
   bjGames.set(userId, g);
   const pv=hval(g.player), dv=hval(g.dealer);
   if (pv===21) {
