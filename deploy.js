@@ -317,6 +317,11 @@ const commands = [
         .setName('aide')
         .setDescription('Aide sur les commandes disponibles')
         .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('work')
+        .setDescription('Travaille pour gagner des coins (cooldown 4h)')
+        .toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);

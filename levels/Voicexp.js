@@ -1,7 +1,7 @@
 'use strict';
 const { addExp, addCoins } = require('./levels');
 
-const VOCAL_DEFAULTS = { MIN_EXP: 60, MAX_EXP: 100, MIN_COINS: 200, MAX_COINS: 350 };
+const VOCAL_DEFAULTS = { MIN_EXP: 60, MAX_EXP: 100, MIN_COINS: 500, MAX_COINS: 900 };
 
 // ─── Config progression (cache 5 min depuis le dashboard) ────
 let _progCache = null, _progFetchedAt = 0;

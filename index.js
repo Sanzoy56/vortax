@@ -29,6 +29,7 @@ const suggestion = require('./events/suggestion.js');
 const autorole   = require('./events/autorole.js');
 const stats     = require('./events/stats');
 const vocalTemp = require('./events/vocalTemp');
+const casino    = require('./events/casino');
 // ── Command handlers manuels ───────────────────────
 const panel = require('./commandes/panel.js');
 const say   = require('./commandes/say.js');
@@ -126,6 +127,7 @@ clear(client);
 grok(client);
 stats.init(client);
 vocalTemp.init(client);
+casino.init(client);
 // ───────────────────────────────────────────────────
 // Levels : écoute des messages
 // ───────────────────────────────────────────────────

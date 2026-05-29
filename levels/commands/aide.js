@@ -70,6 +70,14 @@ module.exports = {
           ].join('\n'),
         }] : []),
         {
+          name: '🎰 Casino',
+          value: [
+            '`/coinflip <mise> <pile|face>` — 50/50, double ou perds ta mise (cooldown 15s)',
+            '`/slots <mise>` — Machine à sous : 🍒🍋🍊🍇🔔💎7️⃣ avec multiplicateurs jusqu\'à x50 (cooldown 20s)',
+            '`/work` — Travaille pour gagner 500–1 500 💵 (cooldown 4h)',
+          ].join('\n'),
+        },
+        {
           name: '🔥 Streak',
           value: [
             'Parle chaque jour pour maintenir ton streak.',
