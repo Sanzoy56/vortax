@@ -13,6 +13,7 @@ const { getConfig }                        = require('../config');
 
 const COIN   = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
 const PERDU  = '<:26643crossmark:1510067005066055690>';
+const CHECK  = '<:592053verified:1510069208661098546>';
 const PREFIX = '=';
 
 function re(color, desc) {
@@ -37,7 +38,7 @@ async function cmdDep(msg, args) {
   if (amount > user.wallet) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${COIN} sur toi.`);
   user.wallet -= amount; user.bank += amount; saveUser(user);
   await updateQuestProgress(msg.guild, msg.author.id, 'bank', 1).catch(() => {});
-  msg.reply(`✅ ${COIN} **${fmt(amount)}** déposé en banque !`);
+  msg.reply(re(0x39ff14, `${CHECK} ${COIN} **${fmt(amount)}** déposé en banque !`));
 }
 
 // ── =with <montant|all> ──────────────────────────────────────
@@ -51,7 +52,7 @@ async function cmdWith(msg, args) {
   if (user.bank === 0 || amount === 0) return msg.reply('❌ Tu n\'as rien en banque.');
   if (amount > user.bank) return msg.reply(`❌ Tu n'as que **${fmt(user.bank)}** ${COIN} en banque.`);
   user.bank -= amount; user.wallet += amount; saveUser(user);
-  msg.reply(`✅ ${COIN} **${fmt(amount)}** retiré de la banque !`);
+  msg.reply(re(0x39ff14, `${CHECK} ${COIN} **${fmt(amount)}** retiré de la banque !`));
 }
 
 // ── =bal [@mention] ──────────────────────────────────────────
