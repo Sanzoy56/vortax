@@ -251,12 +251,55 @@ async function cmdAide(msg) {
 }
 
 // ════════════════════════════════════════════════════════════
+//  =createroles — Création de rôles en masse (admin only)
+// ════════════════════════════════════════════════════════════
+const SYSTEM_ROLES = [
+  'Satoru Gojo', 'Ryomen Sukuna', 'Son Goku', 'Vegeta',
+  'Monkey D. Luffy', 'Roronoa Zoro', 'Naruto Uzumaki',
+  'Saitama', 'Levi Ackerman', 'Light Yagami',
+  'Receptacle', 'Heian Form', 'Éveillé',
+];
+
+async function cmdCreateRoles(msg, args) {
+  if (!msg.member.permissions.has('Administrator'))
+    return msg.reply(re(0xef4444, `${PERDU} Réservé aux administrateurs.`));
+
+  // Avec args : =createroles Nom1, Nom2, Nom3
+  const toCreate = args.length
+    ? args.join(' ').split(',').map(r => r.trim()).filter(Boolean)
+    : SYSTEM_ROLES;
+
+  if (!toCreate.length) return msg.reply('❌ Aucun rôle à créer.');
+
+  const existing = msg.guild.roles.cache.map(r => r.name.toLowerCase());
+  const pending  = toCreate.filter(r => !existing.includes(r.toLowerCase()));
+  const skipped  = toCreate.filter(r =>  existing.includes(r.toLowerCase()));
+
+  const status = await msg.reply(re(0x6366f1, `⏳ Création de **${pending.length}** rôle(s)...`));
+
+  const created = [], failed = [];
+  for (const name of pending) {
+    try {
+      await msg.guild.roles.create({ name, reason: `=createroles par ${msg.author.tag}` });
+      created.push(name);
+    } catch { failed.push(name); }
+  }
+
+  const lines = [];
+  if (created.length) lines.push(`✅ **Créés (${created.length}) :** ${created.map(r => `\`${r}\``).join(', ')}`);
+  if (skipped.length) lines.push(`⏭️ **Déjà existants (${skipped.length}) :** ${skipped.map(r => `\`${r}\``).join(', ')}`);
+  if (failed.length)  lines.push(`❌ **Échec (${failed.length}) :** ${failed.map(r => `\`${r}\``).join(', ')}`);
+
+  status.edit(re(failed.length ? 0xf59e0b : 0x22c55e, lines.join('\n')));
+}
+
+// ════════════════════════════════════════════════════════════
 //  ROUTING
 // ════════════════════════════════════════════════════════════
 const CMDS = {
   dep: cmdDep, with: cmdWith, bal: cmdBal, donner: cmdDonner,
   rob: cmdRob, work: cmdWork, profil: cmdProfil, top: cmdTop,
-  quetes: cmdQuetes, aide: cmdAide,
+  quetes: cmdQuetes, aide: cmdAide, createroles: cmdCreateRoles,
 };
 
 module.exports = {
