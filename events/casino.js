@@ -284,7 +284,7 @@ async function cmdBJ(msg, args) {
 //  SPIN  =spin
 // ════════════════════════════════════════════════════════════
 const SPIN_COST = 2500;
-const SPIN_SYMS = [{e:'🏆',w:1,m:50},{e:'💎',w:4,m:20},{e:'⭐',w:10,m:10},{e:'🍒',w:20,m:5},{e:'🍊',w:30,m:3},{e:'🍋',w:35,m:2.5}];
+const SPIN_SYMS = [{e:'🏆',w:1,m:50},{e:'💎',w:6,m:15},{e:'⭐',w:13,m:7},{e:'🍒',w:20,m:3.5},{e:'🍊',w:27,m:2},{e:'🍋',w:33,m:1.5}];
 const SPIN_TOT  = SPIN_SYMS.reduce((s,x)=>s+x.w,0);
 function spinOne() { let r=Math.random()*SPIN_TOT; for(const s of SPIN_SYMS){r-=s.w;if(r<=0)return s;} return SPIN_SYMS[0]; }
 function spinLose() {
@@ -298,7 +298,7 @@ function spinLose() {
 function spinFrame() { return [spinOne(),spinOne(),spinOne()]; }
 function buildSpinResult(wallet) {
   let r1,r2,r3,gain=0,line,flavour;
-  if (Math.random()<0.70) {
+  if (Math.random()<0.35) {
     const sym=spinOne(); r1=r2=r3=sym;
     gain=Math.min(Math.floor(SPIN_COST*sym.m),200_000);
     line=sym.e==='🏆'?`${EM.jackpot} **JACKPOT!!! +${fmt(gain)}** ${EM.coin}`:`${EM.billet} **Gagné! +${fmt(gain)}** ${EM.coin}`;
@@ -326,7 +326,7 @@ function spinRow(uid) {
   );
 }
 const LOTS_EMBED = new EmbedBuilder().setColor(0x6366f1).setTitle('🎰 Lots — =spin')
-  .setDescription(['🏆🏆🏆 → **x50** — 125 000 coins (JACKPOT)','💎💎💎 → **x20** — 50 000 coins','⭐⭐⭐ → **x10** — 25 000 coins','🍒🍒🍒 → **x5** — 12 500 coins','🍊🍊🍊 → **x3** — 7 500 coins','🍋🍋🍋 → **x2.5** — 6 250 coins','','🎲 **70% de chance de gagner**'].join('\n'));
+  .setDescription(['🏆🏆🏆 → **x50** — 125 000 coins (JACKPOT)','💎💎💎 → **x15** — 37 500 coins','⭐⭐⭐ → **x7** — 17 500 coins','🍒🍒🍒 → **x3.5** — 8 750 coins','🍊🍊🍊 → **x2** — 5 000 coins','🍋🍋🍋 → **x1.5** — 3 750 coins','','🎲 **35% de chance de gagner**'].join('\n'));
 
 async function cmdSpin(msg) {
   const userId = msg.author.id;

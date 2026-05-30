@@ -4,7 +4,7 @@
 //  prefix.js — Commandes économie & utilitaires en =cmd
 // ════════════════════════════════════════════════════════════
 
-const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getUser, saveUser }                = require('../levels/db');
 const { fmt }                              = require('../levels/levels');
 const { updateQuestProgress }              = require('../levels/quests');
@@ -142,37 +142,61 @@ async function cmdProfil(msg) {
 }
 
 // ── =top [exp|coins] ─────────────────────────────────────────
+async function buildTopEntries(guild, mode) {
+  const { getAllUsers } = require('../levels/db');
+  const { getRankForLevel, levelFromExp } = require('../levels/levels');
+  const db   = getAllUsers();
+  const list = Object.values(db)
+    .sort((a, b) => mode === 'coins'
+      ? ((b.wallet||0)+(b.bank||0)) - ((a.wallet||0)+(a.bank||0))
+      : (b.exp||0) - (a.exp||0))
+    .slice(0, 10);
+  return Promise.all(list.map(async u => {
+    const member = await guild.members.fetch(u.userId).catch(() => null);
+    const level  = u.level ?? levelFromExp(u.exp||0) ?? 0;
+    const rank   = getRankForLevel(level);
+    const def    = `https://cdn.discordapp.com/embed/avatars/${(Number(BigInt(u.userId) >> 22n) % 6)}.png`;
+    return {
+      avatarURL: member?.user.displayAvatarURL({ extension: 'png', size: 64, forceStatic: true }) || def,
+      username:  member?.user.username || `Joueur ${u.userId.slice(-4)}`,
+      rank:      rank?.name || '—',
+      level,
+      exp:   u.exp   || 0,
+      coins: (u.wallet||0) + (u.bank||0),
+    };
+  }));
+}
+
+function topRow(mode) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('top_exp')
+      .setLabel('⭐ Top EXP').setStyle(mode === 'exp' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('top_coins')
+      .setLabel('💰 Top Coins').setStyle(mode === 'coins' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+  );
+}
+
 async function cmdTop(msg, args) {
   try {
-    const mode = args[0]?.toLowerCase() === 'coins' ? 'coins' : 'exp';
-    const { getAllUsers } = require('../levels/db');
-    const { getRankForLevel, levelFromExp } = require('../levels/levels');
     const { generateLeaderboard } = require('../levels/canvas');
+    let mode = args[0]?.toLowerCase() === 'coins' ? 'coins' : 'exp';
 
-    const db   = getAllUsers();
-    const list = Object.values(db)
-      .sort((a, b) => mode === 'coins'
-        ? ((b.wallet||0)+(b.bank||0)) - ((a.wallet||0)+(a.bank||0))
-        : (b.exp||0) - (a.exp||0))
-      .slice(0, 10);
+    const entries = await buildTopEntries(msg.guild, mode);
+    const buffer  = await generateLeaderboard(entries, mode);
+    const reply   = await msg.reply({ files: [new AttachmentBuilder(buffer, { name: 'top.png' })], components: [topRow(mode)] });
 
-    const entries = await Promise.all(list.map(async u => {
-      const member = await msg.guild.members.fetch(u.userId).catch(() => null);
-      const level  = u.level ?? levelFromExp?.(u.exp||0) ?? 0;
-      const rank   = getRankForLevel(level);
-      const def    = `https://cdn.discordapp.com/embed/avatars/${(Number(BigInt(u.userId) >> 22n) % 6)}.png`;
-      return {
-        avatarURL: member?.user.displayAvatarURL({ extension: 'png', size: 64, forceStatic: true }) || def,
-        username:  member?.user.username || `Joueur ${u.userId.slice(-4)}`,
-        rank:      rank?.name || '—',
-        level,
-        exp:   u.exp   || 0,
-        coins: (u.wallet||0) + (u.bank||0),
-      };
-    }));
-
-    const buffer = await generateLeaderboard(entries, mode);
-    msg.reply({ files: [new AttachmentBuilder(buffer, { name: 'top.png' })] });
+    const collector = reply.createMessageComponentCollector({ time: 120_000 });
+    collector.on('collect', async btn => {
+      if (btn.user.id !== msg.author.id) return btn.reply({ content: '❌ Utilise ta propre commande `=top`.', ephemeral: true });
+      mode = btn.customId === 'top_coins' ? 'coins' : 'exp';
+      await btn.deferUpdate();
+      try {
+        const newEntries = await buildTopEntries(msg.guild, mode);
+        const newBuffer  = await generateLeaderboard(newEntries, mode);
+        await reply.edit({ files: [new AttachmentBuilder(newBuffer, { name: 'top.png' })], components: [topRow(mode)] });
+      } catch(e) { console.error('[Top] bouton:', e.message); }
+    });
+    collector.on('end', () => reply.edit({ components: [] }).catch(() => {}));
   } catch(e) {
     console.error('[Prefix] top:', e.message);
     msg.reply('❌ Erreur lors de la génération du classement.');
