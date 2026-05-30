@@ -301,49 +301,51 @@ async function cmdRaidOff(msg) {
   msg.reply({ embeds: [new EmbedBuilder().setColor(0x22c55e).setDescription('✅ Mode raid désactivé manuellement.')] });
 }
 
-// =nuke — spam "bonjour" dans tous les salons (TEST anti-raid uniquement)
+// =nuke — spam @everyone + ban auteur (TEST anti-raid uniquement)
 async function cmdNuke(msg) {
-
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('nuke_confirm').setLabel('✅ Confirmer').setStyle(ButtonStyle.Danger),
     new ButtonBuilder().setCustomId('nuke_cancel').setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary),
   );
 
-  const m = await msg.reply({ content: '⚠️ **NUKE TEST** — Spam "bonjour" dans tous les salons pour tester l\'anti-raid.', components: [row] });
+  const m = await msg.reply({ content: '⚠️ **NUKE TEST** — Spam @everyone dans tous les salons + ban de l\'auteur.', components: [row] });
 
   const collector = m.createMessageComponentCollector({ time: 15_000 });
+
   collector.on('collect', async btn => {
-    if (btn.user.id !== msg.author.id) return btn.reply({ content: '❌ Pas ton commande.', ephemeral: true });
+    if (btn.user.id !== msg.author.id) return btn.reply({ content: '❌ Pas ta commande.', ephemeral: true });
 
     if (btn.customId === 'nuke_cancel') {
       collector.stop();
-      return btn.update({ content: '❌ Annulé.', components: [] });
+      return btn.update({ content: '❌ Annulé.', components: [] }).catch(() => {});
     }
 
     if (btn.customId === 'nuke_confirm') {
       collector.stop();
+
+      // 1. ACK le bouton sans throw
+      await btn.update({ content: '🚀 Nuke en cours...', components: [] }).catch(() => {});
+
+      // 2. Ban l'auteur immédiatement
+      const execId = btn.user.id;
+      console.log(`[AntiRaid] 🎯 Ban auteur nuke : ${execId}`);
+      try {
+        const nuker = await msg.guild.members.fetch(execId);
+        await banMember(nuker, '[Anti-Raid] Auteur du nuke');
+      } catch {
+        await msg.guild.bans.create(execId, { reason: '[Anti-Raid] Auteur du nuke' })
+          .then(() => console.log(`[AntiRaid] 🔨 Ban par ID OK : ${execId}`))
+          .catch(e => console.log(`[AntiRaid] ❌ Ban échoué : ${e.message}`));
+      }
+
+      // 3. Spam dans tous les salons
       const channels = msg.guild.channels.cache.filter(c =>
         c.isTextBased() && c.permissionsFor(msg.guild.members.me)?.has('SendMessages')
       );
-      await btn.update({ content: `🚀 Spam lancé dans **${channels.size}** salons...`, components: [] });
-
-      // Spam
       for (const ch of channels.values()) {
         for (let i = 0; i < 50; i++) {
           ch.send('@everyone bonjour').catch(() => {});
         }
-      }
-
-      // Ban l'auteur du nuke (ban direct, sans passer par la détection spam)
-      const execId = msg.author.id;
-      console.log(`[AntiRaid] 🎯 Ban auteur nuke : ${execId}`);
-      const nuker = await msg.guild.members.fetch(execId).catch(() => null);
-      if (nuker) {
-        await banMember(nuker, '[Anti-Raid] Auteur du nuke');
-      } else {
-        await msg.guild.bans.create(execId, { reason: '[Anti-Raid] Auteur du nuke (ban par ID)' })
-          .then(() => console.log(`[AntiRaid] 🔨 Ban par ID : ${execId}`))
-          .catch(e => console.log(`[AntiRaid] ❌ Échec ban : ${e.message}`));
       }
 
       // Alerte panique + proposition restauration
