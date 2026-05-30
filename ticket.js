@@ -239,7 +239,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
 <:5956pointred:1510069985462980678> **Assistance IA** : Obtenez une réponse instantanée de notre assistant IA. Le staff sera alerté si nécessaire.
 
-<:warningicon:1502097886794616963> Les tickets troll sont interdits et très fortement sanctionnés.`)
+<:RVT_warning:1510074450714955896> Les tickets troll sont interdits et très fortement sanctionnés.`)
         .setColor(0x2B2D31)
         .setFooter({ text: '— Support Team Vortax' });
 
@@ -423,14 +423,16 @@ Il y a 3 catégories de tickets mis à votre disposition :
     if (interaction.isModalSubmit()) {
       const { customId, member, guild } = interaction;
 
-      // deferReply immédiat pour les modals ticket (avant getConfig)
+      // deferReply immédiat pour les modals ticket (avant toute opération async)
       if (customId === 'modal_ticket_staff' || customId === 'modal_ticket_question' || customId === 'modal_ticket_ia') {
         try { await interaction.deferReply({ flags: 64 }); } catch { return; }
       }
 
-      const cfg         = await getConfig();
-      const staffRoleId = cfg.ticket_staff_role;
-      const categorieId = cfg.ticket_category;
+      // Config locale uniquement pour les tickets (pas de réseau = jamais de timeout)
+      const fs = require('fs'), path = require('path');
+      const rawCfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
+      const staffRoleId = rawCfg.ticket_staff_role;
+      const categorieId = rawCfg.ticket_category;
 
       // ----- Tickets Staff / Question -----
       if (customId === 'modal_ticket_staff' || customId === 'modal_ticket_question') {
