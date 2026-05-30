@@ -26,17 +26,25 @@ function noFunds(user, cost) {
   return re(0xef4444, `${EM.perdu} Pas assez de coins ! (${fmt(user.wallet)} sur toi · ${fmt(user.bank)} en banque) ${EM.coin}`);
 }
 
-// ── Cooldowns ────────────────────────────────────────────────
-const CDS = { pf: 10, dice: 10, roulette: 10, cup: 10, pfc: 10, rr: 30, spin: 30 };
-const cdMap = new Map();
+// ── Cooldowns (burst : 3 uses libres, puis 15s) ───────────────
+const BURST_MAX = 3;
+const BURST_CD_MS = 15_000;
+const burstMap = new Map(); // userId_cmd → { count, lockedUntil }
 function checkCD(userId, cmd) {
-  const ms = (CDS[cmd] || 0) * 1000;
-  if (!ms) return 0;
-  const diff = Date.now() - (cdMap.get(`${userId}_${cmd}`) || 0);
-  return diff < ms ? Math.ceil((ms - diff) / 1000) : 0;
+  const data = burstMap.get(`${userId}_${cmd}`);
+  if (!data?.lockedUntil) return 0;
+  const rem = data.lockedUntil - Date.now();
+  if (rem <= 0) { burstMap.delete(`${userId}_${cmd}`); return 0; }
+  return Math.ceil(rem / 1000);
 }
-function setCD(userId, cmd) { if (CDS[cmd]) cdMap.set(`${userId}_${cmd}`, Date.now()); }
-function cdMsg(s) { return re(0xef4444, `${EM.perdu} Attends encore **${s}s** avant de rejouer.`); }
+function setCD(userId, cmd) {
+  const key = `${userId}_${cmd}`;
+  const data = burstMap.get(key) || { count: 0, lockedUntil: 0 };
+  data.count++;
+  if (data.count >= BURST_MAX) { data.lockedUntil = Date.now() + BURST_CD_MS; data.count = 0; }
+  burstMap.set(key, data);
+}
+function cdMsg(s) { return re(0xef4444, `${EM.perdu} 3 parties d'affilée — attends **${s}s** avant de rejouer.`); }
 
 // ════════════════════════════════════════════════════════════
 //  PILE OU FACE  =pf <mise> <pile|face>
