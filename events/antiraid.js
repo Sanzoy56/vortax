@@ -101,7 +101,10 @@ async function sendAlert(guild, embed) {
 }
 
 async function banMember(member, reason) {
-  if (!member.bannable) { console.log(`[AntiRaid] ⚠️ Impossible de ban ${member.user.tag} (pas bannable)`); return false; }
+  if (!member.bannable) {
+    console.log(`[AntiRaid] ⚠️ Impossible de ban ${member.user.tag} — propriétaire ou rôle supérieur au bot`);
+    return false;
+  }
   try {
     await member.ban({ reason, deleteMessageSeconds: 86400 });
     console.log(`[AntiRaid] 🔨 Banni : ${member.user.tag} — ${reason}`);
