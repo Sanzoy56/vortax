@@ -9,8 +9,16 @@ module.exports = {
     try {
       const { getConfig } = require('../config');
       const cfg = await getConfig();
-      if ((cfg.disabled_commands || []).includes(interaction.commandName)) {
-        return interaction.reply({ content: `❌ La commande \`/${interaction.commandName}\` est désactivée.`, ephemeral: true });
+      const cmdName = interaction.commandName;
+
+      if ((cfg.disabled_commands || []).includes(cmdName))
+        return interaction.reply({ content: `❌ La commande \`/${cmdName}\` est désactivée.`, ephemeral: true });
+
+      const allowedRoles = cfg.command_roles?.[cmdName];
+      if (allowedRoles && allowedRoles.length > 0) {
+        const hasRole = allowedRoles.some(id => interaction.member?.roles?.cache?.has(id));
+        if (!hasRole)
+          return interaction.reply({ content: `❌ Tu n'as pas le rôle requis pour utiliser \`/${cmdName}\`.`, ephemeral: true });
       }
 
       const { getUser, saveUser } = require('./db');
