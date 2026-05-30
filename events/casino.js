@@ -292,8 +292,15 @@ async function cmdBJ(msg, args) {
 //  SPIN  =spin
 // ════════════════════════════════════════════════════════════
 const SPIN_COST = 2500;
-const SPIN_SYMS = [{e:'🏆',w:1,m:50},{e:'💎',w:6,m:15},{e:'⭐',w:13,m:7},{e:'🍒',w:20,m:3.5},{e:'🍊',w:27,m:2},{e:'🍋',w:33,m:1.5}];
-const SPIN_TOT  = SPIN_SYMS.reduce((s,x)=>s+x.w,0);
+const SPIN_SYMS = [
+  { e:'🏆', w:1,  m:50,  name:'Jackpot Absolu',  rarity:'LÉGENDAIRE', color:0xf5c842, icon:'👑', desc:'La roue de la fortune sourit aux audacieux' },
+  { e:'💎', w:6,  m:15,  name:'Diamant Brut',     rarity:'TRÈS RARE',  color:0xa855f7, icon:'💜', desc:"Une pierre précieuse d'une valeur inestimable" },
+  { e:'⭐', w:13, m:7,   name:"Lingot d'or",      rarity:'RARE',       color:0x38bdf8, icon:'💙', desc:'Un lingot massif' },
+  { e:'🍒', w:20, m:3.5, name:'Cerise Dorée',     rarity:'PEU COMMUN', color:0x22c55e, icon:'💚', desc:'La chance du débutant' },
+  { e:'🍊', w:27, m:2,   name:'Orange Juteuse',   rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Un gain modeste mais appréciable' },
+  { e:'🍋', w:33, m:1.5, name:'Citron Pressé',    rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Mieux que rien !' },
+];
+const SPIN_TOT = SPIN_SYMS.reduce((s,x)=>s+x.w,0);
 function spinOne() { let r=Math.random()*SPIN_TOT; for(const s of SPIN_SYMS){r-=s.w;if(r<=0)return s;} return SPIN_SYMS[0]; }
 function spinLose() {
   const r1=spinOne();
@@ -304,29 +311,56 @@ function spinLose() {
   return [r1,r2,r3];
 }
 function spinFrame() { return [spinOne(),spinOne(),spinOne()]; }
+
+// wallet = déjà après déduction SPIN_COST — ne pas soustraire une seconde fois
 function buildSpinResult(wallet) {
-  let r1,r2,r3,gain=0,line,flavour;
-  if (Math.random()<0.35) {
-    const sym=spinOne(); r1=r2=r3=sym;
-    gain=Math.min(Math.floor(SPIN_COST*sym.m),200_000);
-    line=sym.e==='🏆'?`${EM.jackpot} **JACKPOT!!! +${fmt(gain)}** ${EM.coin}`:`${EM.billet} **Gagné! +${fmt(gain)}** ${EM.coin}`;
-    flavour=sym.e==='🏆'?'🏆 Incroyable!!!':'Bien joué!';
+  let r1, r2, r3, gain = 0;
+  if (Math.random() < 0.35) {
+    const sym = spinOne(); r1 = r2 = r3 = sym;
+    gain = Math.min(Math.floor(SPIN_COST * sym.m), 200_000);
+    const newWallet = wallet + gain;
+    const rewardLine = sym.m >= 50
+      ? `${EM.jackpot} **JACKPOT!!! +${fmt(gain)}** ${EM.coin} **(x${sym.m})**`
+      : `+${EM.coin} **${fmt(gain)}** **(x${sym.m})**`;
+    return { gain, newWallet, embed: new EmbedBuilder()
+      .setColor(sym.color).setTitle('🎰 Casino Royal')
+      .setDescription([
+        `| ${sym.e} | ${sym.e} | ${sym.e} |`, '',
+        `**${sym.name}**`,
+        `${sym.icon} ${sym.rarity}`,
+        `*${sym.desc}*`, '',
+        rewardLine,
+        `Mise : **${fmt(SPIN_COST)}** | Nouveau cash : **${fmt(newWallet)}** ${EM.coin}`,
+      ].join('\n')) };
   } else {
-    [r1,r2,r3]=spinLose(); line=`${EM.perdu} **PERDU**`; flavour='Pas de chance...';
+    [r1,r2,r3] = spinLose();
+    const newWallet = wallet;
+    return { gain: 0, newWallet, embed: new EmbedBuilder()
+      .setColor(0xef4444).setTitle('🎰 Casino Royal')
+      .setDescription([
+        `| ${r1.e} | ${r2.e} | ${r3.e} |`, '',
+        '**Rien...**',
+        `${EM.perdu} PERDU`,
+        '*Pas de chance cette fois !*', '',
+        `-${EM.coin} **${fmt(SPIN_COST)}**`,
+        `Mise : **${fmt(SPIN_COST)}** | Nouveau cash : **${fmt(newWallet)}** ${EM.coin}`,
+      ].join('\n')) };
   }
-  const newWallet=wallet+gain-SPIN_COST;
-  return { r:[r1,r2,r3], gain, newWallet, embed: new EmbedBuilder()
-    .setColor(gain>0?0x22c55e:0xef4444).setTitle('🎰 Casino Royal')
-    .setDescription([`| ${r1.e} | ${r2.e} | ${r3.e} |`,'',line,flavour,'',`Mise : **${fmt(SPIN_COST)}** | Nouveau cash : **${fmt(newWallet)}** ${EM.coin}`].join('\n')) };
 }
+
 const delay = ms => new Promise(r => setTimeout(r, ms));
 function mkSpinEmbed(name, frame) {
-  const [a,b,c]=spinFrame();
-  const dots=['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧'];
+  const [a,b,c] = spinFrame();
+  const dots = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧'];
   return new EmbedBuilder().setColor(0x6366f1).setTitle('🎰 Casino Royal')
     .setDescription([`**${name}** tire le levier...`,'',`| ${a.e} | ${b.e} | ${c.e} |`,'',`${dots[frame%dots.length]} *Les rouleaux tournent...*`,'',`Mise : **${fmt(SPIN_COST)}** ${EM.coin}`].join('\n'));
 }
-async function doAnimation(m, name) { for(let f=0;f<7;f++){await delay(600);await m.edit({embeds:[mkSpinEmbed(name,f)]}).catch(()=>{});} }
+async function doAnimation(m, name) {
+  for (let f = 0; f < 7; f++) {
+    await delay(600);
+    await m.edit({ embeds: [mkSpinEmbed(name, f)] }).catch(() => {});
+  }
+}
 function spinRow(uid) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`spin_replay_${uid}`).setLabel('Rejouer').setEmoji('🎰').setStyle(ButtonStyle.Primary),
@@ -334,7 +368,15 @@ function spinRow(uid) {
   );
 }
 const LOTS_EMBED = new EmbedBuilder().setColor(0x6366f1).setTitle('🎰 Lots — =spin')
-  .setDescription(['🏆🏆🏆 → **x50** — 125 000 coins (JACKPOT)','💎💎💎 → **x15** — 37 500 coins','⭐⭐⭐ → **x7** — 17 500 coins','🍒🍒🍒 → **x3.5** — 8 750 coins','🍊🍊🍊 → **x2** — 5 000 coins','🍋🍋🍋 → **x1.5** — 3 750 coins','','🎲 **35% de chance de gagner**'].join('\n'));
+  .setDescription([
+    '🏆 **Jackpot Absolu** — x50 → 125 000 coins 👑 LÉGENDAIRE',
+    '💎 **Diamant Brut** — x15 → 37 500 coins 💜 TRÈS RARE',
+    '⭐ **Lingot d\'or** — x7 → 17 500 coins 💙 RARE',
+    '🍒 **Cerise Dorée** — x3.5 → 8 750 coins 💚 PEU COMMUN',
+    '🍊 **Orange Juteuse** — x2 → 5 000 coins 🩶 COMMUN',
+    '🍋 **Citron Pressé** — x1.5 → 3 750 coins 🩶 COMMUN',
+    '', '🎲 **35% de chance de gagner**',
+  ].join('\n'));
 
 async function cmdSpin(msg) {
   const userId = msg.author.id;
@@ -347,7 +389,7 @@ async function cmdSpin(msg) {
   await doAnimation(m, name);
   const { embed, gain, newWallet } = buildSpinResult(user.wallet);
   user.wallet = newWallet; saveUser(user); setCD(userId, 'spin');
-  await m.edit({ embeds: [embed], components: [spinRow(userId)] });
+  await m.edit({ embeds: [embed], components: [spinRow(userId)] }).catch(() => {});
 }
 
 // ════════════════════════════════════════════════════════════
@@ -387,14 +429,18 @@ module.exports = {
         const s = checkCD(userId, 'spin');
         if (s) return btn.reply(Object.assign(cdMsg(s), { ephemeral: true }));
         u.wallet -= SPIN_COST; saveUser(u);
-        await btn.deferUpdate();
-        const name = btn.member?.displayName ?? btn.user.username;
-        const m    = btn.message;
-        await m.edit({ embeds: [mkSpinEmbed(name, 0)], components: [] });
-        await doAnimation(m, name);
-        const res = buildSpinResult(u.wallet);
-        u.wallet = res.newWallet; saveUser(u); setCD(userId, 'spin');
-        await m.edit({ embeds: [res.embed], components: [spinRow(userId)] });
+        try {
+          await btn.deferUpdate();
+          const name = btn.member?.displayName ?? btn.user.username;
+          const m    = btn.message;
+          await m.edit({ embeds: [mkSpinEmbed(name, 0)], components: [] }).catch(() => {});
+          await doAnimation(m, name);
+          const res = buildSpinResult(u.wallet);
+          u.wallet = res.newWallet; saveUser(u); setCD(userId, 'spin');
+          await m.edit({ embeds: [res.embed], components: [spinRow(userId)] }).catch(() => {});
+        } catch {
+          // interaction expirée ou message supprimé — on a déjà sauvegardé le wallet
+        }
       }
     });
 
