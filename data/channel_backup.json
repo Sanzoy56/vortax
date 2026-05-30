@@ -1,9 +1,9 @@
 {
   "guildId": "1495863681420886057",
-  "savedAt": "2026-05-30T00:10:57.150Z",
+  "savedAt": "2026-05-30T09:37:07.490Z",
   "channels": [
     {
-      "id": "1510051855542255717",
+      "id": "1510214552166596721",
       "name": "tst",
       "type": 0,
       "parentId": null,
@@ -15,7 +15,31 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1510051856427126925",
+      "id": "1510215415408758794",
+      "name": "tst",
+      "type": 0,
+      "parentId": null,
+      "position": 0,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1510215416302141591",
+      "name": "tst",
+      "type": 0,
+      "parentId": null,
+      "position": 0,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1510215417485066401",
       "name": "g",
       "type": 0,
       "parentId": null,
@@ -27,7 +51,7 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1510051857601531945",
+      "id": "1510215418890158162",
       "name": "g",
       "type": 0,
       "parentId": null,
@@ -39,7 +63,7 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1510051858196992001",
+      "id": "1510215419850657882",
       "name": "t",
       "type": 0,
       "parentId": null,
