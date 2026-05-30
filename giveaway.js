@@ -26,19 +26,22 @@ async function endGiveaway(client, messageId, channelId) {
     const giveaway = giveaways[messageId];
     if (!giveaway || giveaway.ended) return;
 
-    giveaway.ended = true;
-    saveGiveaways(giveaways);
+    // Marquer terminé APRES avoir récupéré le message
+    // (on le sauvegarde plus bas, une fois qu'on est sûr de pouvoir agir)
 
     try {
         const channel = await client.channels.fetch(channelId).catch(() => null);
-        if (!channel) return; // salon supprimé
+        if (!channel) { giveaway.ended = true; saveGiveaways(giveaways); return; }
 
-        // Si le message est introuvable (supprimé), on sort proprement
         const message = await channel.messages.fetch(messageId).catch(() => null);
         if (!message) {
             console.log(`[Giveaway] Message ${messageId} introuvable (supprimé), giveaway ignoré.`);
-            return;
+            giveaway.ended = true; saveGiveaways(giveaways); return;
         }
+
+        // On marque terminé maintenant qu'on a le message
+        giveaway.ended = true;
+        saveGiveaways(giveaways);
 
         const participants = giveaway.participants || [];
 
@@ -168,7 +171,10 @@ module.exports = (client) => {
             const giveaways = loadGiveaways();
             const giveaway = giveaways[interaction.message.id];
 
-            if (!giveaway || giveaway.ended) {
+            const isOver = !giveaway || giveaway.ended || Date.now() >= giveaway.endsAt;
+            if (isOver) {
+                // Nettoyer le bouton si toujours visible
+                await interaction.message.edit({ components: [] }).catch(() => {});
                 return interaction.reply({ content: '❌ Ce giveaway est terminé.', ephemeral: true });
             }
 
