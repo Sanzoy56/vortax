@@ -1,6 +1,7 @@
 'use strict';
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getUser, saveUser } = require('../levels/db');
+const { getConfig }         = require('../config');
 
 const PREFIX = '=';
 
@@ -357,8 +358,13 @@ module.exports = {
       const content = msg.content.trim();
       if (!content.startsWith(PREFIX)) return;
       const [cmd, ...args] = content.slice(1).trim().split(/\s+/);
-      const handler = CMDS[cmd.toLowerCase()];
-      if (handler) { try { await handler(msg, args); } catch(e) { console.error('[Casino]', e.message); } }
+      const name = cmd.toLowerCase();
+      const handler = CMDS[name];
+      if (!handler) return;
+      const cfg = await getConfig();
+      if ((cfg.disabled_commands || []).includes(name))
+        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ La commande \`=${name}\` est désactivée.`)] });
+      try { await handler(msg, args); } catch(e) { console.error('[Casino]', e.message); }
     });
 
     // Boutons spin (interactionCreate)

@@ -9,6 +9,7 @@ const { getUser, saveUser }                = require('../levels/db');
 const { fmt }                              = require('../levels/levels');
 const { updateQuestProgress }              = require('../levels/quests');
 const { PROTECTED_USERS, ROB }             = require('../levels/config');
+const { getConfig }                        = require('../config');
 
 const COIN   = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
 const PERDU  = '<:26643crossmark:1510067005066055690>';
@@ -212,8 +213,13 @@ module.exports = {
       const content = msg.content.trim();
       if (!content.startsWith(PREFIX)) return;
       const [cmd, ...args] = content.slice(1).trim().split(/\s+/);
-      const handler = CMDS[cmd.toLowerCase()];
-      if (handler) { try { await handler(msg, args); } catch(e) { console.error('[Prefix]', e.message); } }
+      const name = cmd.toLowerCase();
+      const handler = CMDS[name];
+      if (!handler) return;
+      const cfg = await getConfig();
+      if ((cfg.disabled_commands || []).includes(name))
+        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ La commande \`=${name}\` est désactivée.`)] });
+      try { await handler(msg, args); } catch(e) { console.error('[Prefix]', e.message); }
     });
     console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide');
   },

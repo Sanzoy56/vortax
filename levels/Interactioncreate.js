@@ -7,6 +7,12 @@ module.exports = {
     if (!command) return;
 
     try {
+      const { getConfig } = require('../config');
+      const cfg = await getConfig();
+      if ((cfg.disabled_commands || []).includes(interaction.commandName)) {
+        return interaction.reply({ content: `❌ La commande \`/${interaction.commandName}\` est désactivée.`, ephemeral: true });
+      }
+
       const { getUser, saveUser } = require('./db');
       const { resetDailyStatsIfNeeded } = require('./levels');
       const { generateDailyQuests, updateQuestProgress } = require('./quests');
