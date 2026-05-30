@@ -506,9 +506,12 @@ module.exports = (client) => {
   client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
 
-    const mentionsBot    = message.mentions.has(client.user);
+    // Mention directe uniquement (pas les réponses auto ni @everyone)
+    const directMention  = message.content.includes(`<@${client.user.id}>`);
     const namesMentioned = /\bvtx[-\s]?bot\b/i.test(message.content);
-    if (!mentionsBot && !namesMentioned) return;
+    if (!directMention && !namesMentioned) return;
+    // Ignorer les pings @everyone / @here
+    if (message.mentions.everyone) return;
 
     const isSanzoy     = message.author.id === SANZOY_ID;
     const isVortax     = message.author.id === VORTAX_ID;
