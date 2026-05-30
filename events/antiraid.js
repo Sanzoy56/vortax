@@ -257,7 +257,7 @@ async function onMessageSpam(message) {
 
   if (times.length >= SPAM_CFG.MSG_THRESHOLD) {
     msgLog.delete(authorId);
-    const member = message.guild.members.cache.get(authorId);
+    const member = await message.guild.members.fetch(authorId).catch(() => null);
     if (!member) return;
     const banned = await banMember(member, '[Anti-Raid] Spam détecté');
     if (banned) {
