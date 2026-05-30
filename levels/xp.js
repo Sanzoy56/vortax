@@ -1,5 +1,5 @@
 'use strict';
-const { RANGS, STREAKS_BONUS, BOOSTS_PERMANENTS } = require('./config');
+const { RANGS, BOOSTS_PERMANENTS } = require('./config');
 
 async function getConfig() {
   try {
@@ -18,14 +18,6 @@ function xpPourNiveau(niveau) {
   return 25000 + niveau * 1500;
 }
 
-function getStreakBonus(streak) {
-  let bonus = 0;
-  for (const s of STREAKS_BONUS) {
-    if (streak >= s.jours) bonus = s.bonus;
-  }
-  return bonus;
-}
-
 function getRang(niveau) {
   let rang = null;
   for (const r of RANGS) {
@@ -34,7 +26,7 @@ function getRang(niveau) {
   return rang;
 }
 
-// ── Calcul XP gagné (boosts, malus, streak, perm) ────────────────────────────
+// ── Calcul XP gagné (boosts, malus, perm) ────────────────────────────────────
 
 function calculerXp(base, user, now) {
   let xp = base;
@@ -50,8 +42,6 @@ function calculerXp(base, user, now) {
   } else {
     user.malusActif = null;
   }
-  // streak
-  xp = Math.floor(xp * (1 + getStreakBonus(user.streak)));
   // boost permanent
   const perm = BOOSTS_PERMANENTS.find(b => b.id === user.boostPermanent);
   if (perm) xp = Math.floor(xp * (1 + perm.bonus));
@@ -106,4 +96,4 @@ async function gererNiveauEtRang(user, ancienNiveau, guild, member, userId) {
   }
 }
 
-module.exports = { xpPourNiveau, getStreakBonus, getRang, calculerXp, gererNiveauEtRang };
+module.exports = { xpPourNiveau, getRang, calculerXp, gererNiveauEtRang };

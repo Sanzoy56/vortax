@@ -3,7 +3,6 @@ module.exports = {
   CHANNELS: {
     RANKS:   '1500132032016285797',
     LEVELS:  '1500132108599955647',
-    STREAKS: '1500132131173564586',
     QUETES:  '1500132151381852394',
   },
 
@@ -71,12 +70,6 @@ module.exports = {
     MAX_PER_MSG: 160,
   },
 
-  // ─── Streak ───────────────────────────────────────────────
-  STREAK: {
-    BONUS_PER_DAY: 0.02,
-    MAX_BONUS: 0.5,
-  },
-
   // ─── Rob ──────────────────────────────────────────────────
   ROB: {
     COOLDOWN_MS:    4 * 60 * 60 * 1000,
@@ -117,7 +110,6 @@ module.exports = {
     { id: 'q_coins_2000',label: 'Gagner 2000 VTX-Coins',  type: 'coins',    target: 2000, rewardExp: 1000, rewardCoins: 500 },
     { id: 'q_exp_200',   label: 'Gagner 200 EXP',         type: 'exp',      target: 200,  rewardExp: 0,    rewardCoins: 300 },
     { id: 'q_exp_500',   label: 'Gagner 500 EXP',         type: 'exp',      target: 500,  rewardExp: 0,    rewardCoins: 700 },
-    { id: 'q_streak',    label: 'Maintenir ton streak',   type: 'streak',   target: 1,    rewardExp: 500,  rewardCoins: 250 },
     { id: 'q_cmd_3',     label: 'Utiliser 3 commandes',   type: 'commands', target: 3,    rewardExp: 200,  rewardCoins: 100 },
   ],
 

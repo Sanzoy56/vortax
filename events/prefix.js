@@ -204,7 +204,7 @@ async function cmdTop(msg, args) {
 }
 
 // ── =quetes ──────────────────────────────────────────────────
-const TYPE_CAT = { messages: 'MSG', vocal: 'VOC', coins: 'PRG', exp: 'PRG', streak: 'SPE', commands: 'EVT', bank: 'PRG' };
+const TYPE_CAT = { messages: 'MSG', vocal: 'VOC', coins: 'PRG', exp: 'PRG', commands: 'EVT', bank: 'PRG' };
 async function cmdQuetes(msg) {
   try {
     const { generateDailyQuests } = require('../levels/quests');

@@ -1,7 +1,7 @@
 'use strict';
 const { EXP, COINS } = require('./config');
 const { getUser, saveUser } = require('./db');
-const { addExp, addCoins, resetDailyStatsIfNeeded, updateStreak } = require('./levels');
+const { addExp, addCoins, resetDailyStatsIfNeeded } = require('./levels');
 const { updateQuestProgress, generateDailyQuests } = require('./quests');
 
 const cooldowns = new Map();
@@ -38,7 +38,6 @@ module.exports = {
     saveUser(user);
 
     await updateQuestProgress(guild, userId, 'messages', 1);
-    await updateQuestProgress(guild, userId, 'streak', user.streak);
 
     // Quêtes horaires (morning / night)
     if (hour < 8)        await updateQuestProgress(guild, userId, 'morning', 1); // avant 8h  → Lève-tôt
@@ -59,9 +58,6 @@ module.exports = {
     const baseExp = Math.floor(Math.random() * (expMax - expMin + 1)) + expMin;
     const member  = message.member ?? await message.guild.members.fetch(userId).catch(() => null);
     if (member) await addExp(member, client, baseExp);
-
-    // Streak — appelé ici uniquement (pas dans addExp) pour éviter que la voc XP le déclenche
-    await updateStreak(getUser(userId), member || message.member, client);
 
     // Quête EXP (XP gagné aujourd'hui)
     await updateQuestProgress(guild, userId, 'exp', baseExp);

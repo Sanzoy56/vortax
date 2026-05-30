@@ -216,7 +216,6 @@ async function generateProfile(member, userData) {
 
   const stats = [
     { label: 'VTX-Coins',  value: fmt(userData.wallet || 0),           color: '#f5c842' },
-    { label: 'Streak',     value: (userData.streak || 0) + 'j',        color: '#f97316' },
     { label: 'Boost',      value: userData.boostActif ? 'Actif' : 'Aucun', color: userData.boostActif ? '#22c55e' : '#5a5a7a' },
     { label: 'Permanent',  value: userData.boostPermanent || 'Aucun',  color: '#a855f7' },
     { label: 'Rob',        value: (userData.rob?.lastUsed && Date.now() - userData.rob.lastUsed < 4 * 3600 * 1000) ? 'Cooldown' : 'Dispo',

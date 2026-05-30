@@ -39,12 +39,7 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
   for (const q of user.quests.list) {
     if (q.rewarded || q.type !== type) continue;
 
-    // Pour le streak, la progression = valeur absolue du streak, pas un incrément
-    if (type === 'streak') {
-      q.progress = amount; // amount = user.streak passé directement
-    } else {
-      q.progress = Math.min(q.progress + amount, q.target);
-    }
+    q.progress = Math.min(q.progress + amount, q.target);
 
     if (q.progress >= q.target && !q.completed) {
       q.completed = true;

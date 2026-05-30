@@ -1,4 +1,4 @@
-const { RANKS, EXP, STREAK, COINS, CHANNELS } = require('./config');
+const { RANKS, EXP, COINS, CHANNELS } = require('./config');
 const { getUser, saveUser, today } = require('./db');
 
 // ─── Formule EXP pour passer au level suivant ───────────────
@@ -47,8 +47,7 @@ function getRankForLevel(level) {
 async function addExp(member, client, baseExp, existingUser = null) {
   const user = existingUser || getUser(member.id);
 
-  const streakBonus = Math.min(user.streak * STREAK.BONUS_PER_DAY, STREAK.MAX_BONUS);
-  let multiplier    = 1 + streakBonus;
+  let multiplier = 1;
 
   if (user.inventory.tempBoost?.expBoost && Date.now() < user.inventory.tempBoost.expiresAt) {
     multiplier += user.inventory.tempBoost.expBoost;
@@ -92,60 +91,17 @@ async function addExpAdmin(member, amount) {
   return { oldLevel, newLevel, exp: user.exp };
 }
 
-// ─── Streak ─────────────────────────────────────────────────
-async function updateStreak(user, member, client) {
-  const todayStr = today();
-  if (user.lastMessageDate === todayStr) return;
-
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yStr = yesterday.toISOString().slice(0, 10);
-
-  const hadStreak = !!user.lastMessageDate && user.lastMessageDate !== todayStr;
-
-  if (user.lastMessageDate === yStr) {
-    user.streak++;
-  } else {
-    user.streak = 1;
-  }
-  user.lastMessageDate = todayStr;
-
-  const guild   = member.guild;
-  const channel = guild.channels.cache.get(CHANNELS.STREAKS);
-  if (!channel) return;
-
-  const bonusPercent = Math.round(
-    Math.min(user.streak * STREAK.BONUS_PER_DAY, STREAK.MAX_BONUS) * 100
-  );
-
-  const MILESTONES   = [3, 7, 14, 30, 60, 100, 365];
-  const nextMilestone = MILESTONES.find(m => m > user.streak);
-
-  let msg;
-  if (user.streak === 1) {
-    if (hadStreak) return; // Streak perdu → pas d'annonce, relance silencieuse
-    msg = `🔥 <@${member.id}> a commencé un nouveau streak ! Bonus EXP actuel : **+${bonusPercent}%**`;
-  } else {
-    const milestoneInfo = nextMilestone
-      ? ` · Prochain palier dans **${nextMilestone - user.streak}** jour${nextMilestone - user.streak > 1 ? 's' : ''}`
-      : ' · 🏆 Palier maximum atteint !';
-    msg = `🔥 <@${member.id}> **Streak : ${user.streak} jour${user.streak > 1 ? 's' : ''} !** — Bonus EXP : **+${bonusPercent}%**${milestoneInfo}`;
-  }
-
-  await channel.send(msg);
-}
-
 // ─── Level-up handler ────────────────────────────────────────
 async function handleLevelUp(member, client, oldLevel, newLevel, user) {
-  // Lazy require pour éviter la dépendance circulaire canvas ↔ levels
   const { generateLevelUpCard, generateRankUpCard } = require('./canvas');
   const { AttachmentBuilder } = require('discord.js');
 
-  const guild   = member.guild;
-  const oldRank = getRankForLevel(oldLevel);
-  const newRank = getRankForLevel(newLevel);
+  const isAdminCall = !client; // addExpAdmin passe null pour client
+  const guild       = member.guild;
+  const oldRank     = getRankForLevel(oldLevel);
+  const newRank     = getRankForLevel(newLevel);
 
-  // ── Message de level-up ──────────────────────────────────
+  // ── Salon level-up ───────────────────────────────────────
   const levelChannel = guild.channels.cache.get(CHANNELS.LEVELS);
   if (levelChannel) {
     if (newLevel > oldLevel) {
@@ -155,7 +111,8 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
         content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${oldLevel}** au niveau **${newLevel}** !`,
         files,
       }).catch(() => {});
-    } else {
+    } else if (isAdminCall) {
+      // Uniquement pour les commandes admin qui retirent de l'EXP
       await levelChannel.send({
         content: `<@${member.id}> Tu es redescendu au niveau **${newLevel}**.`,
       }).catch(() => {});
@@ -164,30 +121,46 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
 
   // ── Changement de rang ───────────────────────────────────
   if (newRank?.roleId !== oldRank?.roleId) {
+    // Retire l'ancien rôle seulement si le membre l'a encore
     if (oldRank) {
       const oldRole = guild.roles.cache.get(oldRank.roleId);
-      if (oldRole) await member.roles.remove(oldRole).catch(() => {});
-    }
-    if (newRank) {
-      const newRole = guild.roles.cache.get(newRank.roleId);
-      if (newRole) await member.roles.add(newRole).catch(() => {});
+      if (oldRole && member.roles.cache.has(oldRank.roleId))
+        await member.roles.remove(oldRole).catch(() => {});
     }
 
     const rankChannel = guild.channels.cache.get(CHANNELS.RANKS);
-    if (rankChannel && newRank && (!oldRank || newRank.level > oldRank.level)) {
-      const rankIdx = RANKS.indexOf(newRank);
-      const nextRank = rankIdx >= 0 && rankIdx + 1 < RANKS.length ? RANKS[rankIdx + 1] : null;
 
-      const buf   = await generateRankUpCard(member, newRank, nextRank, newLevel, user).catch(() => null);
-      const files = buf ? [new AttachmentBuilder(buf, { name: 'rankup.png' })] : [];
-      await rankChannel.send({
-        content: `🏆 <@${member.id}> **Toutes nos félicitations !** Tu as passé le rang **${newRank.name}** ! Tu obtiens le rôle **${newRank.name}** !`,
-        files,
-      }).catch(() => {});
-    } else if (rankChannel && oldRank) {
-      await rankChannel.send({
-        content: `<@${member.id}> Tu as perdu le rang **${oldRank.name}**${newRank ? ` et es redescendu en **${newRank.name}**` : ''}.`,
-      }).catch(() => {});
+    if (newRank && newLevel > oldLevel) {
+      // Montée de rang — ajoute le rôle seulement si pas déjà présent
+      const alreadyHas = member.roles.cache.has(newRank.roleId);
+      if (!alreadyHas) {
+        const newRole = guild.roles.cache.get(newRank.roleId);
+        if (newRole) await member.roles.add(newRole).catch(() => {});
+      }
+
+      // N'annonce que si le membre n'avait pas déjà ce rang
+      if (rankChannel && !alreadyHas && (!oldRank || newRank.level > oldRank.level)) {
+        const rankIdx  = RANKS.indexOf(newRank);
+        const nextRank = rankIdx >= 0 && rankIdx + 1 < RANKS.length ? RANKS[rankIdx + 1] : null;
+        const buf      = await generateRankUpCard(member, newRank, nextRank, newLevel, user).catch(() => null);
+        const files    = buf ? [new AttachmentBuilder(buf, { name: 'rankup.png' })] : [];
+        await rankChannel.send({
+          content: `🏆 <@${member.id}> **Toutes nos félicitations !** Tu as passé le rang **${newRank.name}** ! Tu obtiens le rôle **${newRank.name}** !`,
+          files,
+        }).catch(() => {});
+      }
+    } else if (isAdminCall) {
+      // Descente de rang via commande admin uniquement
+      if (newRank) {
+        const newRole = guild.roles.cache.get(newRank.roleId);
+        if (newRole && !member.roles.cache.has(newRank.roleId))
+          await member.roles.add(newRole).catch(() => {});
+      }
+      if (rankChannel && oldRank) {
+        await rankChannel.send({
+          content: `<@${member.id}> Tu as perdu le rang **${oldRank.name}**${newRank ? ` et es redescendu en **${newRank.name}**` : ''}.`,
+        }).catch(() => {});
+      }
     }
   }
 }
@@ -231,6 +204,6 @@ function fmt(n) {
 
 module.exports = {
   expForLevel, totalExpForLevel, levelFromExp, expProgress,
-  getRankForLevel, addExp, addExpAdmin, addCoins, updateStreak,
+  getRankForLevel, addExp, addExpAdmin, addCoins,
   resetDailyStatsIfNeeded, fmt,
 };

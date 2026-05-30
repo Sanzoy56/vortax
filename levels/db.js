@@ -22,7 +22,6 @@ function defaultUser(userId) {
     level:    0,
     wallet:   0,   // argent sur soi
     bank:     0,   // argent en banque
-    streak:   0,
     lastMessageDate: null,  // 'YYYY-MM-DD'
     lastExpGain:     0,     // timestamp ms (cooldown anti-spam)
     rob: {

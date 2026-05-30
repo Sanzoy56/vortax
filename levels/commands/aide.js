@@ -78,14 +78,6 @@ module.exports = {
           ].join('\n'),
         },
         {
-          name: '🔥 Streak',
-          value: [
-            'Parle chaque jour pour maintenir ton streak.',
-            'Chaque jour = **+2% EXP** bonus (max +50%).',
-            'Tu perds ton streak si tu n\'écris pas le lendemain.',
-          ].join('\n'),
-        },
-        {
           name: '🏅 Rangs automatiques',
           value: 'Rôles attribués automatiquement selon ton niveau : Plastique → Carton → Bronze → Fer → Or → Diamant → Émeraude → Rubis → Légendaire → Mythique → **GOAT**',
         },
