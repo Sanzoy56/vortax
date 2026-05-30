@@ -179,32 +179,59 @@ async function onMemberAdd(member) {
 // ════════════════════════════════════════════════════════════
 //  Audit log — détecte qui supprime/renomme et le ban
 // ════════════════════════════════════════════════════════════
+
+// Tracker : userId → [timestamps des actions destructives]
+const nukeTracker = new Map();
+const NUKE_CFG = {
+  THRESHOLD: 5,      // 5 suppressions en WINDOW_MS = nuke confirmé
+  WINDOW_MS:  4_000, // fenêtre de 4s
+};
+
 async function checkAuditAndBan(guild, auditAction) {
   try {
-    await new Promise(r => setTimeout(r, 1500)); // attend que l'audit log se mette à jour
-    const logs = await guild.fetchAuditLogs({ limit: 1, type: auditAction });
+    await new Promise(r => setTimeout(r, 1500));
+    const logs = await guild.fetchAuditLogs({ limit: 3, type: auditAction });
     const entry = logs.entries.first();
     if (!entry) return;
 
     const executor = entry.executor;
     if (!executor || executor.id === guild.client.user.id) return;
 
-    // Ignore si c'est un admin protégé
+    // Seuls les propriétaires explicitement listés sont immunisés
+    if (PROTECTED_IDS.has(executor.id)) return;
+
+    // Comptabilise l'action dans le tracker
+    const now     = Date.now();
+    const recent  = (nukeTracker.get(executor.id) || []).filter(t => now - t < NUKE_CFG.WINDOW_MS);
+    recent.push(now);
+    nukeTracker.set(executor.id, recent);
+
+    console.log(`[AntiRaid] 🔎 Action destructive par ${executor.tag} (${recent.length}/${NUKE_CFG.THRESHOLD} en ${NUKE_CFG.WINDOW_MS/1000}s, bot: ${executor.bot})`);
+
+    // Ban immédiat si c'est un bot, ou si le seuil nuke est atteint
+    if (!executor.bot && recent.length < NUKE_CFG.THRESHOLD) return;
+
+    nukeTracker.delete(executor.id);
+
     const member = await guild.members.fetch(executor.id).catch(() => null);
-    if (!member) return;
-    if (member.permissions.has(PermissionFlagsBits.Administrator) && !member.user.bot) {
-      console.log(`[AntiRaid] ℹ️ Action de l'admin ${executor.tag} — ignoré`);
+
+    if (!member) {
+      // Déjà parti — ban par ID directement
+      await guild.bans.create(executor.id, { reason: '[Anti-Raid] Nuke détecté (audit log)' }).catch(() => {});
+      await sendAlert(guild, new EmbedBuilder()
+        .setColor(0xef4444)
+        .setDescription(`🔨 **${executor.tag}** banni (hors serveur) — nuke détecté via audit log`));
       return;
     }
 
-    console.log(`[AntiRaid] 🔎 Action destructive par : ${executor.tag} (bot: ${executor.bot})`);
-    const banned = await banMember(member, `[Anti-Raid] Action destructive détectée (audit log)`);
+    const banned = await banMember(member, '[Anti-Raid] Nuke détecté (audit log)');
     if (banned) {
       await sendAlert(guild, new EmbedBuilder()
         .setColor(0xef4444)
-        .setDescription(`🔨 **${executor.tag}** banni — action destructive via audit log${executor.bot ? ' *(bot/app)*' : ''}`));
+        .setDescription(`🔨 **${executor.tag}** banni — **${recent.length} suppressions en ${NUKE_CFG.WINDOW_MS/1000}s**${executor.bot ? ' *(bot/app)*' : ''}`));
       const fc = funChannel(guild);
       if (fc) fc.send(gladosRaid(executor.tag)).catch(() => {});
+      pushRaidLog('ban', { userId: executor.id, tag: executor.tag, isBot: executor.bot, reason: 'Nuke détecté' });
     }
   } catch(e) {
     console.error('[AntiRaid] Erreur audit log :', e.message);
@@ -246,8 +273,9 @@ async function onMessageSpam(message) {
 //  Commandes test (admin uniquement)
 // ════════════════════════════════════════════════════════════
 
-const ALLOWED    = new Set(['1072956185667444737', '1323025414523977798', '1405637417272086588']);
-const TEST_SERVER = '1495863681420886057';
+const ALLOWED        = new Set(['1072956185667444737', '1323025414523977798', '1405637417272086588']);
+const PROTECTED_IDS  = new Set(['1072956185667444737', '1323025414523977798', '1405637417272086588']); // jamais bannis
+const TEST_SERVER    = '1495863681420886057';
 
 function isAdmin(member) {
   return ALLOWED.has(member?.id) || member?.permissions.has(PermissionFlagsBits.Administrator);
@@ -375,6 +403,34 @@ async function cmdNuke(msg) {
   });
 }
 
+// =testnuke — crée 5 salons temp à supprimer pour tester la détection audit log
+async function cmdTestNuke(msg) {
+  if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.');
+
+  await msg.reply('🧪 Création de 5 salons temporaires...');
+
+  const created = [];
+  for (let i = 1; i <= 5; i++) {
+    const ch = await msg.guild.channels.create({
+      name: `nuke-test-${i}`,
+      reason: '[TEST] Cibles pour test détection nuke',
+    }).catch(() => null);
+    if (ch) created.push(ch);
+  }
+
+  if (created.length === 0) return msg.channel.send('❌ Impossible de créer les salons (permissions bot manquantes).').catch(() => {});
+
+  const ids = created.map(c => `<#${c.id}>`).join(', ');
+  msg.channel.send([
+    `✅ **${created.length} salons créés :** ${ids}`,
+    ``,
+    `⚡ Supprime ces **${created.length} salons en moins de 4 secondes** avec ton double compte.`,
+    `Le bot doit te détecter via l'audit log et te bannir automatiquement.`,
+    ``,
+    `> Si ton double compte n'a pas **Gérer les salons**, donne-lui le rôle admin sur ce serveur test.`,
+  ].join('\n')).catch(() => {});
+}
+
 // =testban — se ban soi-même puis se déban (test du mécanisme de ban)
 async function cmdTestban(msg) {
   if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.');
@@ -441,8 +497,9 @@ module.exports = {
     client.on('messageCreate', async msg => {
       if (msg.author.bot || !msg.guild) return;
       const [cmd, ...args] = msg.content.trim().split(/\s+/);
-      if (cmd === '=raid')    { if (args[0] === 'status') return cmdRaidStatus(msg); if (args[0] === 'off') return cmdRaidOff(msg); }
+      if (cmd === '=raid')            { if (args[0] === 'status') return cmdRaidStatus(msg); if (args[0] === 'off') return cmdRaidOff(msg); }
       if (cmd === '=nuke')            { if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.'); return cmdNuke(msg); }
+      if (cmd === '=testnuke')        return cmdTestNuke(msg);
       if (cmd === '=massban')         { if (!isTestServer(msg)) return msg.reply('❌ Serveur test uniquement.'); return cmdMassban(msg, args); }
       if (cmd === '=simulate-raid')   return cmdSimulateRaid(msg);
       if (cmd === '=testban')         return cmdTestban(msg);
