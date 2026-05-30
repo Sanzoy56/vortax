@@ -33,6 +33,7 @@ const casino    = require('./events/casino');
 const prefix    = require('./events/prefix');
 const antiraid  = require('./events/antiraid');
 const backup    = require('./events/backup');
+const persos    = require('./events/persos');
 // ── Command handlers manuels ───────────────────────
 const panel = require('./commandes/panel.js');
 const say   = require('./commandes/say.js');
@@ -134,6 +135,7 @@ casino.init(client);
 prefix.init(client);
 antiraid.init(client);
 backup.init(client);
+persos.init(client);
 // ───────────────────────────────────────────────────
 // Levels : écoute des messages
 // ───────────────────────────────────────────────────
