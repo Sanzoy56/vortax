@@ -293,12 +293,12 @@ async function cmdBJ(msg, args) {
 // ════════════════════════════════════════════════════════════
 const SPIN_COST = 2500;
 const SPIN_SYMS = [
-  { e:'🏆', w:1,  m:50,  name:'Jackpot Absolu',  rarity:'LÉGENDAIRE', color:0xf5c842, icon:'👑', desc:'La roue de la fortune sourit aux audacieux' },
-  { e:'💎', w:6,  m:15,  name:'Diamant Brut',     rarity:'TRÈS RARE',  color:0xa855f7, icon:'💜', desc:"Une pierre précieuse d'une valeur inestimable" },
-  { e:'⭐', w:13, m:7,   name:"Lingot d'or",      rarity:'RARE',       color:0x38bdf8, icon:'💙', desc:'Un lingot massif' },
-  { e:'🍒', w:20, m:3.5, name:'Cerise Dorée',     rarity:'PEU COMMUN', color:0x22c55e, icon:'💚', desc:'La chance du débutant' },
-  { e:'🍊', w:27, m:2,   name:'Orange Juteuse',   rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Un gain modeste mais appréciable' },
-  { e:'🍋', w:33, m:1.5, name:'Citron Pressé',    rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Mieux que rien !' },
+  { e:'🏆', w:1,  m:25,  name:'Jackpot Absolu',  rarity:'LÉGENDAIRE', color:0xf5c842, icon:'👑', desc:'La roue de la fortune sourit aux audacieux' },
+  { e:'💎', w:6,  m:8,   name:'Diamant Brut',     rarity:'TRÈS RARE',  color:0xa855f7, icon:'💜', desc:"Une pierre précieuse d'une valeur inestimable" },
+  { e:'⭐', w:13, m:3.5, name:"Lingot d'or",      rarity:'RARE',       color:0x38bdf8, icon:'💙', desc:'Un lingot massif' },
+  { e:'🍒', w:20, m:2,   name:'Cerise Dorée',     rarity:'PEU COMMUN', color:0x22c55e, icon:'💚', desc:'La chance du débutant' },
+  { e:'🍊', w:27, m:1.5, name:'Orange Juteuse',   rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Un gain modeste mais appréciable' },
+  { e:'🍋', w:33, m:1.2, name:'Citron Pressé',    rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Mieux que rien !' },
 ];
 const SPIN_TOT = SPIN_SYMS.reduce((s,x)=>s+x.w,0);
 function spinOne() { let r=Math.random()*SPIN_TOT; for(const s of SPIN_SYMS){r-=s.w;if(r<=0)return s;} return SPIN_SYMS[0]; }
@@ -369,12 +369,12 @@ function spinRow(uid) {
 }
 const LOTS_EMBED = new EmbedBuilder().setColor(0x6366f1).setTitle('🎰 Lots — =spin')
   .setDescription([
-    '🏆 **Jackpot Absolu** — x50 → 125 000 coins 👑 LÉGENDAIRE',
-    '💎 **Diamant Brut** — x15 → 37 500 coins 💜 TRÈS RARE',
-    '⭐ **Lingot d\'or** — x7 → 17 500 coins 💙 RARE',
-    '🍒 **Cerise Dorée** — x3.5 → 8 750 coins 💚 PEU COMMUN',
-    '🍊 **Orange Juteuse** — x2 → 5 000 coins 🩶 COMMUN',
-    '🍋 **Citron Pressé** — x1.5 → 3 750 coins 🩶 COMMUN',
+    '🏆 **Jackpot Absolu** — x25 → 62 500 coins 👑 LÉGENDAIRE',
+    '💎 **Diamant Brut** — x8 → 20 000 coins 💜 TRÈS RARE',
+    '⭐ **Lingot d\'or** — x3.5 → 8 750 coins 💙 RARE',
+    '🍒 **Cerise Dorée** — x2 → 5 000 coins 💚 PEU COMMUN',
+    '🍊 **Orange Juteuse** — x1.5 → 3 750 coins 🩶 COMMUN',
+    '🍋 **Citron Pressé** — x1.2 → 3 000 coins 🩶 COMMUN',
     '', '🎲 **35% de chance de gagner**',
   ].join('\n'));
 
