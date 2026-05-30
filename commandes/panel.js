@@ -180,8 +180,9 @@ module.exports = (client) => {
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isModalSubmit()) return;
         if (!interaction.customId.startsWith('modal_')) return;
-        if (interaction.customId.startsWith('modal_ticket')) return; // géré par ticket.js
-        if (interaction.customId.startsWith('vtmp_modal'))  return; // géré par vocalTemp.js
+        if (interaction.customId.startsWith('modal_ticket'))     return; // géré par ticket.js
+        if (interaction.customId.startsWith('vtmp_modal'))       return; // géré par vocalTemp.js
+        if (interaction.customId.startsWith('modal_suggestion')) return; // géré par suggestion.js
 
         await interaction.deferReply({ flags: 64 });
 

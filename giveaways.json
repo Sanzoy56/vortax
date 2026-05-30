@@ -40,5 +40,14 @@
       "1388557566501584908"
     ],
     "ended": true
+  },
+  "1510230746093191258": {
+    "lot": "1",
+    "winners": 2,
+    "endsAt": 1780141068999,
+    "channelId": "1497326324459769877",
+    "requiredRole": null,
+    "participants": [],
+    "ended": false
   }
 }

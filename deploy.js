@@ -36,6 +36,85 @@ const commands = [
         )
         .toJSON(),
 
+    // ─── ADMIN XP / MONEY ─────────────────────────────────────────
+    new SlashCommandBuilder()
+        .setName('adminexpajouter')
+        .setDescription('[ADMIN] Ajouter de l\'XP à un membre')
+        .setDefaultMemberPermissions(0)
+        .addUserOption(option =>
+            option.setName('membre').setDescription('Le membre ciblé').setRequired(true)
+        )
+        .addIntegerOption(option =>
+            option.setName('somme').setDescription('Quantité d\'XP à ajouter').setMinValue(1).setRequired(true)
+        )
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('adminexpretirer')
+        .setDescription('[ADMIN] Retirer de l\'XP à un membre')
+        .setDefaultMemberPermissions(0)
+        .addUserOption(option =>
+            option.setName('membre').setDescription('Le membre ciblé').setRequired(true)
+        )
+        .addIntegerOption(option =>
+            option.setName('somme').setDescription('Quantité d\'XP à retirer').setMinValue(1).setRequired(true)
+        )
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('adminmoneyajouter')
+        .setDescription('[ADMIN] Ajouter des VTX-Coins à un membre')
+        .setDefaultMemberPermissions(0)
+        .addUserOption(option =>
+            option.setName('membre').setDescription('Le membre ciblé').setRequired(true)
+        )
+        .addIntegerOption(option =>
+            option.setName('somme').setDescription('Quantité de coins à ajouter').setMinValue(1).setRequired(true)
+        )
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('adminmoneyretirer')
+        .setDescription('[ADMIN] Retirer des VTX-Coins à un membre')
+        .setDefaultMemberPermissions(0)
+        .addUserOption(option =>
+            option.setName('membre').setDescription('Le membre ciblé').setRequired(true)
+        )
+        .addIntegerOption(option =>
+            option.setName('somme').setDescription('Quantité de coins à retirer').setMinValue(1).setRequired(true)
+        )
+        .toJSON(),
+
+    // ─── GIVEAWAY ─────────────────────────────────────────────────
+    new SlashCommandBuilder()
+        .setName('giveaway')
+        .setDescription('Lancer un giveaway')
+        .setDefaultMemberPermissions(0)
+        .addStringOption(opt => opt.setName('lot').setDescription('Ce qu\'on gagne').setRequired(true))
+        .addStringOption(opt => opt.setName('durée').setDescription('Durée : 10m, 2h, 1d').setRequired(true))
+        .addIntegerOption(opt => opt.setName('gagnants').setDescription('Nombre de gagnants').setRequired(true).setMinValue(1))
+        .addRoleOption(opt => opt.setName('role').setDescription('Rôle requis (optionnel)').setRequired(false))
+        .toJSON(),
+
+    // ─── Boutique / Inventaire ────────────────────────────────────
+    new SlashCommandBuilder()
+        .setName('boutique')
+        .setDescription('Accéder à la boutique')
+        .addSubcommand(sub => sub.setName('boost').setDescription('Boosts temporaires d\'EXP / Coins'))
+        .addSubcommand(sub => sub.setName('role').setDescription('Boosts permanents via rôle'))
+        .toJSON(),
+
+    new SlashCommandBuilder()
+        .setName('inventaire')
+        .setDescription('Voir et gérer ton inventaire de boosts')
+        .toJSON(),
+
+    // ─── SUGGESTION ───────────────────────────────────────────────
+    new SlashCommandBuilder()
+        .setName('suggestion')
+        .setDescription('Soumettre une suggestion')
+        .toJSON(),
+
     // ─── BOT ──────────────────────────────────────────────────────
     new SlashCommandBuilder()
         .setName('status')

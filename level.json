@@ -1,9 +1,9 @@
 {
   "1323025414523977798": {
     "userId": "1323025414523977798",
-    "exp": 6610,
+    "exp": 6696,
     "level": 0,
-    "wallet": 16379,
+    "wallet": 17203,
     "bank": 864,
     "streak": 1,
     "lastMessageDate": "2026-05-27",
@@ -118,7 +118,7 @@
           "target": 150,
           "rewardExp": 1600,
           "rewardCoins": 6000,
-          "progress": 2,
+          "progress": 4,
           "completed": false,
           "rewarded": false
         },
@@ -131,7 +131,7 @@
           "target": 500,
           "rewardExp": 5000,
           "rewardCoins": 20000,
-          "progress": 2,
+          "progress": 4,
           "completed": false,
           "rewarded": false
         },
@@ -152,10 +152,10 @@
     },
     "dailyStats": {
       "date": "2026-05-30",
-      "messages": 2,
-      "coins": 216,
-      "exp": 115,
-      "commands": 0
+      "messages": 4,
+      "coins": 1040,
+      "exp": 200,
+      "commands": 3
     }
   },
   "1454409472633077784": {

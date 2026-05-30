@@ -1,9 +1,9 @@
 {
   "guildId": "1495863681420886057",
-  "savedAt": "2026-05-30T09:37:07.490Z",
+  "savedAt": "2026-05-30T10:34:12.251Z",
   "channels": [
     {
-      "id": "1510214552166596721",
+      "id": "1510219562065465516",
       "name": "tst",
       "type": 0,
       "parentId": null,
@@ -15,32 +15,8 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1510215415408758794",
+      "id": "1510219563130949802",
       "name": "tst",
-      "type": 0,
-      "parentId": null,
-      "position": 0,
-      "topic": null,
-      "nsfw": false,
-      "userLimit": 0,
-      "bitrate": null,
-      "permissionOverwrites": []
-    },
-    {
-      "id": "1510215416302141591",
-      "name": "tst",
-      "type": 0,
-      "parentId": null,
-      "position": 0,
-      "topic": null,
-      "nsfw": false,
-      "userLimit": 0,
-      "bitrate": null,
-      "permissionOverwrites": []
-    },
-    {
-      "id": "1510215417485066401",
-      "name": "g",
       "type": 0,
       "parentId": null,
       "position": 1,
@@ -51,8 +27,8 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1510215418890158162",
-      "name": "g",
+      "id": "1510219563940319233",
+      "name": "tst",
       "type": 0,
       "parentId": null,
       "position": 2,
@@ -63,11 +39,59 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1510215419850657882",
-      "name": "t",
+      "id": "1510219565207126126",
+      "name": "tst",
       "type": 0,
       "parentId": null,
       "position": 3,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1510219566960214167",
+      "name": "tst",
+      "type": 0,
+      "parentId": null,
+      "position": 4,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1510219568751312896",
+      "name": "g",
+      "type": 0,
+      "parentId": null,
+      "position": 5,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1510219569845768252",
+      "name": "g",
+      "type": 0,
+      "parentId": null,
+      "position": 6,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1510219570802196510",
+      "name": "t",
+      "type": 0,
+      "parentId": null,
+      "position": 7,
       "topic": null,
       "nsfw": false,
       "userLimit": 0,
