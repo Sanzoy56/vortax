@@ -1,9 +1,9 @@
 {
   "guildId": "1495863681420886057",
-  "savedAt": "2026-05-29T22:46:05.764Z",
+  "savedAt": "2026-05-30T00:10:57.150Z",
   "channels": [
     {
-      "id": "1510049866586521710",
+      "id": "1510051855542255717",
       "name": "tst",
       "type": 0,
       "parentId": null,
@@ -15,7 +15,7 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1510049884718239864",
+      "id": "1510051856427126925",
       "name": "g",
       "type": 0,
       "parentId": null,
@@ -27,7 +27,7 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1510049895803785266",
+      "id": "1510051857601531945",
       "name": "g",
       "type": 0,
       "parentId": null,
@@ -39,7 +39,7 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1510049909565554728",
+      "id": "1510051858196992001",
       "name": "t",
       "type": 0,
       "parentId": null,

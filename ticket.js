@@ -422,14 +422,18 @@ Il y a 3 catégories de tickets mis à votre disposition :
     // ========== MODALS ==========
     if (interaction.isModalSubmit()) {
       const { customId, member, guild } = interaction;
+
+      // deferReply immédiat pour les modals ticket (avant getConfig)
+      if (customId === 'modal_ticket_staff' || customId === 'modal_ticket_question' || customId === 'modal_ticket_ia') {
+        try { await interaction.deferReply({ flags: 64 }); } catch { return; }
+      }
+
       const cfg         = await getConfig();
       const staffRoleId = cfg.ticket_staff_role;
       const categorieId = cfg.ticket_category;
 
       // ----- Tickets Staff / Question -----
       if (customId === 'modal_ticket_staff' || customId === 'modal_ticket_question') {
-        try { await interaction.deferReply({ flags: 64 }); } catch { return; }
-
         if (!staffRoleId || !categorieId) {
           return interaction.editReply({ content: '❌ Configuration incomplète (ticket_staff_role ou ticket_category manquant dans le dashboard).' });
         }
@@ -476,9 +480,6 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
       // ----- Ticket IA -----
      if (customId === 'modal_ticket_ia') {
-  try {
-    await interaction.deferReply({ flags: 64 });
-  } catch { return; }
         const raison   = interaction.fields.getTextInputValue('raison');
         const nomSalon = `ia-${member.user.username}`;
 
