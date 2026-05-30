@@ -235,9 +235,9 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
 <:pointblue:1502098251489218653> **Gestion Staff** : Pour rejoindre notre équipe de modération.
 
-<:pointpurple:1502099424854147153> **Question / Signalement** : Pour poser une question ou signaler un membre.
+<:8367pointpurple:1510070003700076605> **Question / Signalement** : Pour poser une question ou signaler un membre.
 
-<:pointred:1502098544163553350> **Assistance IA** : Obtenez une réponse instantanée de notre assistant IA. Le staff sera alerté si nécessaire.
+<:5956pointred:1510069985462980678> **Assistance IA** : Obtenez une réponse instantanée de notre assistant IA. Le staff sera alerté si nécessaire.
 
 <:warningicon:1502097886794616963> Les tickets troll sont interdits et très fortement sanctionnés.`)
         .setColor(0x2B2D31)

@@ -5,11 +5,11 @@ const { getUser, saveUser } = require('../levels/db');
 const PREFIX = '=';
 
 const EM = {
-  coin:    '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>',
-  billet:  '<:fdfc6b7c937741879c66a369a1d2b635:1510005089073369148>',
-  barre:   '<:Capture_d_cran_20260529_213837re:1510004586990145556>',
-  jackpot: '<:jackpot:1510003670388047943>',
-  perdu:   '<:26643crossmark:1509170295921971300>',
+  coin:    '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>',
+  billet:  '<:fdfc6b7c937741879c66a369a1d2b635:1510067175246004234>',
+  barre:   '<:Capture_d_cran_20260529_213837re:1510067261845668011>',
+  jackpot: '<:jackpot:1510067147752214548>',
+  perdu:   '<:26643crossmark:1510067005066055690>',
 };
 
 function fmt(n) {

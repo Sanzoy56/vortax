@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUser, saveUser } = require('../db');
 const { fmt } = require('../levels');
 const { updateQuestProgress } = require('../quests');
-const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>';
+const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
 function re(color, desc) { return { embeds: [new EmbedBuilder().setColor(color).setDescription(desc)] }; }
 
 // ─── /dep ────────────────────────────────────────────────────

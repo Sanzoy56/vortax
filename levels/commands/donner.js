@@ -1,7 +1,7 @@
 'use strict';
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>';
+const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
 function re(color, desc) { return { embeds: [new EmbedBuilder().setColor(color).setDescription(desc)] }; }
 const { getDB, saveDB, getUser, withLock } = require('../db.js');
 

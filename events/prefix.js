@@ -10,8 +10,8 @@ const { fmt }                              = require('../levels/levels');
 const { updateQuestProgress }              = require('../levels/quests');
 const { PROTECTED_USERS, ROB }             = require('../levels/config');
 
-const COIN   = '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>';
-const PERDU  = '<:26643crossmark:1509170295921971300>';
+const COIN   = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
+const PERDU  = '<:26643crossmark:1510067005066055690>';
 const PREFIX = '=';
 
 function re(color, desc) {

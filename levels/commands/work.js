@@ -1,6 +1,6 @@
 'use strict';
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1509174658321223691>';
+const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
 const { getUser, saveUser } = require('../db');
 
 const COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4h
