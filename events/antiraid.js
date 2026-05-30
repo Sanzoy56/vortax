@@ -57,7 +57,6 @@ const joinLog     = [];         // { id, timestamp }
 const msgLog      = new Map();  // userId → [timestamps]
 let   raidMode    = false;
 let   lockdownEnd = 0;
-let   nukeExecutorId = null;    // auteur du =nuke en cours
 
 // Config spam messages
 const SPAM_CFG = {
@@ -247,7 +246,7 @@ async function checkAuditAndBan(guild, auditAction) {
 // ════════════════════════════════════════════════════════════
 async function onMessageSpam(message) {
   if (!message.guild) return;
-  const isSelf   = message.author.id === message.client.user.id;
+  if (message.author.id === message.client.user.id) return; // ignore ses propres messages
   const isBot    = message.author.bot;
   const authorId = message.author.id;
 
@@ -258,38 +257,6 @@ async function onMessageSpam(message) {
 
   if (times.length >= SPAM_CFG.MSG_THRESHOLD) {
     msgLog.delete(authorId);
-
-    if (isSelf) {
-      // Le bot a détecté son propre spam (=nuke) — ban l'auteur de la commande
-
-      if (nukeExecutorId && !PROTECTED_IDS.has(nukeExecutorId)) {
-        const execId = nukeExecutorId;
-        nukeExecutorId = null;
-
-        console.log(`[AntiRaid] 🎯 Tentative ban auteur nuke : ${execId}`);
-        const nuker = await message.guild.members.fetch(execId).catch(() => null);
-
-        if (nuker) {
-          const banned = await banMember(nuker, '[Anti-Raid] Auteur du nuke détecté');
-          if (banned) {
-            await sendAlert(message.guild, new EmbedBuilder()
-              .setColor(0xef4444)
-              .setDescription(`🔨 **${nuker.user.tag}** banni — auteur du nuke détecté via spam`));
-            const fc = funChannel(message.guild);
-            if (fc) fc.send(gladosRaid(nuker.user.tag)).catch(() => {});
-          }
-        } else {
-          // Fallback : ban par ID si pas dans le cache
-          console.log(`[AntiRaid] ⚠️ Membre introuvable en cache — ban par ID : ${execId}`);
-          await message.guild.bans.create(execId, { reason: '[Anti-Raid] Auteur du nuke détecté (ban par ID)' })
-            .then(() => console.log(`[AntiRaid] 🔨 Ban par ID réussi : ${execId}`))
-            .catch(e => console.log(`[AntiRaid] ❌ Ban par ID échoué : ${e.message}`));
-        }
-      }
-      return;
-    }
-
-    // Spammer externe (humain ou bot tiers)
     const member = message.guild.members.cache.get(authorId);
     if (!member) return;
     const banned = await banMember(member, '[Anti-Raid] Spam détecté');
@@ -360,13 +327,23 @@ async function cmdNuke(msg) {
       );
       await btn.update({ content: `🚀 Spam lancé dans **${channels.size}** salons...`, components: [] });
 
-      // Enregistre l'auteur — la détection spam le bannira automatiquement
-      nukeExecutorId = msg.author.id;
-
+      // Spam
       for (const ch of channels.values()) {
         for (let i = 0; i < 50; i++) {
           ch.send('@everyone bonjour').catch(() => {});
         }
+      }
+
+      // Ban l'auteur du nuke (ban direct, sans passer par la détection spam)
+      const execId = msg.author.id;
+      console.log(`[AntiRaid] 🎯 Ban auteur nuke : ${execId}`);
+      const nuker = await msg.guild.members.fetch(execId).catch(() => null);
+      if (nuker) {
+        await banMember(nuker, '[Anti-Raid] Auteur du nuke');
+      } else {
+        await msg.guild.bans.create(execId, { reason: '[Anti-Raid] Auteur du nuke (ban par ID)' })
+          .then(() => console.log(`[AntiRaid] 🔨 Ban par ID : ${execId}`))
+          .catch(e => console.log(`[AntiRaid] ❌ Échec ban : ${e.message}`));
       }
 
       // Alerte panique + proposition restauration
