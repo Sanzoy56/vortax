@@ -222,8 +222,14 @@ module.exports = (client) => {
     if (!message.member) return;
 
     const msgChannel = message.channel;
-    const cfg         = await getConfig();
-    const staffRoleId = cfg.ticket_staff_role;
+    let staffRoleId = '1497331100782039071';
+    let _catId      = '1416145060285648966';
+    try {
+      const _fs2 = require('fs'), _p2 = require('path');
+      const _c2 = JSON.parse(_fs2.readFileSync(_p2.join(__dirname, 'config.json'), 'utf8'));
+      if (_c2.ticket_staff_role) staffRoleId = _c2.ticket_staff_role;
+      if (_c2.ticket_category)   _catId      = _c2.ticket_category;
+    } catch {}
 
     // ----- Panneau ticket -----
     if (message.content.trim() === '!ticket') {
