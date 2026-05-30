@@ -146,36 +146,62 @@ async function cmdTop(msg, args) {
   try {
     const mode = args[0]?.toLowerCase() === 'coins' ? 'coins' : 'exp';
     const { getAllUsers } = require('../levels/db');
-    const db = getAllUsers();
+    const { getRankForLevel, levelFromExp } = require('../levels/levels');
+    const { generateLeaderboard } = require('../levels/canvas');
+
+    const db   = getAllUsers();
     const list = Object.values(db)
-      .sort((a, b) => mode === 'coins' ? ((b.wallet||0)+(b.bank||0)) - ((a.wallet||0)+(a.bank||0)) : (b.exp||0) - (a.exp||0))
+      .sort((a, b) => mode === 'coins'
+        ? ((b.wallet||0)+(b.bank||0)) - ((a.wallet||0)+(a.bank||0))
+        : (b.exp||0) - (a.exp||0))
       .slice(0, 10);
-    const medals = ['🥇','🥈','🥉'];
-    const lines = list.map((u, i) => {
-      const val = mode === 'coins' ? fmt((u.wallet||0)+(u.bank||0)) : fmt(u.exp||0);
-      return `${medals[i]||`**${i+1}.**`} <@${u.userId}> — ${val} ${mode === 'coins' ? COIN : '⭐'}`;
-    });
-    msg.reply({ embeds: [new EmbedBuilder().setColor(0x6366f1)
-      .setTitle(mode === 'coins' ? `💰 Top Coins` : `⭐ Top EXP`)
-      .setDescription(lines.join('\n') || 'Aucune donnée.')] });
-  } catch(e) { console.error('[Prefix] top:', e.message); }
+
+    const entries = await Promise.all(list.map(async u => {
+      const member = await msg.guild.members.fetch(u.userId).catch(() => null);
+      const level  = u.level ?? levelFromExp?.(u.exp||0) ?? 0;
+      const rank   = getRankForLevel(level);
+      const def    = `https://cdn.discordapp.com/embed/avatars/${(Number(BigInt(u.userId) >> 22n) % 6)}.png`;
+      return {
+        avatarURL: member?.user.displayAvatarURL({ extension: 'png', size: 64, forceStatic: true }) || def,
+        username:  member?.user.username || `Joueur ${u.userId.slice(-4)}`,
+        rank:      rank?.name || '—',
+        level,
+        exp:   u.exp   || 0,
+        coins: (u.wallet||0) + (u.bank||0),
+      };
+    }));
+
+    const buffer = await generateLeaderboard(entries, mode);
+    msg.reply({ files: [new AttachmentBuilder(buffer, { name: 'top.png' })] });
+  } catch(e) {
+    console.error('[Prefix] top:', e.message);
+    msg.reply('❌ Erreur lors de la génération du classement.');
+  }
 }
 
 // ── =quetes ──────────────────────────────────────────────────
+const TYPE_CAT = { messages: 'MSG', vocal: 'VOC', coins: 'PRG', exp: 'PRG', streak: 'SPE', commands: 'EVT', bank: 'PRG' };
 async function cmdQuetes(msg) {
   try {
-    const { generateDailyQuests, updateQuestProgress } = require('../levels/quests');
+    const { generateDailyQuests } = require('../levels/quests');
+    const { generateQuests }      = require('../levels/canvas');
+    const member = await msg.guild.members.fetch(msg.author.id).catch(() => null);
+    if (!member) return msg.reply('❌ Membre introuvable.');
     const user = getUser(msg.author.id);
     generateDailyQuests(user);
     saveUser(user);
-    const quests = user.quests?.list || [];
-    if (!quests.length) return msg.reply('Aucune quête disponible pour aujourd\'hui.');
-    const lines = quests.map(q => {
-      const done = q.completed ? '✅' : `${q.progress || 0}/${q.target || '?'}`;
-      return `${done} **${q.label || q.id}**`;
-    });
-    msg.reply({ embeds: [new EmbedBuilder().setColor(0x6366f1).setTitle('🎯 Quêtes journalières').setDescription(lines.join('\n'))] });
-  } catch(e) { console.error('[Prefix] quetes:', e.message); }
+    const quests = (user.quests?.list || []).map(q => ({
+      ...q,
+      cat:  TYPE_CAT[q.type] || 'SPE',
+      desc: `Progression : ${q.progress||0}/${q.target}`,
+    }));
+    if (!quests.length) return msg.reply('Aucune quête pour aujourd\'hui.');
+    const buffer = await generateQuests(member, quests);
+    msg.reply({ files: [new AttachmentBuilder(buffer, { name: 'quetes.png' })] });
+  } catch(e) {
+    console.error('[Prefix] quetes:', e.message);
+    msg.reply('❌ Erreur lors de la génération des quêtes.');
+  }
 }
 
 // ── =aide ────────────────────────────────────────────────────
