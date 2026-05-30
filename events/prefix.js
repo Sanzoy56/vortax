@@ -30,13 +30,14 @@ async function cmdDep(msg, args) {
   const user  = getUser(msg.author.id);
   const input = args[0]?.toLowerCase();
   if (!input) return msg.reply('❌ Usage : `=dep <montant|all>`');
-  const amount = input === 'all' ? user.wallet : parseInt(input);
-  if (isNaN(amount) || amount <= 0) return msg.reply('❌ Montant invalide.');
-  if (amount === 0 || user.wallet === 0) return msg.reply('❌ Tu n\'as rien sur toi.');
+  const isAll  = input === 'all';
+  const amount = isAll ? user.wallet : parseInt(input);
+  if (!isAll && (isNaN(amount) || amount <= 0)) return msg.reply('❌ Montant invalide.');
+  if (user.wallet === 0 || amount === 0) return msg.reply('❌ Tu n\'as rien sur toi.');
   if (amount > user.wallet) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${COIN} sur toi.`);
   user.wallet -= amount; user.bank += amount; saveUser(user);
   await updateQuestProgress(msg.guild, msg.author.id, 'bank', 1).catch(() => {});
-  msg.reply(re(0x6366f1, `🏦 +**${fmt(amount)}** en banque ${COIN} · Portefeuille : **${fmt(user.wallet)}** · Banque : **${fmt(user.bank)}**`));
+  msg.reply(`✅ ${COIN} **${fmt(amount)}** déposé en banque !`);
 }
 
 // ── =with <montant|all> ──────────────────────────────────────
@@ -44,12 +45,13 @@ async function cmdWith(msg, args) {
   const user  = getUser(msg.author.id);
   const input = args[0]?.toLowerCase();
   if (!input) return msg.reply('❌ Usage : `=with <montant|all>`');
-  const amount = input === 'all' ? user.bank : parseInt(input);
-  if (isNaN(amount) || amount <= 0) return msg.reply('❌ Montant invalide.');
-  if (amount === 0 || user.bank === 0) return msg.reply('❌ Tu n\'as rien en banque.');
+  const isAll  = input === 'all';
+  const amount = isAll ? user.bank : parseInt(input);
+  if (!isAll && (isNaN(amount) || amount <= 0)) return msg.reply('❌ Montant invalide.');
+  if (user.bank === 0 || amount === 0) return msg.reply('❌ Tu n\'as rien en banque.');
   if (amount > user.bank) return msg.reply(`❌ Tu n'as que **${fmt(user.bank)}** ${COIN} en banque.`);
   user.bank -= amount; user.wallet += amount; saveUser(user);
-  msg.reply(re(0x6366f1, `💸 +**${fmt(amount)}** sur toi ${COIN} · Portefeuille : **${fmt(user.wallet)}** · Banque : **${fmt(user.bank)}**`));
+  msg.reply(`✅ ${COIN} **${fmt(amount)}** retiré de la banque !`);
 }
 
 // ── =bal [@mention] ──────────────────────────────────────────
