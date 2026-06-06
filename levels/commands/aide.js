@@ -43,6 +43,18 @@ module.exports = {
             '`/boutique boost` — Acheter des boosts temporaires (XP / Coins)',
             '`/boutique role` — Acheter des boosts permanents',
             '`/inventaire` — Gérer et équiper tes boosts',
+            '`/boutique-persos` — Acheter des personnages (visible par tous)',
+          ].join('\n'),
+        },
+        {
+          name: '⚔️ Personnages & Pouvoirs',
+          value: [
+            '`=persos` — Liste tous les personnages disponibles par tier',
+            '`=attaques <nom>` — Voir les techniques d\'un personnage',
+            '`=shop` — Boutique des personnages (prefix)',
+            '`=acheter <nom>` — Acheter un personnage avec ton wallet',
+            '`=equiper <nom>` — Équiper un personnage possédé',
+            '`=cd` — Voir les cooldowns de tes personnages équipés',
           ].join('\n'),
         },
         {
@@ -88,6 +100,8 @@ module.exports = {
             '`/adminexpretirer <@membre> <xp>` — Retirer de l\'XP',
             '`/adminmoneyajouter <@membre> <coins>` — Ajouter des coins',
             '`/adminmoneyretirer <@membre> <coins>` — Retirer des coins',
+            '`=admindonnerperso <@membre> <perso>` — Donner un personnage à un membre',
+            '`=createroles` — Créer les rôles de personnages en masse',
           ].join('\n'),
         }] : []),
       )

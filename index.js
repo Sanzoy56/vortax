@@ -172,7 +172,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.isStringSelectMenu()) {
-      if (interaction.customId === 'bperso_select')
+      if (interaction.customId.startsWith('bperso_select'))
         return client.commands.get('boutique-persos')?.handleSelect(interaction);
       return;
     }

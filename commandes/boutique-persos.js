@@ -30,13 +30,13 @@ function buildShopEmbed(ownedKeys = []) {
     .setFooter({ text: 'Sélectionne un personnage dans le menu pour l\'acheter' });
 }
 
-function buildSelectMenu(ownedKeys = []) {
+function buildSelectMenu(ownedKeys = [], userId) {
   const available = Object.entries(PERSOS).filter(([k]) => !ownedKeys.includes(k));
   if (!available.length) return null;
 
   return new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
-      .setCustomId('bperso_select')
+      .setCustomId(`bperso_select_${userId}`)
       .setPlaceholder('Sélectionne un personnage à acheter…')
       .addOptions(
         available.map(([key, p]) =>
@@ -60,17 +60,22 @@ module.exports = {
     const user     = getUser(interaction.user.id);
     const charData = getCharData(user);
     const embed    = buildShopEmbed(charData.owned);
-    const row      = buildSelectMenu(charData.owned);
+    const row      = buildSelectMenu(charData.owned, interaction.user.id);
 
     await interaction.reply({
       embeds: [embed],
       components: row ? [row] : [],
-      flags: 64,
     });
   },
 
   // ─── Select menu : confirmation d'achat ────────────────────
   async handleSelect(interaction) {
+    const parts    = interaction.customId.split('_'); // ['bperso','select',userId]
+    const ownerId  = parts[2];
+
+    if (interaction.user.id !== ownerId)
+      return interaction.reply({ content: '❌ Ce n\'est pas ta boutique !', flags: 64 });
+
     const key   = interaction.values[0];
     const perso = PERSOS[key];
     if (!perso) return;
@@ -82,20 +87,20 @@ module.exports = {
       .setColor(TIER_COLORS[perso.tier])
       .setTitle(`${perso.emoji} ${perso.name}`)
       .addFields(
-        { name: 'Anime',  value: perso.anime,                inline: true },
-        { name: 'Tier',   value: `Tier ${perso.tier}`,       inline: true },
-        { name: 'Prix',   value: `🪙 ${fmtCoins(price)}`,    inline: true },
+        { name: 'Anime',  value: perso.anime,             inline: true },
+        { name: 'Tier',   value: `Tier ${perso.tier}`,    inline: true },
+        { name: 'Prix',   value: `🪙 ${fmtCoins(price)}`, inline: true },
       )
       .setDescription(`Confirmes-tu l'achat de **${perso.name}** ?`)
       .setFooter({ text: `Ton solde : ${fmtCoins(user.wallet)} coins` });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`bperso_buy_${key}`)
+        .setCustomId(`bperso_buy_${key}_${ownerId}`)
         .setLabel('Acheter')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
-        .setCustomId('bperso_back')
+        .setCustomId(`bperso_back_${ownerId}`)
         .setLabel('Retour')
         .setStyle(ButtonStyle.Secondary),
     );
@@ -105,20 +110,25 @@ module.exports = {
 
   // ─── Boutons : achat / retour ───────────────────────────────
   async handleButton(interaction) {
-    const id = interaction.customId;
+    const id      = interaction.customId;
+    const ownerId = id.split('_').at(-1);
+
+    if (interaction.user.id !== ownerId)
+      return interaction.reply({ content: '❌ Ce n\'est pas ta boutique !', flags: 64 });
 
     // Retour à la boutique
-    if (id === 'bperso_back') {
+    if (id.startsWith('bperso_back_')) {
       const user     = getUser(interaction.user.id);
       const charData = getCharData(user);
       const embed    = buildShopEmbed(charData.owned);
-      const row      = buildSelectMenu(charData.owned);
+      const row      = buildSelectMenu(charData.owned, ownerId);
       return interaction.update({ embeds: [embed], components: row ? [row] : [] });
     }
 
-    // Achat confirmé
+    // Achat confirmé — format : bperso_buy_<key>_<userId>
     if (id.startsWith('bperso_buy_')) {
-      const key   = id.slice('bperso_buy_'.length);
+      // key = tout ce qui est entre 'bperso_buy_' et '_<userId>'
+      const key = id.slice('bperso_buy_'.length, id.lastIndexOf('_'));
       const perso = PERSOS[key];
       if (!perso) return;
 
