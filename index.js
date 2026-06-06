@@ -163,10 +163,17 @@ client.on('interactionCreate', async (interaction) => {
       if (id.startsWith('perm_achat_') || id.startsWith('perm_confirm_') || id === 'perm_annuler') {
         return client.commands.get('boutique-roles')?.handleButton(interaction);
       }
+      if (id.startsWith('bperso_')) return client.commands.get('boutique-persos')?.handleButton(interaction);
 
       const levelsCmd = client.commands.get(interaction.message?.interaction?.commandName);
       if (levelsCmd?.handleButton) return levelsCmd.handleButton(interaction);
 
+      return;
+    }
+
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === 'bperso_select')
+        return client.commands.get('boutique-persos')?.handleSelect(interaction);
       return;
     }
 

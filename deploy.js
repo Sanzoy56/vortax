@@ -96,6 +96,12 @@ const commands = [
         .addRoleOption(opt => opt.setName('role').setDescription('Rôle requis (optionnel)').setRequired(false))
         .toJSON(),
 
+    // ─── Boutique personnages ─────────────────────────────────────
+    new SlashCommandBuilder()
+        .setName('boutique-persos')
+        .setDescription('Achète des personnages pour débloquer des pouvoirs spéciaux')
+        .toJSON(),
+
     // ─── Boutique / Inventaire ────────────────────────────────────
     new SlashCommandBuilder()
         .setName('boutique')

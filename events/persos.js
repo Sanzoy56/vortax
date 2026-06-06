@@ -327,6 +327,9 @@ function buildShopEmbed(ownedKeys = []) {
 }
 
 module.exports = {
+  // Exports partagés pour la slash command /boutique-persos
+  PERSOS, ALIASES, TIER_COLORS, TIER_LABELS, SHOP_PRICES, fmtCoins, getCharData,
+
   init(client) {
     client.on('messageCreate', async msg => {
       if (msg.author.bot || !msg.guild) return;
