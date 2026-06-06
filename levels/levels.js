@@ -1,6 +1,11 @@
 const { RANKS, EXP, COINS, CHANNELS } = require('./config');
 const { getUser, saveUser, today } = require('./db');
 
+// Verrou en mémoire : empêche deux handleLevelUp simultanés pour le même userId+niveau
+// TTL 90s (> intervalle VoiceXP de 60s, < temps entre deux level-ups légitimes)
+const _levelupLock = new Map(); // "userId:newLevel" → timestamp
+const LOCK_TTL_MS  = 90_000;
+
 // ─── Formule EXP pour passer au level suivant ───────────────
 function expForLevel(level) {
   return 100 + level * 50;
@@ -105,9 +110,24 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
   const isAdminCall = !client;
 
   if (!isAdminCall) {
+    const lockKey = `${member.id}:${newLevel}`;
+    const now     = Date.now();
+
+    // Verrou mémoire : bloque si un handleLevelUp pour ce niveau tourne déjà (ou vient de tourner)
+    const lockedAt = _levelupLock.get(lockKey);
+    if (lockedAt && now - lockedAt < LOCK_TTL_MS) {
+      console.log(`[LevelUp] DOUBLON BLOQUÉ (verrou mémoire) — userId=${member.id} niveau=${newLevel} il y a ${now - lockedAt}ms`);
+      return;
+    }
+    _levelupLock.set(lockKey, now);
+
     // Check + mark atomique (pas d'await entre les deux = jamais interrompu en JS)
     const fresh = getUser(member.id);
-    if ((fresh.lastAnnouncedLevel || 0) >= newLevel) return;
+    if ((fresh.lastAnnouncedLevel || 0) >= newLevel) {
+      console.log(`[LevelUp] DOUBLON BLOQUÉ (lastAnnouncedLevel=${fresh.lastAnnouncedLevel} >= ${newLevel}) — userId=${member.id}`);
+      _levelupLock.delete(lockKey);
+      return;
+    }
     fresh.lastAnnouncedLevel = newLevel;
     saveUser(fresh);
   } else if (newLevel > oldLevel) {
@@ -124,12 +144,21 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
   const levelChannel = guild.channels.cache.get(CHANNELS.LEVELS);
   if (levelChannel) {
     if (newLevel > oldLevel) {
-      const buf   = await generateLevelUpCard(member, oldLevel, newLevel, user).catch(() => null);
-      const files = buf ? [new AttachmentBuilder(buf, { name: 'levelup.png' })] : [];
-      await levelChannel.send({
-        content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${oldLevel}** au niveau **${newLevel}** !`,
-        files,
-      }).catch(() => {});
+      const buf = await generateLevelUpCard(member, oldLevel, newLevel, user).catch(() => null);
+
+      // Après le await (canvas async), vérifier que cette annonce n'est pas déjà dépassée
+      // (ex : VoiceXP 14→15 + message 15→16 simultanés : le canvas 15→16 finit en premier,
+      //  quand 14→15 finit on voit que lastAnnouncedLevel=16 > 15 → on skip)
+      const stale = getUser(member.id);
+      if (!isAdminCall && (stale.lastAnnouncedLevel || 0) > newLevel) {
+        console.log(`[LevelUp] SKIP annonce ${oldLevel}→${newLevel} (dépassé par niveau ${stale.lastAnnouncedLevel})`);
+      } else {
+        const files = buf ? [new AttachmentBuilder(buf, { name: 'levelup.png' })] : [];
+        await levelChannel.send({
+          content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${oldLevel}** au niveau **${newLevel}** !`,
+          files,
+        }).catch(() => {});
+      }
     } else if (isAdminCall) {
       // Uniquement pour les commandes admin qui retirent de l'EXP
       await levelChannel.send({

@@ -101,7 +101,8 @@ module.exports = {
             '`/adminmoneyajouter <@membre> <coins>` — Ajouter des coins',
             '`/adminmoneyretirer <@membre> <coins>` — Retirer des coins',
             '`=admindonnerperso <@membre> <perso>` — Donner un personnage à un membre',
-            '`=createroles` — Créer les rôles de personnages en masse',
+            '`=adminretirerperso <@membre> <perso>` — Retirer un personnage à un membre',
+            '`=adminlisterpersos <@membre>` — Voir les personnages d\'un membre',
           ].join('\n'),
         }] : []),
       )

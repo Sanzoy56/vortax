@@ -432,7 +432,7 @@ module.exports = {
 
         const query = args.slice(1).join(' ').toLowerCase().trim();
         const key   = ALIASES[query];
-        if (!key) return msg.reply('❌ Personnage inconnu.');
+        if (!key) return msg.reply('❌ Personnage inconnu. Utilise `=persos` pour voir la liste.');
 
         const user     = getUser(target.id);
         const charData = getCharData(user);
@@ -451,6 +451,62 @@ module.exports = {
         ]});
       }
 
+      // =adminretirerperso @user <perso> — admin only
+      if (name === 'adminretirerperso') {
+        if (!msg.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+
+        const target = msg.mentions.members.first();
+        if (!target) return msg.reply('❌ Mentionne un utilisateur. Ex : `=adminretirerperso @user zoro`');
+
+        const query = args.slice(1).join(' ').toLowerCase().trim();
+        const key   = ALIASES[query];
+        if (!key) return msg.reply('❌ Personnage inconnu.');
+
+        const user     = getUser(target.id);
+        const charData = getCharData(user);
+
+        if (!charData.owned.includes(key))
+          return msg.reply(`❌ **${target.displayName}** ne possède pas **${PERSOS[key].name}**.`);
+
+        charData.owned = charData.owned.filter(k => k !== key);
+        if (charData.equipped === key) charData.equipped = null;
+        saveUser(user);
+
+        const perso = PERSOS[key];
+        return msg.reply({ embeds: [new EmbedBuilder()
+          .setColor(0xff4444)
+          .setTitle('🗑️ Personnage retiré')
+          .setDescription(`**${perso.emoji} ${perso.name}** a été retiré de l'inventaire de **${target.displayName}**.`)
+        ]});
+      }
+
+      // =adminlisterpersos @user — admin only
+      if (name === 'adminlisterpersos') {
+        if (!msg.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+
+        const target = msg.mentions.members.first();
+        if (!target) return msg.reply('❌ Mentionne un utilisateur. Ex : `=adminlisterpersos @user`');
+
+        const user     = getUser(target.id);
+        const charData = getCharData(user);
+
+        if (!charData.owned.length)
+          return msg.reply(`❌ **${target.displayName}** ne possède aucun personnage.`);
+
+        const lines = charData.owned.map(k => {
+          const p = PERSOS[k];
+          if (!p) return `❓ ${k}`;
+          const equipped = charData.equipped === k ? ' · ⚔️ Équipé' : '';
+          return `${p.emoji} **${p.name}** [Tier ${p.tier}]${equipped}`;
+        });
+
+        return msg.reply({ embeds: [new EmbedBuilder()
+          .setColor(0x6366f1)
+          .setTitle(`📋 Personnages de ${target.displayName}`)
+          .setDescription(lines.join('\n'))
+        ]});
+      }
+
       // =attaques <nom>
       if (name === 'attaques') {
         const query = args.join(' ').toLowerCase().trim();
@@ -466,6 +522,6 @@ module.exports = {
       }
     });
 
-    console.log('[Persos] ✅ =persos · =attaques · =cd · =equiper · =shop · =acheter · =admindonnerperso');
+    console.log('[Persos] ✅ =persos · =attaques · =cd · =equiper · =shop · =acheter · =admindonnerperso · =adminretirerperso · =adminlisterpersos');
   },
 };
