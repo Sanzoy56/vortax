@@ -3,6 +3,7 @@ const { EXP, COINS } = require('./config');
 const { getUser, saveUser } = require('./db');
 const { addExp, addCoins, resetDailyStatsIfNeeded } = require('./levels');
 const { updateQuestProgress, generateDailyQuests } = require('./quests');
+const B = require('./buffs');
 
 const cooldowns = new Map();
 
@@ -45,6 +46,21 @@ module.exports = {
     if (hour >= 23)      await updateQuestProgress(guild, userId, 'night',   1); // après 23h → Noctambule
     if (hour === 0)      await updateQuestProgress(guild, userId, 'night',   1); // minuit    → Nuit blanche
 
+    // ── Effets de salon actifs (GUILD_FX) ──────────────────
+    const chanId = message.channelId;
+
+    // =lastred : KO 1 min quiconque parle dans le salon (sauf l'activateur)
+    const lred = B.getGFX(guild.id, 'lastred');
+    if (lred && lred.channel === chanId && lred.userId !== userId) {
+      const victim = getUser(userId);
+      if (!B.isKOd(victim) && !B.isImmune(victim)) {
+        B.setBuff(victim, 'ko', { exp: now + 60_000, from: lred.userId });
+        saveUser(victim);
+        message.react('💀').catch(() => {});
+        return; // bloque aussi les gains
+      }
+    }
+
     // Anti-spam cooldown
     const prog     = await getProgConfig();
     const cooldown = prog.msg_cooldown ?? EXP.COOLDOWN_MS;
@@ -62,13 +78,24 @@ module.exports = {
     // Quête EXP (XP gagné aujourd'hui)
     await updateQuestProgress(guild, userId, 'exp', baseExp);
 
-    // Coins
+    // ── Coins : territoire / bluemax interceptent les gains ─
     const coinsMin  = prog.msg_coins_min ?? COINS.MIN_PER_MSG;
     const coinsMax  = prog.msg_coins_max ?? COINS.MAX_PER_MSG;
     const baseCoins = Math.floor(Math.random() * (coinsMax - coinsMin + 1)) + coinsMin;
-    const gained    = addCoins(userId, baseCoins);
 
-    // CORRIGÉ : 'coins_earned' pour les coins gagnés par messages (pas 'coins')
-    await updateQuestProgress(guild, userId, 'coins_earned', gained);
+    const terr = B.getGFX(guild.id, 'territoire');
+    const bmax = B.getGFX(guild.id, 'bluemax');
+    const interceptor = (terr && terr.channel === chanId && terr.userId !== userId) ? terr
+                      : (bmax && bmax.channel === chanId && bmax.userId !== userId) ? bmax
+                      : null;
+
+    let gained;
+    if (interceptor) {
+      // Les coins vont à l'activateur, pas au sender
+      gained = addCoins(interceptor.userId, baseCoins);
+    } else {
+      gained = addCoins(userId, baseCoins);
+      await updateQuestProgress(guild, userId, 'coins_earned', gained);
+    }
   },
 };

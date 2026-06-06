@@ -140,6 +140,7 @@ async function cmdRob(msg) {
   victim.wallet -= stolen; robber.wallet += stolen;
   saveUser(robber); saveUser(victim);
   msg.reply(re(0x22c55e, `${ROB.EMOJI_SUCCESS} Tu as volé ${ROB.EMOJI_COIN} **${fmt(stolen)}** à **${target.username}** !`));
+  updateQuestProgress(msg.guild, msg.author.id, 'rob', 1).catch(() => {});
 }
 
 // ── =work ────────────────────────────────────────────────────

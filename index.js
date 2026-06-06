@@ -144,6 +144,14 @@ client.on('messageCreate', async (message) => {
   await levelMessage.execute(message, client);
 });
 
+// ── Réactions → quête 'reactions' ──────────────────────────
+client.on('messageReactionAdd', async (reaction, user) => {
+  if (user.bot) return;
+  if (!reaction.message.guild) return;
+  const { updateQuestProgress } = require('./levels/quests');
+  updateQuestProgress(reaction.message.guild, user.id, 'reactions', 1).catch(() => {});
+});
+
 // ───────────────────────────────────────────────────
 // Slash commands centralisées
 // ───────────────────────────────────────────────────

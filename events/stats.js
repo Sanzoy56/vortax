@@ -6,9 +6,13 @@
 
 const fs   = require("fs");
 const path = require("path");
+const { RANKS } = require("../levels/config");
 
 const DASHBOARD_URL = "https://vtx-bot.alwaysdata.net/api/stats/push";
 const PUSH_SECRET   = "vtx-stats-secret-2024"; // même valeur dans le dashboard
+
+let _client  = null;
+let _guildId = null;
 
 // ── Sessions vocales en cours (mémoire) ──
 const voiceSessions = new Map();
@@ -131,10 +135,29 @@ async function applyPendingResets() {
     if (!fs.existsSync(dbPath)) return;
     const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
 
+    const guild = _client && _guildId ? _client.guilds.cache.get(_guildId) : null;
+
     let changed = false;
     for (const [userId, flags] of Object.entries(pending)) {
       if (!db[userId]) continue;
-      if (flags.xp)    { db[userId].exp = 0; db[userId].level = 0; db[userId].lastAnnouncedLevel = 0; changed = true; }
+      if (flags.xp) {
+        db[userId].exp = 0;
+        db[userId].level = 0;
+        db[userId].lastAnnouncedLevel = 0;
+        changed = true;
+
+        // Retirer tous les rôles de rang
+        if (guild) {
+          const member = await guild.members.fetch(userId).catch(() => null);
+          if (member) {
+            for (const rank of RANKS) {
+              const role = guild.roles.cache.get(rank.roleId);
+              if (role && member.roles.cache.has(rank.roleId))
+                await member.roles.remove(role).catch(() => {});
+            }
+          }
+        }
+      }
       if (flags.coins) { db[userId].wallet = 0; db[userId].bank = 0; changed = true; }
     }
 
@@ -181,16 +204,18 @@ async function syncFromLevelDB(guildId) {
 // ════════════════════════════════════════════════════════════
 module.exports = {
   init(client) {
+    _client  = client;
+    _guildId = process.env.GUILD_ID;
+
     client.on("voiceStateUpdate", onVoiceStateUpdate);
     client.on("messageCreate", onMessageCreate);
 
-    const guildId = process.env.GUILD_ID;
-    if (!guildId) {
+    if (!_guildId) {
       console.warn("[Stats] ⚠️ GUILD_ID manquant dans .env");
     } else {
-      syncFromLevelDB(guildId);
+      syncFromLevelDB(_guildId);
       applyPendingResets();
-      setInterval(() => { syncFromLevelDB(guildId); applyPendingResets(); }, 5 * 60 * 1000);
+      setInterval(() => { syncFromLevelDB(_guildId); applyPendingResets(); }, 5 * 60 * 1000);
     }
 
     console.log("[Stats] ✅ Tracker chargé.");

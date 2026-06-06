@@ -41,11 +41,14 @@ function startVoicexp(client) {
         const coinsMin = prog.voc_coins_min ?? VOCAL_DEFAULTS.MIN_COINS;
         const coinsMax = prog.voc_coins_max ?? VOCAL_DEFAULTS.MAX_COINS;
 
+        const { updateQuestProgress } = require('./quests');
+
         for (const member of actifs) {
           const baseExp   = Math.floor(Math.random() * (expMax   - expMin   + 1) + expMin);
           const baseCoins = Math.floor(Math.random() * (coinsMax - coinsMin + 1) + coinsMin);
           await addExp(member, client, baseExp).catch(() => {});
           addCoins(member.id, baseCoins);
+          await updateQuestProgress(guild, member.id, 'vocal_min', 1).catch(() => {});
         }
       }
     }

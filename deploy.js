@@ -147,6 +147,13 @@ const commands = [
         .setDescription('Soumettre une suggestion')
         .toJSON(),
 
+    // ─── ADMIN SYNC ───────────────────────────────────────────
+    new SlashCommandBuilder()
+        .setName('syncranks')
+        .setDescription('[ADMIN] Synchronise les rôles de rang de tous les membres avec leur XP actuelle')
+        .setDefaultMemberPermissions(0)
+        .toJSON(),
+
     // ─── BOT ──────────────────────────────────────────────────────
     new SlashCommandBuilder()
         .setName('status')

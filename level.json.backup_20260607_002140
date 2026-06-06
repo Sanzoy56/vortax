@@ -1,7 +1,7 @@
 {
   "1323025414523977798": {
     "userId": "1323025414523977798",
-    "exp": 0,
+    "exp": 6696,
     "level": 0,
     "wallet": 17203,
     "bank": 864,
@@ -154,14 +154,13 @@
       "date": "2026-05-30",
       "messages": 4,
       "coins": 1040,
-      "exp": 0,
+      "exp": 200,
       "commands": 3
-    },
-    "lastAnnouncedLevel": 0
+    }
   },
   "1454409472633077784": {
     "userId": "1454409472633077784",
-    "exp": 0,
+    "exp": 802,
     "level": 0,
     "wallet": 1957,
     "bank": 0,
@@ -314,14 +313,13 @@
       "date": "2026-05-15",
       "messages": 16,
       "coins": 158,
-      "exp": 0,
+      "exp": 302,
       "commands": 0
-    },
-    "lastAnnouncedLevel": 0
+    }
   },
   "1405637417272086588": {
     "userId": "1405637417272086588",
-    "exp": 0,
+    "exp": 2859,
     "level": 0,
     "wallet": 10534,
     "bank": 0,
@@ -474,14 +472,13 @@
       "date": "2026-05-27",
       "messages": 13,
       "coins": 6185,
-      "exp": 0,
+      "exp": 2052,
       "commands": 0
-    },
-    "lastAnnouncedLevel": 0
+    }
   },
   "1053403548425134170": {
     "userId": "1053403548425134170",
-    "exp": 0,
+    "exp": 32,
     "level": 0,
     "wallet": 725,
     "bank": 0,
@@ -634,14 +631,13 @@
       "date": "2026-05-30",
       "messages": 1,
       "coins": 524,
-      "exp": 0,
+      "exp": 32,
       "commands": 0
-    },
-    "lastAnnouncedLevel": 0
+    }
   },
   "1495864702457217271": {
     "userId": "1495864702457217271",
-    "exp": 0,
+    "exp": 1000,
     "level": 0,
     "wallet": 0,
     "bank": 0,
@@ -665,12 +661,11 @@
       "coins": 0,
       "exp": 0,
       "commands": 0
-    },
-    "lastAnnouncedLevel": 0
+    }
   },
   "1474039465822519468": {
     "userId": "1474039465822519468",
-    "exp": 0,
+    "exp": 24,
     "level": 0,
     "wallet": 10,
     "bank": 0,
@@ -823,14 +818,13 @@
       "date": "2026-05-27",
       "messages": 1,
       "coins": 10,
-      "exp": 0,
+      "exp": 24,
       "commands": 0
-    },
-    "lastAnnouncedLevel": 0
+    }
   },
   "1340969234959831040": {
     "userId": "1340969234959831040",
-    "exp": 0,
+    "exp": 50,
     "level": 0,
     "wallet": 117,
     "bank": 0,
@@ -983,14 +977,13 @@
       "date": "2026-05-27",
       "messages": 1,
       "coins": 117,
-      "exp": 0,
+      "exp": 50,
       "commands": 0
-    },
-    "lastAnnouncedLevel": 0
+    }
   },
   "1449141464411148399": {
     "userId": "1449141464411148399",
-    "exp": 0,
+    "exp": 1403,
     "level": 0,
     "wallet": 4433,
     "bank": 0,
@@ -1012,14 +1005,13 @@
       "date": "2026-05-27",
       "messages": 0,
       "coins": 4433,
-      "exp": 0,
+      "exp": 1403,
       "commands": 0
-    },
-    "lastAnnouncedLevel": 0
+    }
   },
   "1072956185667444737": {
     "userId": "1072956185667444737",
-    "exp": 0,
+    "exp": 626,
     "level": 0,
     "wallet": 4123,
     "bank": 0,
@@ -1172,9 +1164,8 @@
       "date": "2026-05-30",
       "messages": 6,
       "coins": 2916,
-      "exp": 0,
+      "exp": 290,
       "commands": 0
-    },
-    "lastAnnouncedLevel": 0
+    }
   }
 }

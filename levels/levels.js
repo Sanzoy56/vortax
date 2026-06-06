@@ -160,6 +160,10 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
           content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${oldLevel}** au niveau **${newLevel}** !`,
           files,
         }).catch(() => {});
+        if (!isAdminCall) {
+          const { updateQuestProgress } = require('./quests');
+          updateQuestProgress(guild, member.id, 'levelup', 1).catch(() => {});
+        }
       }
     } else if (isAdminCall) {
       // Uniquement pour les commandes admin qui retirent de l'EXP
@@ -170,25 +174,21 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
   }
 
   // ── Changement de rang ───────────────────────────────────
-  if (newRank?.roleId !== oldRank?.roleId) {
-    // Retire l'ancien rôle seulement si le membre l'a encore
+  const rankChannel = guild.channels.cache.get(CHANNELS.RANKS);
+
+  if (newLevel > oldLevel && newRank?.roleId !== oldRank?.roleId) {
+    // ── Montée de rang ────────────────────────────────────
     if (oldRank) {
       const oldRole = guild.roles.cache.get(oldRank.roleId);
       if (oldRole && member.roles.cache.has(oldRank.roleId))
         await member.roles.remove(oldRole).catch(() => {});
     }
-
-    const rankChannel = guild.channels.cache.get(CHANNELS.RANKS);
-
-    if (newRank && newLevel > oldLevel) {
-      // Montée de rang — ajoute le rôle seulement si pas déjà présent
+    if (newRank) {
       const alreadyHas = member.roles.cache.has(newRank.roleId);
       if (!alreadyHas) {
         const newRole = guild.roles.cache.get(newRank.roleId);
         if (newRole) await member.roles.add(newRole).catch(() => {});
       }
-
-      // N'annonce que si le membre n'avait pas déjà ce rang
       if (rankChannel && !alreadyHas && (!oldRank || newRank.level > oldRank.level)) {
         const rankIdx  = RANKS.indexOf(newRank);
         const nextRank = rankIdx >= 0 && rankIdx + 1 < RANKS.length ? RANKS[rankIdx + 1] : null;
@@ -199,18 +199,25 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
           files,
         }).catch(() => {});
       }
-    } else if (isAdminCall) {
-      // Descente de rang via commande admin uniquement
-      if (newRank) {
-        const newRole = guild.roles.cache.get(newRank.roleId);
-        if (newRole && !member.roles.cache.has(newRank.roleId))
-          await member.roles.add(newRole).catch(() => {});
+    }
+  } else if (isAdminCall && newLevel < oldLevel) {
+    // ── Descente de rang — retire TOUS les rangs au-dessus du niveau actuel ──
+    for (const rank of RANKS) {
+      if (!newRank || rank.level > newRank.level) {
+        const role = guild.roles.cache.get(rank.roleId);
+        if (role && member.roles.cache.has(rank.roleId))
+          await member.roles.remove(role).catch(() => {});
       }
-      if (rankChannel && oldRank) {
-        await rankChannel.send({
-          content: `<@${member.id}> Tu as perdu le rang **${oldRank.name}**${newRank ? ` et es redescendu en **${newRank.name}**` : ''}.`,
-        }).catch(() => {});
-      }
+    }
+    if (newRank) {
+      const newRole = guild.roles.cache.get(newRank.roleId);
+      if (newRole && !member.roles.cache.has(newRank.roleId))
+        await member.roles.add(newRole).catch(() => {});
+    }
+    if (rankChannel && oldRank) {
+      await rankChannel.send({
+        content: `<@${member.id}> Tu as perdu le rang **${oldRank.name}**${newRank ? ` et es redescendu en **${newRank.name}**` : ''}.`,
+      }).catch(() => {});
     }
   }
 }

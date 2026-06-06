@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butt
 const { getUser, saveUser } = require('../db');
 const { TEMP_BOOSTS, ROLE_BOOSTS } = require('../config');
 const { fmt } = require('../levels');
+const { updateQuestProgress } = require('../quests');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -72,6 +73,7 @@ module.exports = {
         saveUser(u);
 
         await btn.reply({ content: `✅ **${boost.label}** acheté et ajouté à ton inventaire !`, ephemeral: true });
+        updateQuestProgress(btn.guild, btn.user.id, 'spend', boost.price).catch(() => {});
       });
 
     } else if (sub === 'role') {

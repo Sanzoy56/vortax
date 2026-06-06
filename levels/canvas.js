@@ -181,7 +181,7 @@ async function generateProfile(member, userData) {
   ctx.font = '13px ' + FONT;
   ctx.fillText('#' + member.user.discriminator || '', TX, 62);
 
-  const rank = getRankForLevel(userData.level ?? level);
+  const rank = getRankForLevel(level);
   if (rank) {
     const rW = ctx.measureText(rank.name).width + 28;
     roundRect(ctx, TX, 70, rW, 22, 11);
