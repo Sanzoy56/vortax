@@ -1,6 +1,7 @@
 'use strict';
 const { QUEST_POOL } = require('./ConfigQuests');
 const { getUser, saveUser, today } = require('./db');
+const { levelFromExp, handleLevelUp } = require('./levels');
 
 async function getConfig() {
   try {
@@ -36,6 +37,8 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
   const user = getUser(userId);
   generateDailyQuests(user);
 
+  const levelBefore = levelFromExp(user.exp);
+
   for (const q of user.quests.list) {
     if (q.rewarded || q.type !== type) continue;
 
@@ -61,7 +64,18 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
     }
   }
 
+  const levelAfter = levelFromExp(user.exp);
   saveUser(user);
+
+  // Si une récompense de quête fait changer de niveau, déclencher l'annonce
+  if (levelAfter > levelBefore && guild) {
+    try {
+      const member = await guild.members.fetch(userId);
+      await handleLevelUp(member, guild.client, levelBefore, levelAfter, user);
+    } catch (e) {
+      console.error('[Quests] Erreur handleLevelUp après récompense :', e.message);
+    }
+  }
 }
 
 module.exports = { generateDailyQuests, updateQuestProgress };

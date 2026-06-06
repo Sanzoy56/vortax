@@ -87,11 +87,10 @@ async function addExpAdmin(member, amount) {
   if (user.exp < 0) user.exp = 0;
   const newLevel = levelFromExp(user.exp);
 
-  // Si le niveau baisse, on réinitialise lastAnnouncedLevel pour permettre
-  // les re-annonces quand le membre regagnera ces niveaux naturellement
-  if (newLevel < oldLevel) {
-    user.lastAnnouncedLevel = newLevel;
-  }
+  // On ne touche JAMAIS lastAnnouncedLevel à la baisse via admin :
+  // si quelqu'un perd de l'XP il ne doit pas revoir les annonces des niveaux
+  // qu'il a déjà passés. lastAnnouncedLevel reste au max atteint.
+  // (seul un reset panel remet à 0)
 
   saveUser(user);
 
@@ -252,6 +251,6 @@ function fmt(n) {
 
 module.exports = {
   expForLevel, totalExpForLevel, levelFromExp, expProgress,
-  getRankForLevel, addExp, addExpAdmin, addCoins,
+  getRankForLevel, addExp, addExpAdmin, addCoins, handleLevelUp,
   resetDailyStatsIfNeeded, fmt,
 };

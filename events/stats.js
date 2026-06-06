@@ -134,7 +134,7 @@ async function applyPendingResets() {
     let changed = false;
     for (const [userId, flags] of Object.entries(pending)) {
       if (!db[userId]) continue;
-      if (flags.xp)    { db[userId].exp = 0; db[userId].level = 0; changed = true; }
+      if (flags.xp)    { db[userId].exp = 0; db[userId].level = 0; db[userId].lastAnnouncedLevel = 0; changed = true; }
       if (flags.coins) { db[userId].wallet = 0; db[userId].bank = 0; changed = true; }
     }
 
