@@ -1,5 +1,6 @@
 'use strict';
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { getUser, saveUser } = require('../levels/db');
 
 const PREFIX = '=';
 
@@ -152,8 +153,23 @@ const PERSOS = {
     ],
   },
 
+  killua: {
+    name: 'Killua Zoldyck', anime: 'Hunter x Hunter', tier: 'C', emoji: '⚡', role: '@Killua Zoldyck',
+    techniques: [
+      { name: '⚡ Lightning Palm',       cmd: '=lightningpalm @user',  desc: 'Rob x1.2 · CD : 3h' },
+      { name: '🔪 Narukami',            cmd: '=narukami @user',       desc: 'Aspire 5k–15k du wallet de la cible · CD : 8h' },
+      { name: '💨 Rhythm Echo',         cmd: '=rhythmecho',           desc: 'Esquive la prochaine attaque reçue + renvoie 15% à l\'attaquant · CD : 12h' },
+      { name: '🌑 Stealth Mode',        cmd: '=stealthmode @user',    desc: 'Rob x1.3 sans notification à la cible · CD : 1j' },
+      { name: '⚡ Thunderbolt',         cmd: '=thunderbolt @user',    desc: 'Rob x1.5 + stun 5 min · CD : 2j' },
+      { name: '🗡️ Yo-Yo',              cmd: '=yoyo @user',           desc: 'Brise le bouclier basique de la cible · CD : 2j' },
+      { name: '🛡️ Pin Shield',         cmd: '=pinshield',            desc: 'Bouclier 6h + counter-rob actif (voleur perd 8%) · CD : 4j' },
+      { name: '💀 Silent Kill',         cmd: '=silentkill @user',     desc: 'Rob x1.8 + brise bouclier basique + sans notification · CD : 5j' },
+      { name: '⚡ Godspeed',            cmd: '=godspeed',             desc: 'Rob x2.5 usage unique + esquive la prochaine attaque · CD : 8j' },
+    ],
+  },
+
   light: {
-    name: 'Light Yagami', anime: 'Death Note', tier: 'C', emoji: '📓', role: '@Light Yagami',
+    name: 'Light Yagami', anime: 'Death Note', tier: 'A', emoji: '📓', role: '@Light Yagami',
     techniques: [
       { name: '👁️ Shinigami Eyes',    cmd: '=shinigami @user',  desc: 'Révèle le wallet + banque exact de la cible (visible que par toi) · CD : 12h' },
       { name: '💸 Hidden Agenda',     cmd: '=agenda @user',     desc: 'Vole 3k directement, sans rob classique · CD : 12h' },
@@ -179,6 +195,7 @@ const ALIASES = {
   luffy: 'luffy', 'monkey d. luffy': 'luffy', 'monkey d luffy': 'luffy',
   zoro: 'zoro', roronoa: 'zoro',
   levi: 'levi', 'levi ackerman': 'levi',
+  killua: 'killua', 'killua zoldyck': 'killua',
   light: 'light', 'light yagami': 'light', kira: 'light',
 };
 
@@ -230,6 +247,85 @@ function buildListEmbed() {
     .setFooter({ text: 'Utilise =attaques <nom> pour voir les techniques d\'un personnage' });
 }
 
+// ─── Helpers données personnages ────────────────────────────
+function getCharData(user) {
+  if (!user.characters) user.characters = { owned: [], equipped: null, cooldowns: {}, activeEffects: {} };
+  if (!user.characters.owned)        user.characters.owned        = [];
+  if (!user.characters.cooldowns)    user.characters.cooldowns    = {};
+  if (!user.characters.activeEffects)user.characters.activeEffects= {};
+  return user.characters;
+}
+
+function formatRemaining(ms) {
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}j ${h}h`;
+  if (h > 0) return `${h}h ${m}min`;
+  return `${Math.max(1, m)}min`;
+}
+
+function buildCdEmbeds(ownedKeys, charData) {
+  const now = Date.now();
+  return ownedKeys.map(key => {
+    const perso = PERSOS[key];
+    if (!perso) return null;
+
+    const lines = perso.techniques.map(t => {
+      const cmdKey = t.cmd.replace('=', '').split(' ')[0];
+      const activeTs = charData.activeEffects?.[cmdKey];
+      const cdTs     = charData.cooldowns?.[cmdKey];
+
+      let status;
+      if (activeTs && activeTs > now)
+        status = `🟢 **ACTIF** — ${formatRemaining(activeTs - now)}`;
+      else if (cdTs && cdTs > now)
+        status = `⏳ CD — ${formatRemaining(cdTs - now)}`;
+      else
+        status = '✅ Dispo';
+
+      return `${t.name} · ${status}`;
+    });
+
+    const isEquipped = charData.equipped === key;
+    return new EmbedBuilder()
+      .setColor(TIER_COLORS[perso.tier])
+      .setTitle(`${perso.emoji} ${perso.name}${isEquipped ? ' · ⚔️ Équipé' : ''}`)
+      .setDescription(lines.join('\n'))
+      .setFooter({ text: `Tier ${perso.tier} — ${perso.anime}` });
+  }).filter(Boolean);
+}
+
+// ─── Boutique ────────────────────────────────────────────────
+const SHOP_PRICES = { S: 5_000_000, A: 2_000_000, B: 800_000, C: 450_000 };
+
+function fmtCoins(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000)     return Math.round(n / 1_000) + 'K';
+  return n.toString();
+}
+
+function buildShopEmbed(ownedKeys = []) {
+  const tiers = { S: [], A: [], B: [], C: [] };
+  for (const [key, p] of Object.entries(PERSOS)) tiers[p.tier].push({ key, ...p });
+
+  const fields = Object.entries(tiers).map(([tier, list]) => ({
+    name: TIER_LABELS[tier],
+    value: list.map(p => {
+      const owned = ownedKeys.includes(p.key);
+      return `${p.emoji} **${p.name}** — ${owned ? '✅ Possédé' : `🪙 ${fmtCoins(SHOP_PRICES[tier])}`}`;
+    }).join('\n'),
+    inline: false,
+  }));
+
+  return new EmbedBuilder()
+    .setColor(0x6366f1)
+    .setTitle('🛒 Boutique — Personnages')
+    .addFields(fields)
+    .setFooter({ text: 'Utilise =acheter <nom> pour acheter un personnage' });
+}
+
 module.exports = {
   init(client) {
     client.on('messageCreate', async msg => {
@@ -243,6 +339,113 @@ module.exports = {
       // =persos — liste
       if (name === 'persos') {
         return msg.reply({ embeds: [buildListEmbed()] });
+      }
+
+      // =shop — boutique des personnages
+      if (name === 'shop') {
+        const user     = getUser(msg.author.id);
+        const charData = getCharData(user);
+        return msg.reply({ embeds: [buildShopEmbed(charData.owned)] });
+      }
+
+      // =acheter <perso>
+      if (name === 'acheter') {
+        const query = args.join(' ').toLowerCase().trim();
+        if (!query) return msg.reply('❌ Utilise : `=acheter <nom du personnage>`');
+
+        const key = ALIASES[query];
+        if (!key) return msg.reply('❌ Personnage inconnu. Utilise `=shop` pour voir la liste.');
+
+        const user     = getUser(msg.author.id);
+        const charData = getCharData(user);
+
+        if (charData.owned.includes(key))
+          return msg.reply(`❌ Tu possèdes déjà **${PERSOS[key].name}**.`);
+
+        const perso = PERSOS[key];
+        const price = SHOP_PRICES[perso.tier];
+
+        if (user.wallet < price)
+          return msg.reply({ embeds: [new EmbedBuilder()
+            .setColor(0xff4444)
+            .setDescription(`❌ Tu n'as pas assez d'argent.\n🪙 Prix : **${fmtCoins(price)}** · Ton wallet : **${fmtCoins(user.wallet)}**`)
+          ]});
+
+        user.wallet -= price;
+        charData.owned.push(key);
+        saveUser(user);
+
+        return msg.reply({ embeds: [new EmbedBuilder()
+          .setColor(TIER_COLORS[perso.tier])
+          .setTitle('✅ Achat confirmé !')
+          .setDescription(`Tu as acheté **${perso.emoji} ${perso.name}** pour **${fmtCoins(price)}** 🪙\nUtilise \`=equiper ${query}\` pour l'équiper.`)
+          .setFooter({ text: `Solde restant : ${fmtCoins(user.wallet)} coins` })
+        ]});
+      }
+
+      // =cd — cooldowns de tous tes persos
+      if (name === 'cd') {
+        const user     = getUser(msg.author.id);
+        const charData = getCharData(user);
+
+        if (!charData.owned.length)
+          return msg.reply('❌ Tu ne possèdes aucun personnage. Obtiens-en via les boîtes mystérieuses ou la boutique.');
+
+        const embeds = buildCdEmbeds(charData.owned, charData);
+        return msg.reply({ embeds });
+      }
+
+      // =equiper <perso>
+      if (name === 'equiper') {
+        const query = args.join(' ').toLowerCase().trim();
+        if (!query) return msg.reply('❌ Utilise : `=equiper <nom du personnage>`');
+
+        const key = ALIASES[query];
+        if (!key) return msg.reply('❌ Personnage inconnu. Utilise `=persos` pour voir la liste.');
+
+        const user     = getUser(msg.author.id);
+        const charData = getCharData(user);
+
+        if (!charData.owned.includes(key))
+          return msg.reply(`❌ Tu ne possèdes pas **${PERSOS[key].name}**.`);
+
+        charData.equipped = key;
+        saveUser(user);
+
+        const perso = PERSOS[key];
+        return msg.reply({ embeds: [new EmbedBuilder()
+          .setColor(TIER_COLORS[perso.tier])
+          .setTitle('⚔️ Personnage équipé')
+          .setDescription(`Tu as équipé **${perso.emoji} ${perso.name}** !`)
+        ]});
+      }
+
+      // =admindonnerperso @user <perso> — admin only
+      if (name === 'admindonnerperso') {
+        if (!msg.member.permissions.has(PermissionFlagsBits.Administrator)) return;
+
+        const target = msg.mentions.members.first();
+        if (!target) return msg.reply('❌ Mentionne un utilisateur. Ex : `=admindonnerperso @user zoro`');
+
+        const query = args.slice(1).join(' ').toLowerCase().trim();
+        const key   = ALIASES[query];
+        if (!key) return msg.reply('❌ Personnage inconnu.');
+
+        const user     = getUser(target.id);
+        const charData = getCharData(user);
+
+        if (charData.owned.includes(key))
+          return msg.reply(`❌ **${target.displayName}** possède déjà **${PERSOS[key].name}**.`);
+
+        charData.owned.push(key);
+        saveUser(user);
+
+        const perso = PERSOS[key];
+        return msg.reply({ embeds: [new EmbedBuilder()
+          .setColor(TIER_COLORS[perso.tier])
+          .setTitle('✅ Personnage donné')
+          .setDescription(`**${perso.emoji} ${perso.name}** a été ajouté à l'inventaire de **${target.displayName}** !`)
+        ]});
       }
 
       // =attaques <nom>
@@ -260,6 +463,6 @@ module.exports = {
       }
     });
 
-    console.log('[Persos] ✅ =attaques <nom> · =persos');
+    console.log('[Persos] ✅ =persos · =attaques · =cd · =equiper · =shop · =acheter · =admindonnerperso');
   },
 };
