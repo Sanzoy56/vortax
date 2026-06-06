@@ -39,35 +39,39 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
 
   const levelBefore = levelFromExp(user.exp);
 
+  // ── Phase SYNC : calculer les complétions, modifier user ──────────────
+  const completed = [];
   for (const q of user.quests.list) {
     if (q.rewarded || q.type !== type) continue;
-
     q.progress = Math.min(q.progress + amount, q.target);
-
     if (q.progress >= q.target && !q.completed) {
       q.completed = true;
       q.rewarded  = true;
-
       user.exp    += q.rewardExp   || 0;
       user.wallet += q.rewardCoins || 0;
-
-      if (guild) {
-        const cfg = await getConfig()
-        const channel = guild.channels.cache.get(cfg.quetes);
-        if (channel) {
-          const parts = [];
-          if (q.rewardExp)   parts.push(`+${q.rewardExp} EXP`);
-          if (q.rewardCoins) parts.push(`+${q.rewardCoins} VTX-Coins`);
-          await channel.send(`🎯 <@${userId}> a terminé la quête **${q.label}** ! ${parts.join(' • ')} 🎁`);
-        }
-      }
+      completed.push(q);
     }
   }
 
   const levelAfter = levelFromExp(user.exp);
+
+  // SAUVEGARDE AVANT tout await — évite d'écraser des données écrites entre-temps
   saveUser(user);
 
-  // Si une récompense de quête fait changer de niveau, déclencher l'annonce
+  // ── Phase ASYNC : notifier (après la sauvegarde) ──────────────────────
+  if (completed.length && guild) {
+    const cfg = await getConfig();
+    const channel = guild.channels.cache.get(cfg.quetes);
+    if (channel) {
+      for (const q of completed) {
+        const parts = [];
+        if (q.rewardExp)   parts.push(`+${q.rewardExp} EXP`);
+        if (q.rewardCoins) parts.push(`+${q.rewardCoins} VTX-Coins`);
+        await channel.send(`🎯 <@${userId}> a terminé la quête **${q.label}** ! ${parts.join(' • ')} 🎁`);
+      }
+    }
+  }
+
   if (levelAfter > levelBefore && guild) {
     try {
       const member = await guild.members.fetch(userId);
