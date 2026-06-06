@@ -1,7 +1,31 @@
 const { Events, EmbedBuilder, AuditLogEvent } = require('discord.js');
 const { getConfig } = require('../config')
 
+// Cache local : stocke les messages récents pour les retrouver en cas de suppression
+// même s'ils ne sont plus dans le cache Discord.js (redémarrage, eviction)
+const MSG_CACHE = new Map(); // messageId → { content, authorId, authorTag, authorAvatar, channelId, createdAt }
+const MSG_CACHE_MAX = 2000;
+
 module.exports = (client) => {
+
+    // ========== MISE EN CACHE DES MESSAGES ==========
+    client.on(Events.MessageCreate, (message) => {
+        if (!message.guild) return;
+        MSG_CACHE.set(message.id, {
+            content:      message.content || null,
+            authorId:     message.author?.id,
+            authorTag:    message.author?.tag,
+            authorAvatar: message.author?.displayAvatarURL({ dynamic: true, size: 128 }) ?? null,
+            channelId:    message.channelId,
+            createdAt:    message.createdAt,
+            embeds:       message.embeds.length > 0,
+            attachments:  message.attachments.size > 0,
+        });
+        // Limiter la taille du cache : supprimer la plus ancienne entrée
+        if (MSG_CACHE.size > MSG_CACHE_MAX) {
+            MSG_CACHE.delete(MSG_CACHE.keys().next().value);
+        }
+    });
 
     // ========== MESSAGE MODIFIÉ ==========
     client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
