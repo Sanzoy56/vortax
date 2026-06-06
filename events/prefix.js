@@ -243,8 +243,9 @@ async function cmdAide(msg) {
       { name: '🎯 Quêtes', value: '`=quetes` — Quêtes journalières' },
       { name: '💰 Économie', value: '`=bal [@membre]` — Solde\n`=dep <montant|all>` — Déposer\n`=with <montant|all>` — Retirer\n`=donner @membre <montant>` — Donner\n`=rob @membre` — Voler\n`=work` — Travailler (4h)' },
       { name: '🎰 Casino', value: '`=bj <mise>` — Blackjack\n`=spin` — Machine à sous\n`=slots` — Slots\n`=pf <mise> <pile|face>` — Pile ou face\n`=dice <mise> [1-6]` — Dé\n`=roulette <mise> <rouge|noir|vert>` — Roulette\n`=cup <mise> <1|2|3>` — Gobelets\n`=pfc <mise> <pierre|feuille|ciseaux>` — PFC\n`=rr <mise>` — Roulette russe' },
+      { name: '⚔️ Personnages', value: '`=persos` — Liste des persos · `=attaques <nom>` — Techniques\n`=shop` — Boutique · `=acheter <nom>` — Acheter · `=equiper <nom>` — Équiper\n`=cd` — Cooldowns · `/boutique-persos` — Boutique slash (public)' },
       ...(isStaff ? [{ name: '🎫 Tickets (staff)', value: '`-delete` — Transcript + supprimer\n`vtxbot [action]` — IA modération' }] : []),
-      ...(isAdmin ? [{ name: '🛡️ Admin', value: '/adminexpajouter /adminexpretirer\n/adminmoneyajouter /adminmoneyretirer' }] : []),
+      ...(isAdmin ? [{ name: '🛡️ Admin', value: '`/adminexpajouter` `/adminexpretirer` `/adminmoneyajouter` `/adminmoneyretirer`\n`/adminpersos add @m <perso>` — Donner un perso\n`/adminpersos remove @m <perso>` — Retirer un perso\n`/adminpersos list @m` — Lister les persos\n`/adminpersos resetcd @m [perso]` — Reset cooldowns\n`=admindonnerperso @m <perso>` · `=adminretirerperso @m <perso>` · `=adminlisterpersos @m`' }] : []),
     )
     .setFooter({ text: 'Boosts : /boutique · Inventaire : /inventaire · Quêtes : =quetes' });
   msg.reply({ embeds: [embed] });

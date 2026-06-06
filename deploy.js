@@ -102,6 +102,32 @@ const commands = [
         .setDescription('Achète des personnages pour débloquer des pouvoirs spéciaux')
         .toJSON(),
 
+    // ─── Admin personnages ────────────────────────────────────────
+    (() => {
+        const { PERSOS } = require('./events/persos');
+        const choices = Object.entries(PERSOS).map(([key, p]) => ({ name: `${p.name} (Tier ${p.tier})`, value: key }));
+        return new SlashCommandBuilder()
+            .setName('adminpersos')
+            .setDescription('[ADMIN] Gérer les personnages des membres')
+            .setDefaultMemberPermissions(0)
+            .addSubcommand(sub => sub.setName('add').setDescription('Donner un personnage à un membre')
+                .addUserOption(o => o.setName('membre').setDescription('Membre ciblé').setRequired(true))
+                .addStringOption(o => o.setName('perso').setDescription('Personnage').setRequired(true).addChoices(...choices))
+            )
+            .addSubcommand(sub => sub.setName('remove').setDescription('Retirer un personnage à un membre')
+                .addUserOption(o => o.setName('membre').setDescription('Membre ciblé').setRequired(true))
+                .addStringOption(o => o.setName('perso').setDescription('Personnage').setRequired(true).addChoices(...choices))
+            )
+            .addSubcommand(sub => sub.setName('list').setDescription('Voir les personnages d\'un membre')
+                .addUserOption(o => o.setName('membre').setDescription('Membre ciblé').setRequired(true))
+            )
+            .addSubcommand(sub => sub.setName('resetcd').setDescription('Réinitialiser les cooldowns d\'un membre')
+                .addUserOption(o => o.setName('membre').setDescription('Membre ciblé').setRequired(true))
+                .addStringOption(o => o.setName('perso').setDescription('Perso spécifique (vide = tous)').setRequired(false).addChoices(...choices))
+            )
+            .toJSON();
+    })(),
+
     // ─── Boutique / Inventaire ────────────────────────────────────
     new SlashCommandBuilder()
         .setName('boutique')

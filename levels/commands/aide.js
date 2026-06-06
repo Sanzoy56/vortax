@@ -100,9 +100,10 @@ module.exports = {
             '`/adminexpretirer <@membre> <xp>` — Retirer de l\'XP',
             '`/adminmoneyajouter <@membre> <coins>` — Ajouter des coins',
             '`/adminmoneyretirer <@membre> <coins>` — Retirer des coins',
-            '`=admindonnerperso <@membre> <perso>` — Donner un personnage à un membre',
-            '`=adminretirerperso <@membre> <perso>` — Retirer un personnage à un membre',
-            '`=adminlisterpersos <@membre>` — Voir les personnages d\'un membre',
+            '`/adminpersos add <@membre> <perso>` — Donner un personnage',
+            '`/adminpersos remove <@membre> <perso>` — Retirer un personnage',
+            '`/adminpersos list <@membre>` — Voir les personnages d\'un membre',
+            '`/adminpersos resetcd <@membre> [perso]` — Reset cooldowns (1 perso ou tous)',
           ].join('\n'),
         }] : []),
       )
