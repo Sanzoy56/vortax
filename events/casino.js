@@ -414,6 +414,13 @@ module.exports = {
       const cfg = await getConfig();
       if ((cfg.disabled_commands || []).includes(name))
         return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ La commande \`=${name}\` est désactivée.`)] });
+      // Casino ban (Violet / Death Note / Tableflip)
+      const { isCasinoBanned, fmtT } = require('../levels/buffs');
+      const cu = getUser(msg.author.id);
+      if (isCasinoBanned(cu)) {
+        const rem = fmtT(cu.buffs.casinoBan.exp);
+        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`🎰 Tu es banni(e) du casino pendant encore **${rem}** !`)] });
+      }
       try { await handler(msg, args); } catch(e) { console.error('[Casino]', e.message); }
     });
 

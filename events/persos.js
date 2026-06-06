@@ -267,35 +267,57 @@ function formatRemaining(ms) {
   return `${Math.max(1, m)}min`;
 }
 
-function buildCdEmbeds(ownedKeys, charData) {
+function buildCdEmbed(member, ownedKeys, charData) {
   const now = Date.now();
-  return ownedKeys.map(key => {
+  let anyCooldown = false;
+
+  // Couleur de cercle par tier
+  const TIER_CIRCLE = { S: '🟡', A: '🟠', B: '🔵', C: '🟢' };
+
+  const embed = new EmbedBuilder()
+    .setColor(0x2b2d31)
+    .setFooter({ text: '✅ Disponible · ⏳ En cooldown · Seuls les pouvoirs possédés sont affichés · Aujourd\'hui à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) })
+    .setAuthor({ name: `🎮 Cooldowns — ${member.displayName}`, iconURL: member.displayAvatarURL({ size: 64 }) });
+
+  for (const key of ownedKeys) {
     const perso = PERSOS[key];
-    if (!perso) return null;
+    if (!perso) continue;
 
     const lines = perso.techniques.map(t => {
       const cmdKey = t.cmd.replace('=', '').split(' ')[0];
-      const activeTs = charData.activeEffects?.[cmdKey];
-      const cdTs     = charData.cooldowns?.[cmdKey];
+      const cdTs   = charData.cooldowns?.[cmdKey];
 
-      let status;
-      if (activeTs && activeTs > now)
-        status = `🟢 **ACTIF** — ${formatRemaining(activeTs - now)}`;
-      else if (cdTs && cdTs > now)
-        status = `⏳ CD — ${formatRemaining(cdTs - now)}`;
-      else
-        status = '✅ Dispo';
-
-      return `${t.name} · ${status}`;
+      if (cdTs && cdTs > now) {
+        anyCooldown = true;
+        return `⏳ ${t.name} — **${formatRemaining(cdTs - now)}**`;
+      }
+      return `✅ ${t.name} — Disponible`;
     });
 
     const isEquipped = charData.equipped === key;
-    return new EmbedBuilder()
-      .setColor(TIER_COLORS[perso.tier])
-      .setTitle(`${perso.emoji} ${perso.name}${isEquipped ? ' · ⚔️ Équipé' : ''}`)
-      .setDescription(lines.join('\n'))
-      .setFooter({ text: `Tier ${perso.tier} — ${perso.anime}` });
-  }).filter(Boolean);
+    const circle = TIER_CIRCLE[perso.tier] || '⚪';
+    const fieldName = `${circle} ${perso.name}${isEquipped ? ' ⚔️' : ''}`;
+
+    // Discord field value limit = 1024 chars ; chunk si nécessaire
+    const fullValue = lines.join('\n');
+    if (fullValue.length <= 1024) {
+      embed.addFields({ name: fieldName, value: fullValue, inline: false });
+    } else {
+      const half = Math.ceil(lines.length / 2);
+      embed.addFields(
+        { name: fieldName,        value: lines.slice(0, half).join('\n'), inline: true },
+        { name: '​',         value: lines.slice(half).join('\n'),    inline: true },
+      );
+    }
+  }
+
+  embed.setDescription(
+    anyCooldown
+      ? `🔴 Certaines techniques de **${member.displayName}** sont encore en recharge\n> `
+      : `🟢 Toutes les techniques de **${member.displayName}** sont disponibles\n> `
+  );
+
+  return embed;
 }
 
 // ─── Boutique ────────────────────────────────────────────────
@@ -1610,8 +1632,8 @@ module.exports = {
         if (!charData.owned.length)
           return msg.reply('❌ Tu ne possèdes aucun personnage. Obtiens-en via les boîtes mystérieuses ou la boutique.');
 
-        const embeds = buildCdEmbeds(charData.owned, charData);
-        return msg.reply({ embeds });
+        const embed = buildCdEmbed(msg.member, charData.owned, charData);
+        return msg.reply({ embeds: [embed] });
       }
 
       // =equiper <perso>
@@ -1736,6 +1758,35 @@ module.exports = {
         const embeds = buildEmbeds(PERSOS[key]);
         return msg.reply({ embeds });
       }
+
+      // ── Dispatch attaques personnages ──────────────────────
+      const persoOwner = ATTACK_MAP[name];
+      if (!persoOwner) return;
+
+      const attUser = getUser(msg.author.id);
+
+      // KO check
+      if (B.isKOd(attUser)) {
+        const rem = B.fmtT(attUser.buffs.ko.exp);
+        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Tu es KO pendant encore **${rem}** !`)] });
+      }
+
+      const attChar = getCharData(attUser);
+
+      // Possession + équipement
+      if (!attChar.owned.includes(persoOwner))
+        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Tu ne possèdes pas **${PERSOS[persoOwner].name}**.`)] });
+      if (attChar.equipped !== persoOwner)
+        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Tu dois équiper **${PERSOS[persoOwner].name}** pour utiliser cette technique.\nUtilise \`=equiper ${persoOwner}\``)] });
+
+      // Cooldown
+      const cdEnd = attChar.cooldowns[name] || 0;
+      if (cdEnd > Date.now()) {
+        const tech = PERSOS[persoOwner].techniques.find(t => t.cmd.replace('=', '').split(' ')[0] === name);
+        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xf59e0b).setDescription(`⏳ **${tech?.name || name}** — Cooldown : **${formatRemaining(cdEnd - Date.now())}**`)] });
+      }
+
+      await handleAttack(msg, args, name, attUser, attChar);
     });
 
     console.log('[Persos] ✅ =persos · =attaques · =cd · =equiper · =shop · =acheter · =admindonnerperso · =adminretirerperso · =adminlisterpersos');

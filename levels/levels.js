@@ -60,8 +60,11 @@ async function addExp(member, client, baseExp, existingUser = null) {
   if (user.inventory.roleBoost?.expBoost) {
     multiplier += user.inventory.roleBoost.expBoost;
   }
+  // Buffs personnages (gainMult, kira, gainDebuff)
+  const { getGainMult } = require('./buffs');
+  multiplier *= getGainMult(user);
 
-  const gained   = Math.floor(baseExp * multiplier);
+  const gained   = Math.floor(baseExp * Math.max(0, multiplier));
   const oldLevel = levelFromExp(user.exp);
   user.exp      += gained;
   const newLevel = levelFromExp(user.exp);
@@ -223,8 +226,10 @@ function addCoins(userId, baseCoins) {
   if (user.inventory.roleBoost?.coinBoost) {
     multiplier += user.inventory.roleBoost.coinBoost;
   }
+  const { getGainMult } = require('./buffs');
+  multiplier *= getGainMult(user);
 
-  const gained  = Math.floor(baseCoins * multiplier);
+  const gained  = Math.floor(baseCoins * Math.max(0, multiplier));
   user.wallet  += gained;
 
   resetDailyStatsIfNeeded(user);

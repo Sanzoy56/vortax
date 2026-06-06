@@ -95,7 +95,13 @@ async function cmdRob(msg) {
   if (target.id === msg.author.id) return msg.reply('❌ Tu ne peux pas te voler toi-même.');
   if (PROTECTED_USERS.includes(target.id)) return msg.reply('🛡️ Cette personne est protégée.');
   const robber = getUser(msg.author.id), victim = getUser(target.id);
-  const now = Date.now(), diff = now - (robber.rob?.lastUsed || 0);
+  const now = Date.now();
+
+  // KO check
+  const { isKOd, isImmune, getShield, fmtT } = require('../levels/buffs');
+  if (isKOd(robber)) return msg.reply(`❌ Tu es KO pendant encore **${fmtT(robber.buffs.ko.exp)}** !`);
+
+  const diff = now - (robber.rob?.lastUsed || 0);
   if (diff < ROB.COOLDOWN_MS) {
     const rem = Math.ceil((ROB.COOLDOWN_MS - diff) / 60_000);
     const h = Math.floor(rem / 60), m = rem % 60;
@@ -103,9 +109,34 @@ async function cmdRob(msg) {
   }
   if (!robber.rob) robber.rob = {};
   robber.rob.lastUsed = now;
+
+  // Immunité de la victime
+  if (isImmune(victim)) { saveUser(robber); return msg.reply(re(0x5a5a7a, `♾️ **${target.username}** est immunisé(e) — rob impossible !`)); }
+
+  // Bouclier de la victime
+  const shield = getShield(victim);
+  if (shield) { saveUser(robber); return msg.reply(re(0x5a5a7a, `🛡️ **${target.username}** a un bouclier actif — rob bloqué !`)); }
+
   if (victim.wallet <= 0) { saveUser(robber); return msg.reply(re(0x5a5a7a, `💸 **${target.username}** n'a rien sur lui, tout est en banque !`)); }
+
   const percent = ROB.MIN_PERCENT + Math.random() * (ROB.MAX_PERCENT - ROB.MIN_PERCENT);
-  const stolen  = Math.max(1, Math.floor(victim.wallet * percent));
+  let stolen = Math.max(1, Math.floor(victim.wallet * percent));
+
+  // reduceLoss (haki)
+  if (victim.buffs?.reduceLoss?.exp > now) stolen = Math.floor(stolen * (1 - victim.buffs.reduceLoss.v));
+
+  // absorb / counterRob (gear4, pride, formation, etc.)
+  if (victim.buffs?.absorb?.exp > now) {
+    const back = Math.floor(stolen * victim.buffs.absorb.v);
+    robber.wallet = Math.max(0, robber.wallet - back);
+    victim.wallet += back;
+  } else if (victim.buffs?.counterRob?.exp > now) {
+    const back = Math.floor(stolen * victim.buffs.counterRob.v);
+    robber.wallet = Math.max(0, robber.wallet - back);
+    victim.wallet += back;
+  }
+
+  stolen = Math.min(stolen, victim.wallet);
   victim.wallet -= stolen; robber.wallet += stolen;
   saveUser(robber); saveUser(victim);
   msg.reply(re(0x22c55e, `${ROB.EMOJI_SUCCESS} Tu as volé ${ROB.EMOJI_COIN} **${fmt(stolen)}** à **${target.username}** !`));
