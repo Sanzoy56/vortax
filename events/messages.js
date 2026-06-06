@@ -74,9 +74,13 @@ module.exports = (client) => {
 
     // ========== MESSAGE SUPPRIMÉ ==========
     client.on(Events.MessageDelete, async (message) => {
-        // ✅ On ne bloque plus les bots ni les messages sans contenu
-        if (message.partial) {
-            // Message pas en cache : on log quand même avec les infos disponibles
+        // Récupérer depuis le cache local si Discord.js n'a pas le message
+        const cached = MSG_CACHE.get(message.id);
+        MSG_CACHE.delete(message.id);
+
+        // Si le message est partial ET absent du cache local → log minimal
+        if (message.partial && !cached) {
+            // Reconstruire depuis le cache local si disponible
             const config = await getConfig()
             const logChannel = message.guild?.channels.cache.get(config.log_messages);
             if (!logChannel) return;
@@ -113,34 +117,36 @@ module.exports = (client) => {
         const logChannel = message.guild?.channels.cache.get(config.log_messages);
         if (!logChannel) return;
 
-        const deletedAt = new Date();
-
         const formatDate = (date) =>
             date.toLocaleString('fr-FR', {
                 weekday: 'long', day: '2-digit', month: 'long',
                 year: 'numeric', hour: '2-digit', minute: '2-digit',
             });
 
-        // ✅ Auteur : affiche l'ID même si bot ou inconnu
-        const auteurDisplay = message.author
-            ? `<@${message.author.id}> (${message.author.id})${message.author.bot ? ' 🤖' : ''}`
-            : 'Inconnu';
+        // Priorité : données Discord.js > cache local
+        const authorId     = message.author?.id     ?? cached?.authorId;
+        const authorTag    = message.author?.tag     ?? cached?.authorTag;
+        const authorAvatar = message.author?.displayAvatarURL({ dynamic: true, size: 128 }) ?? cached?.authorAvatar ?? null;
+        const createdAt    = message.createdAt       ?? cached?.createdAt;
 
-        const avatarURL = message.author?.displayAvatarURL({ dynamic: true, size: 128 }) ?? null;
+        const auteurDisplay = authorId
+            ? `<@${authorId}> (${authorId})${message.author?.bot ? ' 🤖' : ''}`
+            : 'Inconnu';
 
         let deletedBy = 'Inconnu';
         try {
             const fetchedLogs = await message.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MessageDelete });
             const log = fetchedLogs.entries.first();
-            if (log && log.target?.id === message.author?.id && Date.now() - log.createdTimestamp < 5000) {
+            if (log && log.target?.id === authorId && Date.now() - log.createdTimestamp < 5000) {
                 deletedBy = `${log.executor.tag} (${log.executor.id})`;
             }
         } catch {}
 
-        // ✅ Contenu : affiche "(embed / fichier)" si pas de texte
+        // Contenu : Discord.js en priorité, sinon cache local
         const contenu = message.content?.slice(0, 1000)
-            || (message.embeds.length ? '(embed)' : '')
-            || (message.attachments.size ? '(fichier)' : '')
+            || cached?.content?.slice(0, 1000)
+            || (message.embeds?.length || cached?.embeds ? '(embed)' : '')
+            || (message.attachments?.size || cached?.attachments ? '(fichier)' : '')
             || '(vide)';
 
         const embed = new EmbedBuilder()
@@ -152,17 +158,17 @@ module.exports = (client) => {
                     value: [
                         `🧑 **Auteur :** ${auteurDisplay}`,
                         `💬 **Salon :** <#${message.channelId}> (${message.channelId})`,
-                        `📅 **Date de création du message :** ${formatDate(message.createdAt)}`,
-                        `🕐 **Heure de suppression :** ${formatDate(deletedAt)}`,
+                        `📅 **Date de création du message :** ${createdAt ? formatDate(createdAt) : 'Inconnue'}`,
+                        `🕐 **Heure de suppression :** ${formatDate(new Date())}`,
                         `🔧 **Supprimé par :** ${deletedBy}`,
                     ].join('\n'),
                 },
                 { name: '🗒️ Contenu du message :', value: `\`\`\`\n${contenu}\n\`\`\`` },
             )
             .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: message.guild.iconURL({ dynamic: true }) })
-            .setTimestamp(deletedAt);
+            .setTimestamp();
 
-        if (avatarURL) embed.setThumbnail(avatarURL);
+        if (authorAvatar) embed.setThumbnail(authorAvatar);
 
         await logChannel.send({ embeds: [embed] });
     });
