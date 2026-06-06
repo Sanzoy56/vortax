@@ -1,7 +1,6 @@
 'use strict';
 const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require('discord.js');
-const { getUser, saveUser } = require('../db');
-const { xpPourNiveau }      = require('../xp');
+const { addExpAdmin, expForLevel, levelFromExp } = require('../levels');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -14,28 +13,24 @@ module.exports = {
   async execute(interaction) {
     await interaction.deferReply({ flags: 64 });
 
-    const cible = interaction.options.getUser('membre');
-    const somme = interaction.options.getInteger('somme');
+    const cible  = interaction.options.getUser('membre');
+    const somme  = interaction.options.getInteger('somme');
+    const member = await interaction.guild.members.fetch(cible.id).catch(() => null);
 
-    const user = getUser(cible.id);
-    user.exp = Math.max(0, (user.exp || 0) - somme);
-
-    // Descente de niveau
-    while (user.level > 0 && user.exp < 0) {
-      user.level -= 1;
-      user.exp   += xpPourNiveau(user.level);
+    if (!member) {
+      return interaction.editReply({ content: 'Membre introuvable sur le serveur.' });
     }
-    if (user.exp < 0) user.exp = 0;
 
-    saveUser(user);
+    const { oldLevel, newLevel, exp } = await addExpAdmin(member, -somme);
+    const neededForNext = expForLevel(newLevel);
 
     const embed = new EmbedBuilder()
       .setTitle('XP retirée [ADMIN]')
       .setColor(0xe74c3c)
       .setDescription(
         `**-${somme.toLocaleString()} XP** retirés à <@${cible.id}>\n\n` +
-        `Niveau : **${user.level}**\n` +
-        `XP actuelle : **${user.exp}** / **${xpPourNiveau(user.level)}**`
+        `Niveau : **${newLevel}**${newLevel !== oldLevel ? ` *(était ${oldLevel})*` : ''}\n` +
+        `XP actuelle : **${exp}** / **${neededForNext}**`
       )
       .setFooter({ text: `Action effectuée par ${interaction.user.username}` })
       .setTimestamp();

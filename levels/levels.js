@@ -82,6 +82,12 @@ async function addExpAdmin(member, amount) {
   if (user.exp < 0) user.exp = 0;
   const newLevel = levelFromExp(user.exp);
 
+  // Si le niveau baisse, on réinitialise lastAnnouncedLevel pour permettre
+  // les re-annonces quand le membre regagnera ces niveaux naturellement
+  if (newLevel < oldLevel) {
+    user.lastAnnouncedLevel = newLevel;
+  }
+
   saveUser(user);
 
   if (newLevel !== oldLevel) {
@@ -91,24 +97,25 @@ async function addExpAdmin(member, amount) {
   return { oldLevel, newLevel, exp: user.exp };
 }
 
-// Dédup contre les double-annonces (race condition lecture fichier)
-const _recentAnnounces = new Map();
-function _dedup(userId, level) {
-  const key = `${userId}_${level}`;
-  const ts  = _recentAnnounces.get(key);
-  if (ts && Date.now() - ts < 5000) return true;
-  _recentAnnounces.set(key, Date.now());
-  return false;
-}
-
 // ─── Level-up handler ────────────────────────────────────────
 async function handleLevelUp(member, client, oldLevel, newLevel, user) {
   const { generateLevelUpCard, generateRankUpCard } = require('./canvas');
   const { AttachmentBuilder } = require('discord.js');
 
   const isAdminCall = !client;
-  // Si deux messages arrivent simultanément et déclenchent le même level-up, on ignore le second
-  if (!isAdminCall && _dedup(member.id, newLevel)) return;
+
+  if (!isAdminCall) {
+    // Check + mark atomique (pas d'await entre les deux = jamais interrompu en JS)
+    const fresh = getUser(member.id);
+    if ((fresh.lastAnnouncedLevel || 0) >= newLevel) return;
+    fresh.lastAnnouncedLevel = newLevel;
+    saveUser(fresh);
+  } else if (newLevel > oldLevel) {
+    // Admin level-up : on marque aussi pour éviter une double annonce naturelle ensuite
+    const fresh = getUser(member.id);
+    fresh.lastAnnouncedLevel = Math.max(fresh.lastAnnouncedLevel || 0, newLevel);
+    saveUser(fresh);
+  }
   const guild       = member.guild;
   const oldRank     = getRankForLevel(oldLevel);
   const newRank     = getRankForLevel(newLevel);

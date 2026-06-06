@@ -24,6 +24,7 @@ function defaultUser(userId) {
     bank:     0,   // argent en banque
     lastMessageDate: null,  // 'YYYY-MM-DD'
     lastExpGain:     0,     // timestamp ms (cooldown anti-spam)
+    lastAnnouncedLevel: 0, // niveau le plus haut déjà annoncé
     rob: {
       lastUsed: 0,          // timestamp ms
     },
