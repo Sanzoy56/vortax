@@ -91,12 +91,24 @@ async function addExpAdmin(member, amount) {
   return { oldLevel, newLevel, exp: user.exp };
 }
 
+// Dédup contre les double-annonces (race condition lecture fichier)
+const _recentAnnounces = new Map();
+function _dedup(userId, level) {
+  const key = `${userId}_${level}`;
+  const ts  = _recentAnnounces.get(key);
+  if (ts && Date.now() - ts < 5000) return true;
+  _recentAnnounces.set(key, Date.now());
+  return false;
+}
+
 // ─── Level-up handler ────────────────────────────────────────
 async function handleLevelUp(member, client, oldLevel, newLevel, user) {
   const { generateLevelUpCard, generateRankUpCard } = require('./canvas');
   const { AttachmentBuilder } = require('discord.js');
 
-  const isAdminCall = !client; // addExpAdmin passe null pour client
+  const isAdminCall = !client;
+  // Si deux messages arrivent simultanément et déclenchent le même level-up, on ignore le second
+  if (!isAdminCall && _dedup(member.id, newLevel)) return;
   const guild       = member.guild;
   const oldRank     = getRankForLevel(oldLevel);
   const newRank     = getRankForLevel(newLevel);
