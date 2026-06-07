@@ -104,6 +104,8 @@ module.exports = {
             '`/adminpersos remove <@membre> <perso>` — Retirer un personnage',
             '`/adminpersos list <@membre>` — Voir les personnages d\'un membre',
             '`/adminpersos resetcd <@membre> [perso]` — Reset cooldowns (1 perso ou tous)',
+            '`/clear <nombre>` — Supprimer un nombre de messages (1-100)',
+            '`/clear-salon` — Vider entièrement le salon (tous les messages, peu importe leur âge)',
           ].join('\n'),
         }] : []),
       )

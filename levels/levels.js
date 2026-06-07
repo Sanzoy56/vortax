@@ -6,6 +6,21 @@ const { getUser, saveUser, today } = require('./db');
 const _levelupLock = new Map(); // "userId:newLevel" → timestamp
 const LOCK_TTL_MS  = 90_000;
 
+// Verrou par utilisateur : sérialise les lectures-modifications-écritures de l'XP/wallet.
+// Sans ça, un gain XP message + un gain XP vocal simultanés lisent tous les deux l'ancien
+// total, et le second à sauvegarder écrase le premier (XP perdue, niveaux faussés).
+const _userLocks = new Map(); // userId → Promise (chaîne d'exécution)
+function withUserLock(userId, fn) {
+  const prev    = _userLocks.get(userId) || Promise.resolve();
+  const next    = prev.then(fn, fn);
+  const tracked = next.catch(() => {});
+  _userLocks.set(userId, tracked);
+  tracked.finally(() => {
+    if (_userLocks.get(userId) === tracked) _userLocks.delete(userId);
+  });
+  return next;
+}
+
 // ─── Formule EXP pour passer au level suivant ───────────────
 function expForLevel(level) {
   return 100 + level * 50;
@@ -50,30 +65,34 @@ function getRankForLevel(level) {
 
 // ─── Ajouter de l'EXP et gérer le level-up ──────────────────
 async function addExp(member, client, baseExp, existingUser = null) {
-  const user = existingUser || getUser(member.id);
+  const { gained, oldLevel, newLevel, user } = await withUserLock(member.id, () => {
+    const user = existingUser || getUser(member.id);
 
-  let multiplier = 1;
+    let multiplier = 1;
 
-  if (user.inventory.tempBoost?.expBoost && Date.now() < user.inventory.tempBoost.expiresAt) {
-    multiplier += user.inventory.tempBoost.expBoost;
-  }
-  if (user.inventory.roleBoost?.expBoost) {
-    multiplier += user.inventory.roleBoost.expBoost;
-  }
-  // Buffs personnages (gainMult, kira, gainDebuff)
-  const { getGainMult } = require('./buffs');
-  multiplier *= getGainMult(user);
+    if (user.inventory.tempBoost?.expBoost && Date.now() < user.inventory.tempBoost.expiresAt) {
+      multiplier += user.inventory.tempBoost.expBoost;
+    }
+    if (user.inventory.roleBoost?.expBoost) {
+      multiplier += user.inventory.roleBoost.expBoost;
+    }
+    // Buffs personnages (gainMult, kira, gainDebuff)
+    const { getGainMult } = require('./buffs');
+    multiplier *= getGainMult(user);
 
-  const gained   = Math.floor(baseExp * Math.max(0, multiplier));
-  const oldLevel = levelFromExp(user.exp);
-  user.exp      += gained;
-  const newLevel = levelFromExp(user.exp);
+    const gained   = Math.floor(baseExp * Math.max(0, multiplier));
+    const oldLevel = levelFromExp(user.exp);
+    user.exp      += gained;
+    const newLevel = levelFromExp(user.exp);
 
-  resetDailyStatsIfNeeded(user);
-  user.dailyStats.exp += gained;
+    resetDailyStatsIfNeeded(user);
+    user.dailyStats.exp += gained;
 
-  // updateStreak N'est plus appelé ici — uniquement depuis messageCreate
-  saveUser(user);
+    // updateStreak N'est plus appelé ici — uniquement depuis messageCreate
+    saveUser(user);
+
+    return { gained, oldLevel, newLevel, user };
+  });
 
   if (newLevel > oldLevel) {
     await handleLevelUp(member, client, oldLevel, newLevel, user);
@@ -84,18 +103,21 @@ async function addExp(member, client, baseExp, existingUser = null) {
 
 // ─── Ajouter de l'EXP via commande admin (sans multiplicateurs) ─
 async function addExpAdmin(member, amount) {
-  const user     = getUser(member.id);
-  const oldLevel = levelFromExp(user.exp);
-  user.exp      += amount;
-  if (user.exp < 0) user.exp = 0;
-  const newLevel = levelFromExp(user.exp);
+  const { oldLevel, newLevel, user } = await withUserLock(member.id, () => {
+    const user     = getUser(member.id);
+    const oldLevel = levelFromExp(user.exp);
+    user.exp      += amount;
+    if (user.exp < 0) user.exp = 0;
+    const newLevel = levelFromExp(user.exp);
 
-  // On ne touche JAMAIS lastAnnouncedLevel à la baisse via admin :
-  // si quelqu'un perd de l'XP il ne doit pas revoir les annonces des niveaux
-  // qu'il a déjà passés. lastAnnouncedLevel reste au max atteint.
-  // (seul un reset panel remet à 0)
+    // On ne touche JAMAIS lastAnnouncedLevel à la baisse via admin :
+    // si quelqu'un perd de l'XP il ne doit pas revoir les annonces des niveaux
+    // qu'il a déjà passés. lastAnnouncedLevel reste au max atteint.
+    // (seul un reset panel remet à 0)
 
-  saveUser(user);
+    saveUser(user);
+    return { oldLevel, newLevel, user };
+  });
 
   if (newLevel !== oldLevel) {
     await handleLevelUp(member, null, oldLevel, newLevel, user);

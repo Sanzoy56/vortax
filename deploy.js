@@ -36,6 +36,12 @@ const commands = [
         )
         .toJSON(),
 
+    new SlashCommandBuilder()
+        .setName('clear-salon')
+        .setDescription('Vide complètement le salon (tous les messages, peu importe leur âge)')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+        .toJSON(),
+
     // ─── ADMIN XP / MONEY ─────────────────────────────────────────
     new SlashCommandBuilder()
         .setName('adminexpajouter')

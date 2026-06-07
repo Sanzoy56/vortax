@@ -38,6 +38,7 @@ const persos    = require('./events/persos');
 const panel = require('./commandes/panel.js');
 const say   = require('./commandes/say.js');
 const clear = require('./commandes/clear.js');
+const clearSalon = require('./commandes/clear-salon.js');
 const grok  = require('./grok.js');
 
 // ── Youtube / giveaway ─────────────────────────────
@@ -128,6 +129,7 @@ autorole(client);
 panel(client);
 say(client);
 clear(client);
+clearSalon(client);
 grok(client);
 stats.init(client);
 vocalTemp.init(client);

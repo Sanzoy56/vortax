@@ -4,9 +4,8 @@
 //  Brancher dans index.js : stats.init(client)
 // ============================================================
 
-const fs   = require("fs");
-const path = require("path");
 const { RANKS } = require("../levels/config");
+const { getAllUsers, saveAll, markDirty } = require("../levels/db");
 
 const DASHBOARD_URL = "https://vtx-bot.alwaysdata.net/api/stats/push";
 const PUSH_SECRET   = "vtx-stats-secret-2024"; // même valeur dans le dashboard
@@ -131,9 +130,10 @@ async function applyPendingResets() {
     const pending = await res.json();
     if (!Object.keys(pending).length) return;
 
-    const dbPath = path.join(__dirname, "../level.json");
-    if (!fs.existsSync(dbPath)) return;
-    const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+    // Passe par le cache mémoire partagé de db.js : lire/écrire le fichier
+    // directement ici écraserait les changements en attente du cache (et
+    // vice-versa), provoquant les mêmes pertes d'XP/coins aléatoires.
+    const db = getAllUsers();
 
     const guild = _client && _guildId ? _client.guilds.cache.get(_guildId) : null;
 
@@ -168,7 +168,8 @@ async function applyPendingResets() {
     }
 
     if (changed) {
-      fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+      markDirty();
+      saveAll();
       console.log("[Stats] Resets appliqués :", Object.keys(pending).join(", "));
     }
 
@@ -186,9 +187,7 @@ async function applyPendingResets() {
 // ════════════════════════════════════════════════════════════
 async function syncFromLevelDB(guildId) {
   try {
-    const dbPath = path.join(__dirname, "../level.json");
-    if (!fs.existsSync(dbPath)) return;
-    const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+    const db = getAllUsers();
 
     const users = {};
     for (const [userId, user] of Object.entries(db)) {

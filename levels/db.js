@@ -3,16 +3,39 @@ const path = require('path');
 
 const DB_PATH = path.join(__dirname, '..', 'level.json');
 
-// ─── Helpers ────────────────────────────────────────────────
-function load() {
+// ─── Cache mémoire unique ────────────────────────────────────
+// Avant : chaque getUser/saveUser relisait et réécrivait le fichier JSON
+// ENTIER à chaque appel. Avec des dizaines d'appels concurrents par seconde
+// (messages, vocal, commandes...), deux appels chargeaient chacun un instantané
+// du fichier puis sauvegardaient — celui qui écrivait en second écrasait les
+// changements de l'autre avec son instantané périmé. Ça provoquait des pertes
+// d'XP/coins et des "retours en arrière" de niveau aléatoires.
+// Le cache rend chaque lecture/modification atomique (Node est mono-thread,
+// aucun "await" entre lecture et écriture ⇒ pas d'entrelacement possible),
+// et un flush périodique persiste l'état sur le disque.
+let _cache = null;
+let _dirty = false;
+
+function loadCache() {
+  if (_cache) return _cache;
   if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, '{}', 'utf8');
-  try { return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
-  catch { return {}; }
+  try { _cache = JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
+  catch { _cache = {}; }
+  return _cache;
 }
 
-function save(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf8');
+function flush() {
+  if (!_dirty || !_cache) return;
+  _dirty = false;
+  try { fs.writeFileSync(DB_PATH, JSON.stringify(_cache, null, 2), 'utf8'); }
+  catch { _dirty = true; }
 }
+
+function markDirty() { _dirty = true; }
+
+const _flushTimer = setInterval(flush, 5_000);
+if (_flushTimer.unref) _flushTimer.unref();
+process.on('exit', flush);
 
 // ─── Structure par défaut d'un utilisateur ──────────────────
 function defaultUser(userId) {
@@ -49,26 +72,41 @@ function defaultUser(userId) {
 
 // ─── API publique ────────────────────────────────────────────
 function getUser(userId) {
-  const db   = load();
-  if (!db[userId]) db[userId] = defaultUser(userId);
-  // merge pour ajouter les nouvelles clés si user existant
-  db[userId] = { ...defaultUser(userId), ...db[userId] };
-  save(db);
+  const db = loadCache();
+  if (!db[userId]) {
+    db[userId] = defaultUser(userId);
+    markDirty();
+    return db[userId];
+  }
+  // Fusionne les nouvelles clés EN PLACE (sans remplacer l'objet) : remplacer
+  // casserait l'identité de l'objet déjà détenu par d'autres appels getUser en
+  // cours, et un saveUser ultérieur sur cette référence périmée écraserait le
+  // cache avec un instantané obsolète — exactement le bug de perte de données
+  // qu'on cherche à éliminer, juste déplacé du fichier vers l'objet en mémoire.
+  const def = defaultUser(userId);
+  for (const key of Object.keys(def)) {
+    if (!(key in db[userId])) db[userId][key] = def[key];
+  }
   return db[userId];
 }
 
 function saveUser(user) {
-  const db = load();
+  const db = loadCache();
   db[user.userId] = user;
-  save(db);
+  markDirty();
 }
 
 function getAllUsers() {
-  return load();
+  return loadCache();
+}
+
+// Force la persistance immédiate sur disque (ex: avant un accès direct au fichier)
+function saveAll() {
+  flush();
 }
 
 function today() {
   return new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
 }
 
-module.exports = { getUser, saveUser, getAllUsers, today };
+module.exports = { getUser, saveUser, getAllUsers, saveAll, markDirty, today };
