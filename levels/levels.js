@@ -204,9 +204,13 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
       // fait gagner plusieurs niveaux d'un coup affichera 0→1 puis 1→2 plutôt qu'un saut 0→2
       for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
         const stepOld = lvl - 1;
+        // Paliers intermédiaires d'un saut multi-niveaux : barre pleine (niveau franchi),
+        // seul le dernier palier reflète la vraie progression actuelle de l'utilisateur
+        const isLast = lvl === newLevel;
+        const stepProgress = isLast ? null : { current: expForLevel(stepOld), required: expForLevel(stepOld) };
 
         if (levelChannel) {
-          const buf   = await generateLevelUpCard(member, stepOld, lvl, user).catch(() => null);
+          const buf   = await generateLevelUpCard(member, stepOld, lvl, user, stepProgress).catch(() => null);
           const files = buf ? [new AttachmentBuilder(buf, { name: 'levelup.png' })] : [];
           await levelChannel.send({
             content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${stepOld}** au niveau **${lvl}** !`,

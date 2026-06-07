@@ -580,7 +580,7 @@ async function generateBal(member, userData) {
 // ════════════════════════════════════════════════════════════
 // 5. LEVEL-UP CARD
 // ════════════════════════════════════════════════════════════
-async function generateLevelUpCard(member, oldLevel, newLevel, userData) {
+async function generateLevelUpCard(member, oldLevel, newLevel, userData, progressOverride = null) {
   const W = 700, H = 210;
   const canvas = createCanvas(W, H);
   const ctx    = canvas.getContext('2d');
@@ -664,7 +664,7 @@ async function generateLevelUpCard(member, oldLevel, newLevel, userData) {
   drawGoldLine(ctx, TX, 112, TW);
 
   // Barre XP
-  const { current, required } = expProgress(userData.exp);
+  const { current, required } = progressOverride || expProgress(userData.exp);
   const xpPct = current / required;
 
   ctx.fillStyle = '#5a5a7a';
