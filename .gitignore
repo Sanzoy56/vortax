@@ -3,6 +3,7 @@ config.json
 levels.json
 level.json
 level.json.backup_*
+giveaways.json
 .env
 warn.json
 token.json
