@@ -1,0 +1,48 @@
+◇ injected env (2) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+📦 Commande chargée : adminexpajouter
+📦 Commande chargée : adminexpretirer
+📦 Commande chargée : adminmoneyajouter
+📦 Commande chargée : adminmoneyretirer
+📦 Commande chargée : aide
+📦 Commande chargée : bal
+📦 Commande chargée : dep
+📦 Commande chargée : with
+📦 Commande chargée : boutique
+📦 Commande chargée : donner
+📦 Commande chargée : inventaire
+📦 Commande chargée : profil
+📦 Commande chargée : quetes
+📦 Commande chargée : rob
+📦 Commande chargée : syncranks
+📦 Commande chargée : top
+📦 Commande chargée : work
+📦 Commande chargée : adminpersos
+📦 Commande chargée : boutique-persos
+📦 Commande chargée : status
+[Stats] Push : sync_levels {
+  guildId: '1360965444974022686',
+  users: {
+    '1323025414523977798': { xp: 0, level: 0, balance: 18067 },
+    '1454409472633077784': { xp: 0, level: 0, balance: 1957 },
+    '1405637417272086588': { xp: 0, level: 0, balance: 10534 },
+    '1053403548425134170': { xp: 0, level: 0, balance: 725 },
+    '1495864702457217271': { xp: 0, level: 0, balance: 0 },
+    '1474039465822519468': { xp: 0, level: 0, balance: 10 },
+    '1340969234959831040': { xp: 0, level: 0, balance: 117 },
+    '1449141464411148399': { xp: 0, level: 0, balance: 4433 },
+    '1072956185667444737': { xp: 0, level: 0, balance: 4123 }
+  }
+}
+[Stats] ✅ Tracker chargé.
+[VocalTemp] ✅ Système vocal temporaire chargé.
+[Casino] ✅ =bj =slots =pf =dice =roulette =cup =pfc =rr =spin
+[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide
+[AntiRaid] ✅ Détection raid + =raid status/off + =nuke + =massban
+[Backup] ✅ =backup =restore + alerte urgence + auto toutes les 6h
+[Persos] ✅ =persos · =attaques · =cd · =equiper · =shop · =acheter · =admindonnerperso · =adminretirerperso · =adminlisterpersos
+[Stats] Resets appliqués : 1323025414523977798, 1454409472633077784, 1405637417272086588, 1053403548425134170, 1495864702457217271, 1474039465822519468, 1340969234959831040, 1449141464411148399, 1072956185667444737
+[Backup] ✅ Sauvegarde initiale effectuée.
+✅ Connecté en tant que VTX-BOT#3459
+(node:11228) DeprecationWarning: The ready event has been renamed to clientReady to distinguish it from the gateway READY event and will only emit under that name in v15. Please use clientReady instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[Giveaway] Message 1510230746093191258 introuvable (supprimé), giveaway ignoré.
