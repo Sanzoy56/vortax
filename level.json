@@ -1,13 +1,13 @@
 {
   "1323025414523977798": {
     "userId": "1323025414523977798",
-    "exp": 67,
+    "exp": 122,
     "level": 0,
-    "wallet": 17866,
+    "wallet": 20227,
     "bank": 864,
     "lastMessageDate": "2026-05-27",
     "lastExpGain": 0,
-    "lastAnnouncedLevel": 0,
+    "lastAnnouncedLevel": 1,
     "rob": {
       "lastUsed": 1779884972310
     },
@@ -27,7 +27,7 @@
           "target": 20,
           "rewardExp": 300,
           "rewardCoins": 1000,
-          "progress": 3,
+          "progress": 4,
           "completed": false,
           "rewarded": false
         },
@@ -53,7 +53,7 @@
           "target": 2000,
           "rewardExp": 500,
           "rewardCoins": 0,
-          "progress": 663,
+          "progress": 1024,
           "completed": false,
           "rewarded": false
         },
@@ -92,7 +92,7 @@
           "target": 100,
           "rewardExp": 1200,
           "rewardCoins": 5000,
-          "progress": 3,
+          "progress": 4,
           "completed": false,
           "rewarded": false
         },
@@ -131,9 +131,9 @@
           "target": 1,
           "rewardExp": 0,
           "rewardCoins": 2000,
-          "progress": 0,
-          "completed": false,
-          "rewarded": false
+          "progress": 1,
+          "completed": true,
+          "rewarded": true
         },
         {
           "id": "prg_15",
@@ -144,7 +144,7 @@
           "target": 500,
           "rewardExp": 0,
           "rewardCoins": 2000,
-          "progress": 75,
+          "progress": 130,
           "completed": false,
           "rewarded": false
         }
@@ -152,9 +152,9 @@
     },
     "dailyStats": {
       "date": "2026-06-07",
-      "messages": 3,
-      "coins": 663,
-      "exp": 67,
+      "messages": 4,
+      "coins": 1024,
+      "exp": 122,
       "commands": 0
     },
     "streak": 1

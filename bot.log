@@ -46,3 +46,69 @@
 (node:11228) DeprecationWarning: The ready event has been renamed to clientReady to distinguish it from the gateway READY event and will only emit under that name in v15. Please use clientReady instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 [Giveaway] Message 1510230746093191258 introuvable (supprimé), giveaway ignoré.
+[Stats] Push : message {
+  guildId: '1360965444974022686',
+  userId: '1323025414523977798',
+  channelId: '1369344501021413396',
+  channelName: '🎫・ticket',
+  date: '2026-06-07'
+}
+(node:11228) Warning: Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.
+❌ Exception non capturée : DiscordAPIError[10062]: Unknown interaction
+    at handleErrors (E:\Projects\js\BOT\Vortax\node_modules\@discordjs\rest\dist\index.js:762:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async BurstHandler.runRequest (E:\Projects\js\BOT\Vortax\node_modules\@discordjs\rest\dist\index.js:866:23)
+    at async _REST.request (E:\Projects\js\BOT\Vortax\node_modules\@discordjs\rest\dist\index.js:1307:22)
+    at async ModalSubmitInteraction.reply (E:\Projects\js\BOT\Vortax\node_modules\discord.js\src\structures\interfaces\InteractionResponses.js:193:22) {
+  requestBody: { files: [], json: { type: 4, data: [Object] } },
+  rawError: { message: 'Unknown interaction', code: 10062 },
+  code: 10062,
+  status: 404,
+  method: 'POST',
+  url: 'https://discord.com/api/v10/interactions/1513120145155952701/aW50ZXJhY3Rpb246MTUxMzEyMDE0NTE1NTk1MjcwMTpGdVdvcFdJNk9XSmpLaUk1TWdISWlGRXpENE91cE9ncDIwTGJNTUd0OUE1MWM3ZnB4ZmtnTlNDMEdBYWhYR0dRYXJyMHc3d2JmeVhOekVVckFDdVlBMFF1SDNXWFoxUE0yV2cwcEF2OFNHaGk4SGlxT3pleE1xQ1RZbmczRjUyOA/callback?with_response=false'
+}
+[Stats] Push : message {
+  guildId: '1360965444974022686',
+  userId: '1323025414523977798',
+  channelId: '1513120147609747677',
+  channelName: 'recrutement-newsanzoy',
+  date: '2026-06-07'
+}
+[AntiRaid] 🗑️ Salon supprimé : #recrutement-newsanzoy
+DiscordAPIError[10003]: Unknown Channel
+    at handleErrors (E:\Projects\js\BOT\Vortax\node_modules\@discordjs\rest\dist\index.js:762:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async SequentialHandler.runRequest (E:\Projects\js\BOT\Vortax\node_modules\@discordjs\rest\dist\index.js:1163:23)
+    at async SequentialHandler.queueRequest (E:\Projects\js\BOT\Vortax\node_modules\@discordjs\rest\dist\index.js:994:14)
+    at async _REST.request (E:\Projects\js\BOT\Vortax\node_modules\@discordjs\rest\dist\index.js:1307:22)
+    at async GuildChannelManager.delete (E:\Projects\js\BOT\Vortax\node_modules\discord.js\src\managers\GuildChannelManager.js:514:5)
+    at async TextChannel.delete (E:\Projects\js\BOT\Vortax\node_modules\discord.js\src\structures\GuildChannel.js:471:5)
+    at async Timeout._onTimeout (E:\Projects\js\BOT\Vortax\ticket.js:200:32) {
+  requestBody: { files: undefined, json: undefined },
+  rawError: { message: 'Unknown Channel', code: 10003 },
+  code: 10003,
+  status: 404,
+  method: 'DELETE',
+  url: 'https://discord.com/api/v10/channels/1513120147609747677'
+}
+[Stats] Push : message {
+  guildId: '1360965444974022686',
+  userId: '1323025414523977798',
+  channelId: '1369344501021413396',
+  channelName: '🎫・ticket',
+  date: '2026-06-07'
+}
+[Stats] Push : sync_levels {
+  guildId: '1360965444974022686',
+  users: {
+    '1323025414523977798': { xp: 122, level: 1, balance: 21091 },
+    '1454409472633077784': { xp: 0, level: 0, balance: 1957 },
+    '1405637417272086588': { xp: 0, level: 0, balance: 10534 },
+    '1053403548425134170': { xp: 0, level: 0, balance: 725 },
+    '1495864702457217271': { xp: 0, level: 0, balance: 0 },
+    '1474039465822519468': { xp: 0, level: 0, balance: 10 },
+    '1340969234959831040': { xp: 0, level: 0, balance: 117 },
+    '1449141464411148399': { xp: 0, level: 0, balance: 4433 },
+    '1072956185667444737': { xp: 0, level: 0, balance: 4123 }
+  }
+}
