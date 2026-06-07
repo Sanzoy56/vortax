@@ -198,7 +198,7 @@ async function buildTopEntries(guild, mode) {
     .slice(0, 10);
   return Promise.all(list.map(async u => {
     const member = await guild.members.fetch(u.userId).catch(() => null);
-    const level  = u.level ?? levelFromExp(u.exp||0) ?? 0;
+    const level  = levelFromExp(u.exp || 0);
     const rank   = getRankForLevel(level);
     const def    = `https://cdn.discordapp.com/embed/avatars/${(Number(BigInt(u.userId) >> 22n) % 6)}.png`;
     return {

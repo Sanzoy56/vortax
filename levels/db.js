@@ -15,20 +15,38 @@ const DB_PATH = path.join(__dirname, '..', 'level.json');
 // et un flush périodique persiste l'état sur le disque.
 let _cache = null;
 let _dirty = false;
+let _lastMtime = 0;
+
+function statMtime() {
+  try { return fs.statSync(DB_PATH).mtimeMs; }
+  catch { return 0; }
+}
 
 function loadCache() {
+  // Si une modification externe au processus (script de reset, édition manuelle...)
+  // a touché le fichier depuis notre dernière lecture/écriture, on recharge depuis
+  // le disque — sinon notre cache périmé écraserait ces changements au prochain
+  // flush (c'est ce qui s'est produit avec le script de reset : le cache du bot
+  // gardait l'ancien niveau et le réécrivait par-dessus la remise à zéro).
+  if (_dirty) flush();
+  const mtime = statMtime();
+  if (_cache && mtime !== _lastMtime) _cache = null;
   if (_cache) return _cache;
+
   if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, '{}', 'utf8');
   try { _cache = JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
   catch { _cache = {}; }
+  _lastMtime = statMtime();
   return _cache;
 }
 
 function flush() {
   if (!_dirty || !_cache) return;
   _dirty = false;
-  try { fs.writeFileSync(DB_PATH, JSON.stringify(_cache, null, 2), 'utf8'); }
-  catch { _dirty = true; }
+  try {
+    fs.writeFileSync(DB_PATH, JSON.stringify(_cache, null, 2), 'utf8');
+    _lastMtime = statMtime();
+  } catch { _dirty = true; }
 }
 
 function markDirty() { _dirty = true; }
