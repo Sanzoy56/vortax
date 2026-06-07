@@ -1,5 +1,6 @@
 const { RANKS, EXP, COINS, CHANNELS } = require('./config');
 const { getUser, saveUser, today } = require('./db');
+const { getConfig } = require('../config');
 
 // Verrou en mémoire : empêche deux handleLevelUp simultanés pour le même userId+niveau
 // TTL 90s (> intervalle VoiceXP de 60s, < temps entre deux level-ups légitimes)
@@ -160,9 +161,12 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
     fresh.lastAnnouncedLevel = Math.max(fresh.lastAnnouncedLevel || 0, newLevel);
     saveUser(fresh);
   }
-  const guild        = member.guild;
-  const levelChannel = guild.channels.cache.get(CHANNELS.LEVELS);
-  const rankChannel  = guild.channels.cache.get(CHANNELS.RANKS);
+  const guild = member.guild;
+  // Salons configurés depuis le dashboard (config.levels / config.rangs) — on retombe
+  // sur les salons codés en dur si le dashboard n'a rien défini ou est injoignable.
+  const cfg          = await getConfig().catch(() => ({}));
+  const levelChannel = guild.channels.cache.get(cfg.levels) || guild.channels.cache.get(CHANNELS.LEVELS);
+  const rankChannel  = guild.channels.cache.get(cfg.rangs)  || guild.channels.cache.get(CHANNELS.RANKS);
 
   // Annonce (et applique) un éventuel changement de rang entre deux niveaux consécutifs
   async function announceRankUp(stepOldLevel, stepNewLevel) {
