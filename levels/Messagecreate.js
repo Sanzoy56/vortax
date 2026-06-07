@@ -100,7 +100,7 @@ module.exports = {
 
     // Territoire : quiconque parle dans le salon perd de l'argent (taxe directe), reversé à l'activateur
     if (terr && terr.channel === chanId && terr.userId !== userId) {
-      const toll = Math.min(user.wallet, 80 + Math.floor(Math.random() * 171)); // 80–250 coins
+      const toll = Math.min(user.wallet, 5000 + Math.floor(Math.random() * 3001)); // 5000–8000 coins
       if (toll > 0) {
         user.wallet -= toll;
         saveUser(user);
