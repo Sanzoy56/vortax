@@ -9,6 +9,10 @@ const {
   PERSOS, TIER_COLORS, TIER_LABELS, SHOP_PRICES, fmtCoins, getCharData,
 } = require('../events/persos');
 
+const COIN  = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
+const CHECK = '<:592053verified:1510069208661098546>';
+const PERDU = '<:26643crossmark:1510067005066055690>';
+
 // ─── Helpers visuels ────────────────────────────────────────────
 function buildShopEmbed(ownedKeys = []) {
   const tiers = { S: [], A: [], B: [], C: [] };
@@ -22,7 +26,7 @@ function buildShopEmbed(ownedKeys = []) {
         name: TIER_LABELS[tier],
         value: list.map(p => {
           const owned = ownedKeys.includes(p.key);
-          return `${p.emoji} **${p.name}** — ${owned ? '✅ Possédé' : `🪙 ${fmtCoins(SHOP_PRICES[tier])}`}`;
+          return `${p.emoji} **${p.name}** — ${owned ? `${CHECK} Possédé` : `${COIN} ${fmtCoins(SHOP_PRICES[tier])}`}`;
         }).join('\n'),
         inline: false,
       }))
@@ -74,7 +78,7 @@ module.exports = {
     const ownerId  = parts[2];
 
     if (interaction.user.id !== ownerId)
-      return interaction.reply({ content: '❌ Ce n\'est pas ta boutique !', flags: 64 });
+      return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} Ce n'est pas ta boutique !`)], flags: 64 });
 
     const key   = interaction.values[0];
     const perso = PERSOS[key];
@@ -114,7 +118,7 @@ module.exports = {
     const ownerId = id.split('_').at(-1);
 
     if (interaction.user.id !== ownerId)
-      return interaction.reply({ content: '❌ Ce n\'est pas ta boutique !', flags: 64 });
+      return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} Ce n'est pas ta boutique !`)], flags: 64 });
 
     // Retour à la boutique
     if (id.startsWith('bperso_back_')) {
@@ -138,7 +142,7 @@ module.exports = {
 
       if (charData.owned.includes(key)) {
         return interaction.update({
-          embeds: [new EmbedBuilder().setColor(0xff4444).setDescription('❌ Tu possèdes déjà ce personnage.')],
+          embeds: [new EmbedBuilder().setColor(0xff4444).setDescription(`${PERDU} Tu possèdes déjà ce personnage.`)],
           components: [],
         });
       }
@@ -147,7 +151,7 @@ module.exports = {
         return interaction.update({
           embeds: [new EmbedBuilder()
             .setColor(0xff4444)
-            .setDescription(`❌ Fonds insuffisants.\n🪙 Prix : **${fmtCoins(price)}** · Ton solde : **${fmtCoins(user.wallet)}**`)
+            .setDescription(`${PERDU} Fonds insuffisants.\n${COIN} Prix : **${fmtCoins(price)}** · Ton solde : **${fmtCoins(user.wallet)}**`)
           ],
           components: [],
         });
@@ -160,8 +164,8 @@ module.exports = {
       return interaction.update({
         embeds: [new EmbedBuilder()
           .setColor(TIER_COLORS[perso.tier])
-          .setTitle('✅ Achat confirmé !')
-          .setDescription(`Tu as acheté **${perso.emoji} ${perso.name}** pour **${fmtCoins(price)}** 🪙\nUtilise \`=equiper ${key}\` pour l'équiper, \`=cd\` pour voir ses techniques.`)
+          .setTitle(`${CHECK} Achat confirmé !`)
+          .setDescription(`Tu as acheté **${perso.emoji} ${perso.name}** pour **${fmtCoins(price)}** ${COIN}\nUtilise \`=equiper ${key}\` pour l'équiper, \`=cd\` pour voir ses techniques.`)
           .setFooter({ text: `Solde restant : ${fmtCoins(user.wallet)} coins` })
         ],
         components: [],

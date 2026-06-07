@@ -3,6 +3,9 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('disc
 const { getUser, saveUser } = require('../levels/db');
 const { PERSOS, TIER_COLORS } = require('../events/persos');
 
+const CHECK = '<:592053verified:1510069208661098546>';
+const PERDU = '<:26643crossmark:1510067005066055690>';
+
 const PERSO_CHOICES = Object.entries(PERSOS).map(([key, p]) => ({
   name: `${p.name} (Tier ${p.tier})`,
   value: key,
@@ -58,7 +61,7 @@ module.exports = {
     const sub    = interaction.options.getSubcommand();
     const target = interaction.options.getMember('membre');
 
-    if (!target) return interaction.reply({ content: '❌ Membre introuvable.', flags: 64 });
+    if (!target) return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} Membre introuvable.`)], flags: 64 });
 
     const user = getUser(target.id);
     if (!user.characters) user.characters = { owned: [], equipped: null, cooldowns: {}, activeEffects: {} };
@@ -70,14 +73,14 @@ module.exports = {
       const perso = PERSOS[key];
 
       if (cd.owned.includes(key))
-        return interaction.reply({ content: `❌ **${target.displayName}** possède déjà **${perso.name}**.`, flags: 64 });
+        return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} **${target.displayName}** possède déjà **${perso.name}**.`)], flags: 64 });
 
       cd.owned.push(key);
       saveUser(user);
 
       return interaction.reply({ embeds: [new EmbedBuilder()
         .setColor(TIER_COLORS[perso.tier])
-        .setTitle('✅ Personnage ajouté')
+        .setTitle(`${CHECK} Personnage ajouté`)
         .setDescription(`**${perso.emoji} ${perso.name}** [Tier ${perso.tier}] ajouté à l'inventaire de **${target.displayName}**.`)
       ]});
     }
@@ -88,7 +91,7 @@ module.exports = {
       const perso = PERSOS[key];
 
       if (!cd.owned.includes(key))
-        return interaction.reply({ content: `❌ **${target.displayName}** ne possède pas **${perso.name}**.`, flags: 64 });
+        return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} **${target.displayName}** ne possède pas **${perso.name}**.`)], flags: 64 });
 
       cd.owned    = cd.owned.filter(k => k !== key);
       if (cd.equipped === key) cd.equipped = null;
@@ -110,7 +113,7 @@ module.exports = {
     // ── LIST ─────────────────────────────────────────────────────
     if (sub === 'list') {
       if (!cd.owned.length)
-        return interaction.reply({ content: `❌ **${target.displayName}** ne possède aucun personnage.`, flags: 64 });
+        return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} **${target.displayName}** ne possède aucun personnage.`)], flags: 64 });
 
       const lines = cd.owned.map(k => {
         const p = PERSOS[k];

@@ -5,6 +5,11 @@ const B = require('../levels/buffs');
 
 const PREFIX = '=';
 
+// ─── Emojis custom du serveur (coins, succès, échec) ─────────
+const COIN  = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
+const CHECK = '<:592053verified:1510069208661098546>';
+const PERDU = '<:26643crossmark:1510067005066055690>';
+
 const TIER_COLORS = { S: 0xf5c842, A: 0xa855f7, B: 0x38bdf8, C: 0x22c55e };
 const TIER_LABELS = {
   S: '💥 TIER S — Légendaire',
@@ -33,8 +38,8 @@ const PERSOS = {
   sukuna: {
     name: 'Ryomen Sukuna', anime: 'Jujutsu Kaisen', tier: 'S', emoji: '👹', role: '@Ryomen Sukuna',
     techniques: [
-      { name: '1 Doigt — Cleave',           cmd: '=cleave @user',      desc: 'Casse les boucliers basiques (Heian : casse anti-rob améliorés sauf Infini) · CD : 3h' },
-      { name: '2 Doigts — Cache',           cmd: '=cache',             desc: 'Anti-rob amélioré 3h (Heian : 9h) · CD : 8h' },
+      { name: '1 Doigt — Cleave',           cmd: '=cleave @user',      desc: 'Casse les boucliers basiques (Heian : casse anti-rob améliorés sauf Infini) · 25% chance d\'arracher 5% de wallet en bonus · CD : 3h' },
+      { name: '2 Doigts — Cache',           cmd: '=cache',             desc: 'Anti-rob amélioré + gains +10% pendant 3h (Heian : 9h) · CD : 8h' },
       { name: '3 Doigts — SpiderWeb',       cmd: '=spiderweb',         desc: 'Stun 5min la prochaine personne qui parle (Heian : les 5 prochaines) · CD : 1j' },
       { name: '5 Doigts — Dismantle',       cmd: '=dismantle @user',   desc: 'Effets aléatoires (break/malus/-bank) · Heian : break amélioré + 2 malus + -20% bank · CD : 2j' },
       { name: '6 Doigts — Transformation', cmd: '=transfo',            desc: 'Rôle Receptacle — collect 12k/30h · Heian : rôle Heian Form — collect 24k/24h · CD : 3j' },
@@ -64,14 +69,14 @@ const PERSOS = {
     name: 'Son Goku', anime: 'Dragon Ball', tier: 'A', emoji: '⚡', role: '@Son Goku',
     techniques: [
       { name: '🟡 Kaioken',             cmd: '=kaioken',            desc: 'Rob x1.5 + gains +50% pendant 4h · CD : 4h' },
-      { name: '🟡 Kaioken x10',         cmd: '=kaiokenx10',         desc: 'Rob x2.5 + brise bouclier normal · CD : 1j' },
-      { name: '🔵 Kamehameha',          cmd: '=kamehameha @user',   desc: 'Aspire 15k–40k du wallet de la cible · CD : 8h' },
+      { name: '🟡 Kaioken x10',         cmd: '=kaiokenx10',         desc: 'Rob x2.5 + brise bouclier normal · 25% chance de brûlure de ki (auto-perte 3% wallet) · CD : 1j' },
+      { name: '🔵 Kamehameha',          cmd: '=kamehameha @user',   desc: 'Aspire 15k–40k du wallet de la cible · 30% chance de Surcharge (double les gains) · CD : 8h' },
       { name: '⚡ Super Saiyan',        cmd: '=ssj',                desc: 'Rob x2 + immunité contre-attaque 6h · CD : 3j' },
       { name: '💙 Super Saiyan Blue',   cmd: '=ssjblue',            desc: 'Rob x2.5 + gains x2 pendant 12h · Débloque =ssjblue2 · CD : 7j' },
       { name: '💙 SSJ Blue Évolué',     cmd: '=ssjblue2',           desc: 'Immunité 12h + rob x3 + brise Cache Heian · Nécessite SSJ Blue actif · CD : 10j' },
       { name: '🌀 Instant Transmission',cmd: '=instant @user',      desc: 'Rob furtif — ignore boucliers normaux, aucun counter-rob possible · CD : 2j' },
       { name: '🌟 Ultra Instinct',      cmd: '=ultrainstinct',      desc: 'Esquive toutes les attaques 8h + brise Cache Heian · CD : 7j' },
-      { name: '💥 Spirit Bomb',         cmd: '=spiritbomb @user',   desc: 'Vole 20% wallet + 15% banque · Ignore boucliers normaux + Cache Heian · CD : 12j' },
+      { name: '💥 Spirit Bomb',         cmd: '=spiritbomb @user',   desc: 'Vole 20% wallet + 15% banque · Ignore boucliers normaux + Cache Heian · 25% chance de gains +15% (6h) · CD : 12j' },
       { name: '👁️ True Ultra Instinct', cmd: '=trueinstinct',       desc: 'Immunité 24h + renvoie 100% des attaques + brise Cache Heian · CD : 14j' },
     ],
   },
@@ -79,14 +84,14 @@ const PERSOS = {
   naruto: {
     name: 'Naruto Uzumaki', anime: 'Naruto', tier: 'A', emoji: '🍥', role: '@Naruto Uzumaki',
     techniques: [
-      { name: '🔵 Rasengan',         cmd: '=rasengan @user',       desc: 'Rob x1.5 · CD : 4h' },
-      { name: '🌀 Shadow Clone',     cmd: '=shadowclone @user',    desc: '3 tentatives de rob, garde le meilleur résultat · CD : 1j' },
+      { name: '🔵 Rasengan',         cmd: '=rasengan @user',       desc: 'Rob x1.5 · 35% de chance de laisser un chakra résiduel (-15% gains 2h) · CD : 4h' },
+      { name: '🌀 Shadow Clone',     cmd: '=shadowclone @user',    desc: '3 tentatives de rob, garde le meilleur résultat · 20% chance qu\'un clone siphonne aussi 5% de la banque · CD : 1j' },
       { name: '😂 Talk no Jutsu',    cmd: '=talkjutsu @user',      desc: 'Retire le bouclier basique de la cible + vole 5k directement · CD : 2j' },
-      { name: '🌟 Rasenshuriken',    cmd: '=rasenshuriken @user',  desc: 'Rob x2.5 + brise bouclier normal · CD : 3j' },
+      { name: '🌟 Rasenshuriken',    cmd: '=rasenshuriken @user',  desc: 'Rob x2.5 + brise bouclier normal · 25% chance de KO 5 min · CD : 3j' },
       { name: '💸 Rasengan Bank',    cmd: '=rasenbankgan @user',   desc: 'Vole 15% de la banque de la cible · CD : 4j' },
-      { name: '🍃 Sage Mode',        cmd: '=sagemode',             desc: 'Bouclier 8h + brise automatiquement le bouclier basique de l\'attaquant · CD : 6j' },
+      { name: '🍃 Sage Mode',        cmd: '=sagemode',             desc: 'Bouclier 8h + tout voleur perd 20% + tes pertes de rob réduites de 10% · CD : 6j' },
       { name: '🦊 Kyuubi Mode',      cmd: '=kyuubi',               desc: 'Rob x2 + gains x2 pendant 8h + brise Cache Heian · CD : 7j' },
-      { name: '💣 Bijuu Bomb',       cmd: '=bijuubomb @user',      desc: 'Vole 20% wallet + 15% banque · Ignore boucliers normaux + Cache Heian · CD : 8j' },
+      { name: '💣 Bijuu Bomb',       cmd: '=bijuubomb @user',      desc: 'Vole 20% wallet + 15% banque · Ignore boucliers normaux + Cache Heian · 25% chance de brûlure de chakra (-25% gains, 12h) · CD : 8j' },
       { name: '🌐 Six Paths Sage',   cmd: '=sixpaths',             desc: 'Immunité 12h + gains x2 · Débloque =baryonmode · CD : 10j' },
       { name: '☄️ Baryon Mode',      cmd: '=baryonmode @user',     desc: 'Vole 30% wallet + 20% banque · Ignore tout sauf Infini · Nécessite Six Paths actif · CD : 14j' },
     ],
@@ -95,13 +100,13 @@ const PERSOS = {
   vegeta: {
     name: 'Vegeta', anime: 'Dragon Ball', tier: 'B', emoji: '👑', role: '@Vegeta',
     techniques: [
-      { name: '💢 Energy Blast',      cmd: '=energyblast @user',    desc: 'Rob x1.2 · CD : 3h' },
-      { name: '🔫 Galick Gun',        cmd: '=galickgun @user',      desc: 'Aspire 8k–20k du wallet de la cible · CD : 8h' },
+      { name: '💢 Energy Blast',      cmd: '=energyblast @user',    desc: 'Rob x1.2 · 25% de chance de coup critique « Montée de fierté » (x2.4) · CD : 3h' },
+      { name: '🔫 Galick Gun',        cmd: '=galickgun @user',      desc: 'Aspire 8k–20k du wallet de la cible · 25% chance de Tir chargé (+3k–6k bonus) · CD : 8h' },
       { name: '🔥 Final Flash',       cmd: '=finalflash @user',     desc: 'Rob x2 + 40% chance de brise bouclier normal · CD : 3j' },
       { name: '💣 Big Bang Attack',   cmd: '=bigbang @user',        desc: 'Vole 8% de la banque de la cible · CD : 5j' },
       { name: '⚡ Super Saiyan Blue', cmd: '=vegblue',              desc: 'Rob x1.8 + gains x1.5 pendant 8h · CD : 5j' },
       { name: '🛡️ Pride Shield',      cmd: '=pride',                desc: 'Renvoie 60% des attaques reçues pendant 6h · CD : 5j' },
-      { name: '💥 Spirit Fission',    cmd: '=fission @user',        desc: 'Brise bouclier normal + rob x1.5 · CD : 5j' },
+      { name: '💥 Spirit Fission',    cmd: '=fission @user',        desc: 'Brise bouclier normal + rob x1.5 · 25% chance de gains +10% (6h) · CD : 5j' },
       { name: '😤 Ultra Ego',         cmd: '=ultraego',             desc: 'Plus tu reçois d\'attaques pendant 10h, plus ton prochain rob est fort (x1 à x3) · CD : 8j' },
       { name: '💀 Final Explosion',   cmd: '=finalexplosion @user', desc: 'Vole 15% wallet + 10% banque · Tu perds 5% de ton propre wallet · CD : 12j' },
     ],
@@ -110,11 +115,11 @@ const PERSOS = {
   luffy: {
     name: 'Monkey D. Luffy', anime: 'One Piece', tier: 'B', emoji: '🌊', role: '@Monkey D. Luffy',
     techniques: [
-      { name: '👊 Gomu Gomu no Pistol', cmd: '=pistol @user',     desc: 'Rob x1.2 · CD : 3h' },
+      { name: '👊 Gomu Gomu no Pistol', cmd: '=pistol @user',     desc: 'Rob x1.2 · 25% de chance d\'assommer la cible par effet élastique (KO 2min) · CD : 3h' },
       { name: '⚡ Gear Second',          cmd: '=gear2',            desc: 'Ignore les counter-rob + rob x1.5 pendant 6h · CD : 2j' },
-      { name: '💪 Gear Third',           cmd: '=gear3 @user',     desc: 'Rob x2 usage unique · CD : 2j' },
+      { name: '💪 Gear Third',           cmd: '=gear3 @user',     desc: 'Rob x2 usage unique · 25% chance de réduire tes pertes de rob de 20% (4h) · CD : 2j' },
       { name: '🔴 Red Hawk',             cmd: '=redhawk @user',   desc: 'Rob x1.8 + brûle 3% du wallet de la cible · CD : 1j' },
-      { name: '🥊 Kong Organ',           cmd: '=kongorgan @user', desc: '3 tentatives de rob, garde le meilleur résultat · CD : 3j' },
+      { name: '🥊 Kong Organ',           cmd: '=kongorgan @user', desc: '3 tentatives de rob, garde le meilleur résultat · 20% chance d\'assommer la cible 5 min · CD : 3j' },
       { name: '🛡️ Armament Haki',       cmd: '=haki',            desc: 'Réduit tes pertes de rob de 40% pendant 8h · CD : 3j' },
       { name: '🔵 Gear Fourth',          cmd: '=gear4',           desc: 'Bouclier 12h + renvoie 40% des coins volés à l\'attaquant · CD : 5j' },
       { name: '⚫ Conqueror\'s Haki',    cmd: '=chaki @user',     desc: 'KO la cible 5 min (bloque ses commandes) · CD : 5j' },
@@ -126,16 +131,16 @@ const PERSOS = {
   zoro: {
     name: 'Roronoa Zoro', anime: 'One Piece', tier: 'B', emoji: '⚔️', role: '@Roronoa Zoro',
     techniques: [
-      { name: '🗡️ Oni Giri',         cmd: '=onigiri @user',      desc: 'Rob x1.2 · CD : 3h' },
-      { name: '⚔️ Santoryu',         cmd: '=santoryu @user',     desc: 'Rob x1.5 + brise bouclier basique · CD : 1j' },
+      { name: '🗡️ Oni Giri',         cmd: '=onigiri @user',      desc: 'Rob x1.2 + Garde Santoryu (-25% pertes au rob pendant 1h) · CD : 3h' },
+      { name: '⚔️ Santoryu',         cmd: '=santoryu @user',     desc: 'Rob x1.5 + brise bouclier basique · 25% chance d\'entaille (-15% gains, 8h) · CD : 1j' },
       { name: '🐯 Tora Gari',        cmd: '=toragari @user',     desc: 'Rob x1.8 + bloque le counter-rob de la cible 30min · CD : 1j' },
       { name: '🗡️ Shishi Sonson',    cmd: '=shishi @user',       desc: 'Rob x2 + vole 4% de la banque · CD : 2j' },
       { name: '🔇 Stealth',          cmd: '=stealth',            desc: 'Ton prochain rob n\'envoie aucune notification à la cible · CD : 2j' },
-      { name: '💫 1080 Pound Canon', cmd: '=poundcanon @user',   desc: 'Brise boucliers normaux · Pas Cache Heian ni Infini · CD : 4j' },
+      { name: '💫 1080 Pound Canon', cmd: '=poundcanon @user',   desc: 'Brise boucliers normaux · Pas Cache Heian ni Infini · 25% chance de réduire tes pertes de rob de 15% (6h) · CD : 4j' },
       { name: '⚫ Black Blade',       cmd: '=blackblade @user',   desc: 'Rob x2 · Ignore anti-rob basiques · CD : 4j' },
       { name: '👁️ Ashura',           cmd: '=ashura',             desc: 'Rob x2.5 + immunité contre-attaque pendant 6h · CD : 7j' },
       { name: '👑 King of Hell',      cmd: '=kingofhell',         desc: 'Immunité 8h + renvoie 50% des attaques · CD : 7j' },
-      { name: '🌑 Supreme Blade',     cmd: '=supremeblade @user', desc: 'Vole 12% wallet + 6% banque · Brise boucliers normaux · CD : 10j' },
+      { name: '🌑 Supreme Blade',     cmd: '=supremeblade @user', desc: 'Vole 12% wallet + 6% banque · Brise boucliers normaux · 25% chance de KO 10 min · CD : 10j' },
     ],
   },
 
@@ -143,12 +148,12 @@ const PERSOS = {
     name: 'Levi Ackerman', anime: 'Attack on Titan', tier: 'C', emoji: '⚔️', role: '@Levi Ackerman',
     techniques: [
       { name: '🗡️ Thunder Spear',         cmd: '=thunderspear @user', desc: 'Rob x1.2 + brise bouclier basique · CD : 6h' },
-      { name: '🔄 3DMG',                  cmd: '=3dmg',               desc: 'Esquive la prochaine attaque reçue + renvoie 20% à l\'attaquant · CD : 12h' },
+      { name: '🔄 3DMG',                  cmd: '=3dmg',               desc: 'Esquive la prochaine attaque + renvoie 20% à l\'attaquant + réduit tes pertes de 15% pendant 12h · CD : 12h' },
       { name: '🔇 Stealth Strike',         cmd: '=stealthstrike @user',desc: 'Rob x1.3 sans notification à la cible · CD : 12h' },
-      { name: '🗡️ Titan Killer',          cmd: '=titankill @user',    desc: 'Brise le bouclier anti-rob basique de la cible · CD : 2j' },
+      { name: '🗡️ Titan Killer',          cmd: '=titankill @user',    desc: 'Brise le bouclier anti-rob basique de la cible · 25% chance de looter 5% de son wallet · CD : 2j' },
       { name: '🌀 Spin Attack',            cmd: '=spinattack @user',   desc: 'Rob x1.5 + stun 5 min · CD : 2j' },
-      { name: '⚡ Ackerman Awakening',     cmd: '=ackerman',           desc: 'Rob x1.8 pendant 8h · CD : 4j' },
-      { name: '🛡️ Survey Corps Formation',cmd: '=formation',          desc: 'Bouclier 8h + counter-rob actif (voleur perd 10%) · CD : 5j' },
+      { name: '⚡ Ackerman Awakening',     cmd: '=ackerman',           desc: 'Rob x1.8 + pertes de rob réduites de 15% pendant 8h · CD : 4j' },
+      { name: '🛡️ Survey Corps Formation',cmd: '=formation',          desc: 'Bouclier 8h + voleur perd 10% + absorbe 10% de plus pendant 8h · CD : 5j' },
       { name: '💪 No Mercy',              cmd: '=nomercy @user',      desc: 'Rob x2 + brise bouclier basique + stun 5 min · CD : 7j' },
       { name: '⚰️ Last Stand',            cmd: '=laststand @user',    desc: 'Rob x2.5 · Cooldown 14j si échec · CD : 8j' },
     ],
@@ -157,13 +162,13 @@ const PERSOS = {
   killua: {
     name: 'Killua Zoldyck', anime: 'Hunter x Hunter', tier: 'C', emoji: '⚡', role: '@Killua Zoldyck',
     techniques: [
-      { name: '⚡ Lightning Palm',       cmd: '=lightningpalm @user',  desc: 'Rob x1.2 · CD : 3h' },
-      { name: '🔪 Narukami',            cmd: '=narukami @user',       desc: 'Aspire 5k–15k du wallet de la cible · CD : 8h' },
-      { name: '💨 Rhythm Echo',         cmd: '=rhythmecho',           desc: 'Esquive la prochaine attaque reçue + renvoie 15% à l\'attaquant · CD : 12h' },
-      { name: '🌑 Stealth Mode',        cmd: '=stealthmode @user',    desc: 'Rob x1.3 sans notification à la cible · CD : 1j' },
-      { name: '⚡ Thunderbolt',         cmd: '=thunderbolt @user',    desc: 'Rob x1.5 + stun 5 min · CD : 2j' },
-      { name: '🗡️ Yo-Yo',              cmd: '=yoyo @user',           desc: 'Brise le bouclier basique de la cible · CD : 2j' },
-      { name: '🛡️ Pin Shield',         cmd: '=pinshield',            desc: 'Bouclier 6h + counter-rob actif (voleur perd 8%) · CD : 4j' },
+      { name: '⚡ Lightning Palm',       cmd: '=lightningpalm @user',  desc: 'Rob x1.2 · 25% de chance de frapper deux fois (Frappe Éclair) · CD : 3h' },
+      { name: '🔪 Narukami',            cmd: '=narukami @user',       desc: 'Aspire 5k–15k du wallet de la cible · 25% chance de Frappe silencieuse (furtivité) · CD : 8h' },
+      { name: '💨 Rhythm Echo',         cmd: '=rhythmecho',           desc: 'Esquive la prochaine attaque + renvoie 15% + contre-attaque automatique de 20% sur tout vol pendant 12h · CD : 12h' },
+      { name: '🌑 Stealth Mode',        cmd: '=stealthmode @user',    desc: 'Rob x1.3 furtif + active un mode silencieux : ton prochain rob sera aussi sans notification · CD : 1j' },
+      { name: '⚡ Thunderbolt',         cmd: '=thunderbolt @user',    desc: 'Rob x1.5 + électrocute la cible (KO 3min) + charge résiduelle : immunité counter-rob 1h pour toi · CD : 2j' },
+      { name: '🗡️ Yo-Yo',              cmd: '=yoyo @user',           desc: 'Brise le bouclier basique de la cible · 25% chance d\'électrocuter (KO 5 min) · CD : 2j' },
+      { name: '🛡️ Pin Shield',         cmd: '=pinshield',            desc: 'Bouclier 6h + voleur perd 8% + esquive la prochaine attaque · CD : 4j' },
       { name: '💀 Silent Kill',         cmd: '=silentkill @user',     desc: 'Rob x1.8 + brise bouclier basique + sans notification · CD : 5j' },
       { name: '⚡ Godspeed',            cmd: '=godspeed',             desc: 'Rob x2.5 usage unique + esquive la prochaine attaque · CD : 8j' },
     ],
@@ -291,7 +296,7 @@ function buildCdEmbed(member, ownedKeys, charData) {
         anyCooldown = true;
         return `⏳ ${t.name} — **${formatRemaining(cdTs - now)}**`;
       }
-      return `✅ ${t.name} — Disponible`;
+      return `${CHECK} ${t.name} — Disponible`;
     });
 
     const isEquipped = charData.equipped === key;
@@ -337,7 +342,7 @@ function buildShopEmbed(ownedKeys = []) {
     name: TIER_LABELS[tier],
     value: list.map(p => {
       const owned = ownedKeys.includes(p.key);
-      return `${p.emoji} **${p.name}** — ${owned ? '✅ Possédé' : `🪙 ${fmtCoins(SHOP_PRICES[tier])}`}`;
+      return `${p.emoji} **${p.name}** — ${owned ? `${CHECK} Possédé` : `${COIN} ${fmtCoins(SHOP_PRICES[tier])}`}`;
     }).join('\n'),
     inline: false,
   }));
@@ -439,7 +444,6 @@ function doRob(attUser, victim, mult = 1, opts = {}) {
 
 // ─── Dispatch principal des attaques ──────────────────────────
 async function handleAttack(msg, args, name, attUser, attChar) {
-  const COIN = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
   function re(color, desc) { return { embeds: [new EmbedBuilder().setColor(color).setDescription(desc)] }; }
   function ok(desc)  { return re(0x22c55e, desc); }
   function err(desc) { return re(0xef4444, desc); }
@@ -450,8 +454,8 @@ async function handleAttack(msg, args, name, attUser, attChar) {
   const tName  = target?.displayName ?? '???';
 
   function needTarget() {
-    if (!target) { msg.reply(err('❌ Mentionne une cible. Ex : `=' + name + ' @membre`')); return true; }
-    if (target.id === msg.author.id) { msg.reply(err('❌ Tu ne peux pas te cibler toi-même.')); return true; }
+    if (!target) { msg.reply(err(`${PERDU} Mentionne une cible. Ex : \`=${name} @membre\``)); return true; }
+    if (target.id === msg.author.id) { msg.reply(err(`${PERDU} Tu ne peux pas te cibler toi-même.`)); return true; }
     return false;
   }
   function blocked(type) {
@@ -485,9 +489,14 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       if (actual <= 0) return msg.reply(cd('💸 La banque de **' + tName + '** est vide.'));
       targetUser.bank -= actual;
       attUser.wallet  += actual;
+      let blueExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(targetUser, 'kira', { exp: now + H, v: 0.10, from: msg.author.id });
+        blueExtra = ` Le vide aspire aussi son énergie (-10% gains 1h) !`;
+      }
       saveUser(targetUser);
       setCD(attChar, name, CD_MS['8h']); saveUser(attUser);
-      return msg.reply(ok(`🔵 **Blue** — Tu as aspiré **${fmtC(actual)}** ${COIN} de la banque de **${tName}** !`));
+      return msg.reply(ok(`🔵 **Blue** — Tu as aspiré **${fmtC(actual)}** ${COIN} de la banque de **${tName}** !${blueExtra}`));
     }
 
     case 'bluemax': {
@@ -550,7 +559,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     }
 
     case 'lastblue': {
-      if (!attUser.buffs?.awak?.exp > now) return msg.reply(err('❌ **Éveil** doit être actif pour utiliser cette technique.'));
+      if (!attUser.buffs?.awak?.exp > now) return msg.reply(err(`${PERDU} **Éveil** doit être actif pour utiliser cette technique.`));
       B.setBuff(attUser, 'immunity', { exp: now + 15 * 60_000 });
       B.setBuff(attUser, 'dodge',    true);
       setCD(attChar, name, CD_MS['4j']); saveUser(attUser);
@@ -558,7 +567,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     }
 
     case 'lastred': {
-      if (!attUser.buffs?.awak?.exp > now) return msg.reply(err('❌ **Éveil** doit être actif pour utiliser cette technique.'));
+      if (!attUser.buffs?.awak?.exp > now) return msg.reply(err(`${PERDU} **Éveil** doit être actif pour utiliser cette technique.`));
       B.setBuff(attUser, 'absorb', { exp: now + 6 * 60_000, v: 1.0 });
       B.setGFX(msg.guild.id, 'lastred', { userId: msg.author.id, channel: msg.channel.id }, 6 * 60_000);
       setCD(attChar, name, CD_MS['4j']); saveUser(attUser);
@@ -575,18 +584,27 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       const ignLvl = heian ? 'heian' : null;
       const sc2 = shieldCheck(targetUser, ignLvl, ignLvl || 'basic');
       if (sc2?.blocked && !ignLvl) return blocked(sc2.blocked);
+      let cleaveExtra = '';
+      if (Math.random() < 0.25) {
+        const punch = Math.floor((targetUser.wallet || 0) * 0.05);
+        if (punch > 0) {
+          targetUser.wallet -= punch; attUser.wallet += punch;
+          cleaveExtra = ` Le coup de poing fait trembler les poches de **${tName}**, t\'arrachant **${fmtC(punch)}** ${COIN} de plus !`;
+        }
+      }
       saveUser(targetUser);
       setCD(attChar, name, CD_MS['3h']); saveUser(attUser);
       const extraMsg = heian ? ' (Heian : boucliers améliorés inclus !)' : '';
-      return msg.reply(ok(`⚔️ **Cleave** — Bouclier de **${tName}** brisé${extraMsg} !`));
+      return msg.reply(ok(`⚔️ **Cleave** — Bouclier de **${tName}** brisé${extraMsg} !${cleaveExtra}`));
     }
 
     case 'cache': {
       const dur = heian ? 9*H : 3*H;
       B.setBuff(attUser, 'shield', { exp: now + dur, type: heian ? 'heian' : 'basic' });
+      B.setBuff(attUser, 'gainMult', { exp: now + dur, v: 1.10 });
       setCD(attChar, name, CD_MS['8h']); saveUser(attUser);
       const durStr = heian ? '9h (Heian !)' : '3h';
-      return msg.reply(ok(`🛡️ **Cache** — Anti-rob amélioré actif pendant **${durStr}** !`));
+      return msg.reply(ok(`🛡️ **Cache** — Le domaine occulte de Sukuna dissimule sa présence : anti-rob amélioré + **gains +10%** pendant **${durStr}** !`));
     }
 
     case 'spiderweb': {
@@ -811,20 +829,32 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       B.clearBuff(targetUser, 'shield'); saveUser(targetUser);
       B.setBuff(attUser, 'robMult', { exp: now + 8*H, v: 2.5 });
       const res = doRob(attUser, targetUser, 2.5, { ignoreLevel: 'basic', breakLevel: 'basic' });
+      let kkExtra = '';
+      if (Math.random() < 0.25) {
+        const selfBurn = Math.floor((attUser.wallet || 0) * 0.03);
+        attUser.wallet = Math.max(0, attUser.wallet - selfBurn);
+        kkExtra = ` Le Kaioken consume ton propre ki : tu perds **${fmtC(selfBurn)}** ${COIN}, mais ta puissance reste décuplée pendant **8h** !`;
+      }
       setCD(attChar, name, CD_MS['1j']); saveUser(attUser);
-      return robResult(res, `🟡 **Kaioken x10** — Bouclier brisé + **{n}** ${COIN} volés sur **${tName}** !`);
+      return robResult(res, `🟡 **Kaioken x10** — Bouclier brisé + **{n}** ${COIN} volés sur **${tName}** !${kkExtra}`);
     }
 
     case 'kamehameha': {
       if (needTarget()) return;
       if (B.isImmune(targetUser)) return blocked('infini');
       const amt = rand(15000, 40000);
-      const stolen = Math.min(amt, targetUser.wallet || 0);
+      let stolen = Math.min(amt, targetUser.wallet || 0);
       if (stolen <= 0) return msg.reply(cd(`💸 **${tName}** n\'a rien sur lui !`));
+      let kameExtra = '';
+      if (Math.random() < 0.30) {
+        const bonus = Math.min(stolen, (targetUser.wallet || 0) - stolen);
+        stolen += Math.max(0, bonus);
+        kameExtra = ` **Surcharge** — le rayon transperce de plein fouet, doublant les dégâts !`;
+      }
       targetUser.wallet -= stolen; attUser.wallet += stolen;
       saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['8h']); saveUser(attUser);
-      return msg.reply(ok(`🔵 **Kamehameha** — **${fmtC(stolen)}** ${COIN} aspirés du wallet de **${tName}** !`));
+      return msg.reply(ok(`🔵 **Kamehameha** — **${fmtC(stolen)}** ${COIN} aspirés du wallet de **${tName}** !${kameExtra}`));
     }
 
     case 'ssj': {
@@ -843,7 +873,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     }
 
     case 'ssjblue2': {
-      if (!attUser.buffs?.ssjBlue?.exp > now) return msg.reply(err('❌ **SSJ Blue** doit être actif pour utiliser cette technique.'));
+      if (!attUser.buffs?.ssjBlue?.exp > now) return msg.reply(err(`${PERDU} **SSJ Blue** doit être actif pour utiliser cette technique.`));
       B.setBuff(attUser, 'immunity',      { exp: now + 12*H });
       B.setBuff(attUser, 'robMult',       { exp: now + 12*H, v: 3.0 });
       B.setBuff(attUser, 'ignoreCounter', { exp: now + 12*H });
@@ -879,9 +909,14 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       targetUser.wallet = Math.max(0, (targetUser.wallet || 0) - wStolen);
       targetUser.bank   = Math.max(0, (targetUser.bank   || 0) - bStolen);
       attUser.wallet += wStolen + bStolen;
+      let sbExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(attUser, 'gainMult', { exp: now + 6*H, v: 1.15 });
+        sbExtra = ` L\'énergie résiduelle de la Genki Dama t\'imprègne : **gains +15%** pendant **6h** !`;
+      }
       saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['12j']); saveUser(attUser);
-      return msg.reply(ok(`💥 **Spirit Bomb** — **${fmtC(wStolen)}** wallet + **${fmtC(bStolen)}** bank = **${fmtC(wStolen+bStolen)}** ${COIN} sur **${tName}** !`));
+      return msg.reply(ok(`💥 **Spirit Bomb** — **${fmtC(wStolen)}** wallet + **${fmtC(bStolen)}** bank = **${fmtC(wStolen+bStolen)}** ${COIN} sur **${tName}** !${sbExtra}`));
     }
 
     case 'trueinstinct': {
@@ -899,8 +934,14 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'rasengan': {
       if (needTarget()) return;
       const res = doRob(attUser, targetUser, 1.5, { ignoreLevel: null });
+      let extra = '';
+      if (!res.blocked && !res.empty && res.stolen > 0 && Math.random() < 0.35) {
+        B.setBuff(targetUser, 'kira', { exp: now + 2*H, v: 0.15, from: msg.author.id });
+        saveUser(targetUser);
+        extra = ` Le chakra résiduel laisse **${tName}** affaibli(e) (-15% gains 2h) !`;
+      }
       setCD(attChar, name, CD_MS['4h']); saveUser(attUser);
-      return robResult(res, `🔵 **Rasengan** — **{n}** ${COIN} volés sur **${tName}** !`);
+      return robResult(res, `🔵 **Rasengan** — **{n}** ${COIN} volés sur **${tName}** !${extra}`);
     }
 
     case 'shadowclone': {
@@ -915,9 +956,17 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       if (best <= 0) return msg.reply(cd(`💸 **${tName}** n\'a rien sur lui !`));
       best = Math.min(best, targetUser.wallet);
       targetUser.wallet -= best; attUser.wallet += best;
+      let cloneExtra = '';
+      if (Math.random() < 0.20) {
+        const bankCut = Math.floor((targetUser.bank || 0) * 0.05);
+        if (bankCut > 0) {
+          targetUser.bank -= bankCut; attUser.wallet += bankCut;
+          cloneExtra = ` Un clone supplémentaire infiltre la banque et siphonne **${fmtC(bankCut)}** ${COIN} de plus !`;
+        }
+      }
       saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['1j']); saveUser(attUser);
-      return msg.reply(ok(`🌀 **Shadow Clone** — 3 tentatives, meilleur résultat : **${fmtC(best)}** ${COIN} sur **${tName}** !`));
+      return msg.reply(ok(`🌀 **Shadow Clone** — 3 tentatives, meilleur résultat : **${fmtC(best)}** ${COIN} sur **${tName}** !${cloneExtra}`));
     }
 
     case 'talkjutsu': {
@@ -937,8 +986,13 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       if (B.isImmune(targetUser)) return blocked('infini');
       B.clearBuff(targetUser, 'shield'); saveUser(targetUser);
       const res = doRob(attUser, targetUser, 2.5, { ignoreLevel: 'basic' });
+      let rsExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(targetUser, 'ko', { exp: now + 5 * 60_000, from: msg.author.id });
+        rsExtra = ` L\'explosion de chakra paralyse **${tName}**, KO pendant **5 min** !`;
+      }
       setCD(attChar, name, CD_MS['3j']); saveUser(attUser);
-      return robResult(res, `🌀 **Rasenshuriken** — Bouclier brisé + **{n}** ${COIN} sur **${tName}** !`);
+      return robResult(res, `🌀 **Rasenshuriken** — Bouclier brisé + **{n}** ${COIN} sur **${tName}** !${rsExtra}`);
     }
 
     case 'rasenbankgan': {
@@ -955,8 +1009,9 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'sagemode': {
       B.setBuff(attUser, 'shield',      { exp: now + 8*H, type: 'basic' });
       B.setBuff(attUser, 'counterRob',  { exp: now + 8*H, v: 0.20 });
+      B.setBuff(attUser, 'reduceLoss',  { exp: now + 8*H, v: 0.10 });
       setCD(attChar, name, CD_MS['6j']); saveUser(attUser);
-      return msg.reply(ok('🍃 **Sage Mode** — Bouclier 8h + tout attaquant perd 20% de ce qu\'il essaie de voler !'));
+      return msg.reply(ok('🍃 **Sage Mode** — La nature insuffle son énergie : bouclier 8h, tout attaquant perd **20%**, et tes pertes de rob sont réduites de **10%** !'));
     }
 
     case 'kyuubi': {
@@ -977,9 +1032,14 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       targetUser.wallet = Math.max(0, (targetUser.wallet || 0) - wS);
       targetUser.bank   = Math.max(0, (targetUser.bank   || 0) - bS);
       attUser.wallet += wS + bS;
+      let bbExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(targetUser, 'kira', { exp: now + 12*H, v: 0.25, from: msg.author.id });
+        bbExtra = ` Le chakra de la bête à queues calcine **${tName}** : **gains -25%** pendant **12h** !`;
+      }
       saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['8j']); saveUser(attUser);
-      return msg.reply(ok(`💣 **Bijuu Bomb** — **${fmtC(wS)}** wallet + **${fmtC(bS)}** bank = **${fmtC(wS+bS)}** ${COIN} sur **${tName}** !`));
+      return msg.reply(ok(`💣 **Bijuu Bomb** — **${fmtC(wS)}** wallet + **${fmtC(bS)}** bank = **${fmtC(wS+bS)}** ${COIN} sur **${tName}** !${bbExtra}`));
     }
 
     case 'sixpaths': {
@@ -992,7 +1052,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
 
     case 'baryonmode': {
       if (needTarget()) return;
-      if (!attUser.buffs?.sixPaths?.exp > now) return msg.reply(err('❌ **Six Paths** doit être actif.'));
+      if (!attUser.buffs?.sixPaths?.exp > now) return msg.reply(err(`${PERDU} **Six Paths** doit être actif.`));
       if (B.isImmune(targetUser)) return blocked('infini');
       B.clearBuff(targetUser, 'shield'); saveUser(targetUser);
       const wS = Math.floor((targetUser.wallet || 0) * 0.30);
@@ -1011,21 +1071,30 @@ async function handleAttack(msg, args, name, attUser, attChar) {
 
     case 'energyblast': {
       if (needTarget()) return;
-      const res = doRob(attUser, targetUser, 1.2);
+      const proud = Math.random() < 0.25;
+      const res = doRob(attUser, targetUser, proud ? 2.4 : 1.2);
+      const extra = proud ? ' **Montée de fierté** — coup critique !' : '';
       setCD(attChar, name, CD_MS['3h']); saveUser(attUser);
-      return robResult(res, `💢 **Energy Blast** — **{n}** ${COIN} volés sur **${tName}** !`);
+      return robResult(res, `💢 **Energy Blast** — **{n}** ${COIN} volés sur **${tName}** !${extra}`);
     }
 
     case 'galickgun': {
       if (needTarget()) return;
       if (B.isImmune(targetUser)) return blocked('infini');
       const amt = rand(8000, 20000);
-      const stolen = Math.min(amt, targetUser.wallet || 0);
+      let stolen = Math.min(amt, targetUser.wallet || 0);
       if (stolen <= 0) return msg.reply(cd(`💸 **${tName}** n\'a rien sur lui !`));
+      let galickExtra = '';
+      if (Math.random() < 0.25) {
+        const bonus = rand(3000, 6000);
+        const realBonus = Math.min(bonus, (targetUser.wallet || 0) - stolen);
+        stolen += Math.max(0, realBonus);
+        galickExtra = ` **Tir chargé** — la fierté du Prince des Saiyans intensifie le tir (+${fmtC(Math.max(0, realBonus))}) !`;
+      }
       targetUser.wallet -= stolen; attUser.wallet += stolen;
       saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['8h']); saveUser(attUser);
-      return msg.reply(ok(`🔫 **Galick Gun** — **${fmtC(stolen)}** ${COIN} aspirés du wallet de **${tName}** !`));
+      return msg.reply(ok(`🔫 **Galick Gun** — **${fmtC(stolen)}** ${COIN} aspirés du wallet de **${tName}** !${galickExtra}`));
     }
 
     case 'finalflash': {
@@ -1069,8 +1138,13 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       if (B.isImmune(targetUser)) return blocked('infini');
       B.clearBuff(targetUser, 'shield'); saveUser(targetUser);
       const res = doRob(attUser, targetUser, 1.5, { ignoreLevel: 'basic' });
+      let fsExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(attUser, 'gainMult', { exp: now + 6*H, v: 1.10 });
+        fsExtra = ` La résonance cosmique amplifie tes gains de **10%** pendant **6h** !`;
+      }
       setCD(attChar, name, CD_MS['5j']); saveUser(attUser);
-      return robResult(res, `💥 **Spirit Fission** — Bouclier brisé + **{n}** ${COIN} sur **${tName}** !`);
+      return robResult(res, `💥 **Spirit Fission** — Bouclier brisé + **{n}** ${COIN} sur **${tName}** !${fsExtra}`);
     }
 
     case 'ultraego': {
@@ -1110,8 +1184,14 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'pistol': {
       if (needTarget()) return;
       const res = doRob(attUser, targetUser, 1.2);
+      let extra = '';
+      if (!res.blocked && !res.empty && res.stolen > 0 && Math.random() < 0.25) {
+        B.setBuff(targetUser, 'ko', { exp: now + 2 * 60_000, from: msg.author.id });
+        saveUser(targetUser);
+        extra = ` Le retour élastique sonne **${tName}** (KO 2min) !`;
+      }
       setCD(attChar, name, CD_MS['3h']); saveUser(attUser);
-      return robResult(res, `👊 **Gomu Gomu no Pistol** — **{n}** ${COIN} sur **${tName}** !`);
+      return robResult(res, `👊 **Gomu Gomu no Pistol** — **{n}** ${COIN} sur **${tName}** !${extra}`);
     }
 
     case 'gear2': {
@@ -1124,8 +1204,13 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'gear3': {
       if (needTarget()) return;
       const res = doRob(attUser, targetUser, 2.0);
+      let g3Extra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(attUser, 'reduceLoss', { exp: now + 4*H, v: 0.20 });
+        g3Extra = ` Le bras gonflé encaisse les ripostes : pertes de rob réduites de **20%** pendant **4h** !`;
+      }
       setCD(attChar, name, CD_MS['2j']); saveUser(attUser);
-      return robResult(res, `💪 **Gear Third** — Rob x2 sur **${tName}** : **{n}** ${COIN} !`);
+      return robResult(res, `💪 **Gear Third** — Rob x2 sur **${tName}** : **{n}** ${COIN} !${g3Extra}`);
     }
 
     case 'redhawk': {
@@ -1153,9 +1238,14 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       if (best <= 0) return msg.reply(cd(`💸 **${tName}** n\'a rien !`));
       best = Math.min(best, targetUser.wallet);
       targetUser.wallet -= best; attUser.wallet += best;
+      let kongExtra = '';
+      if (Math.random() < 0.20) {
+        B.setBuff(targetUser, 'ko', { exp: now + 5 * 60_000, from: msg.author.id });
+        kongExtra = ` Le coup de Gear Fourth assomme **${tName}**, KO pendant **5 min** !`;
+      }
       saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['3j']); saveUser(attUser);
-      return msg.reply(ok(`🥊 **Kong Organ** — 3 essais, meilleur : **${fmtC(best)}** ${COIN} sur **${tName}** !`));
+      return msg.reply(ok(`🥊 **Kong Organ** — 3 essais, meilleur : **${fmtC(best)}** ${COIN} sur **${tName}** !${kongExtra}`));
     }
 
     case 'haki': {
@@ -1191,7 +1281,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
 
     case 'bajrang': {
       if (needTarget()) return;
-      if (!attUser.buffs?.gear5?.exp > now) return msg.reply(err('❌ **Gear Fifth** doit être actif.'));
+      if (!attUser.buffs?.gear5?.exp > now) return msg.reply(err(`${PERDU} **Gear Fifth** doit être actif.`));
       if (B.isImmune(targetUser)) return blocked('infini');
       B.clearBuff(targetUser, 'shield'); saveUser(targetUser);
       const wS = Math.floor((targetUser.wallet || 0) * 0.12);
@@ -1211,8 +1301,9 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'onigiri': {
       if (needTarget()) return;
       const res = doRob(attUser, targetUser, 1.2);
+      B.setBuff(attUser, 'reduceLoss', { exp: now + H, v: 0.25 });
       setCD(attChar, name, CD_MS['3h']); saveUser(attUser);
-      return robResult(res, `🗡️ **Oni Giri** — **{n}** ${COIN} sur **${tName}** !`);
+      return robResult(res, `🗡️ **Oni Giri** — **{n}** ${COIN} sur **${tName}** ! Garde Santoryu : -25% pertes au rob pendant 1h.`);
     }
 
     case 'santoryu': {
@@ -1220,8 +1311,13 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       if (B.isImmune(targetUser)) return blocked('infini');
       B.clearBuff(targetUser, 'shield'); saveUser(targetUser);
       const res = doRob(attUser, targetUser, 1.5, { ignoreLevel: 'basic' });
+      let stExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(targetUser, 'kira', { exp: now + 8*H, v: 0.15, from: msg.author.id });
+        stExtra = ` Les lames laissent une entaille profonde : **${tName}** voit ses gains réduits de **15%** pendant **8h** !`;
+      }
       setCD(attChar, name, CD_MS['1j']); saveUser(attUser);
-      return robResult(res, `⚔️ **Santoryu** — Bouclier brisé + **{n}** ${COIN} sur **${tName}** !`);
+      return robResult(res, `⚔️ **Santoryu** — Bouclier brisé + **{n}** ${COIN} sur **${tName}** !${stExtra}`);
     }
 
     case 'toragari': {
@@ -1257,9 +1353,15 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'poundcanon': {
       if (needTarget()) return;
       if (B.isImmune(targetUser)) return blocked('infini');
-      B.clearBuff(targetUser, 'shield'); saveUser(targetUser);
+      B.clearBuff(targetUser, 'shield');
+      let pcExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(attUser, 'reduceLoss', { exp: now + 6*H, v: 0.15 });
+        pcExtra = ` Le contrecoup du Gear Fourth t\'endurcit : pertes de rob réduites de **15%** pendant **6h** !`;
+      }
+      saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['4j']); saveUser(attUser);
-      return msg.reply(ok(`💫 **1080 Pound Canon** — Bouclier de **${tName}** brisé !`));
+      return msg.reply(ok(`💫 **1080 Pound Canon** — Bouclier de **${tName}** brisé !${pcExtra}`));
     }
 
     case 'blackblade': {
@@ -1293,9 +1395,14 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       targetUser.wallet = Math.max(0, (targetUser.wallet || 0) - wS);
       targetUser.bank   = Math.max(0, (targetUser.bank   || 0) - bS);
       attUser.wallet += wS + bS;
+      let blExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(targetUser, 'ko', { exp: now + 10 * 60_000, from: msg.author.id });
+        blExtra = ` La lame maudite tranche les réflexes de **${tName}**, KO pendant **10 min** !`;
+      }
       saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['10j']); saveUser(attUser);
-      return msg.reply(ok(`🌑 **Supreme Blade** — **${fmtC(wS)}** wallet + **${fmtC(bS)}** bank = **${fmtC(wS+bS)}** ${COIN} sur **${tName}** !`));
+      return msg.reply(ok(`🌑 **Supreme Blade** — **${fmtC(wS)}** wallet + **${fmtC(bS)}** bank = **${fmtC(wS+bS)}** ${COIN} sur **${tName}** !${blExtra}`));
     }
 
     // ══════════════════════════════════════════════
@@ -1314,8 +1421,9 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case '3dmg': {
       B.setBuff(attUser, 'dodge',  true);
       B.setBuff(attUser, 'absorb', { exp: now + 12*H, v: 0.20 });
+      B.setBuff(attUser, 'reduceLoss', { exp: now + 12*H, v: 0.15 });
       setCD(attChar, name, CD_MS['12h']); saveUser(attUser);
-      return msg.reply(ok('🔄 **3DMG** — Prochaine attaque esquivée + 20% renvoyés à l\'attaquant pendant **12h** !'));
+      return msg.reply(ok('🔄 **3DMG** — La maîtrise des manœuvres tridimensionnelles esquive la prochaine attaque, renvoie **20%** et réduit tes pertes de **15%** pendant **12h** !'));
     }
 
     case 'stealthstrike': {
@@ -1329,9 +1437,18 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'titankill': {
       if (needTarget()) return;
       if (B.isImmune(targetUser)) return blocked('infini');
-      B.clearBuff(targetUser, 'shield'); saveUser(targetUser);
+      B.clearBuff(targetUser, 'shield');
+      let tkExtra = '';
+      if (Math.random() < 0.25) {
+        const loot = Math.floor((targetUser.wallet || 0) * 0.05);
+        if (loot > 0) {
+          targetUser.wallet -= loot; attUser.wallet += loot;
+          tkExtra = ` La lame récupère **${fmtC(loot)}** ${COIN} sur la dépouille !`;
+        }
+      }
+      saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['2j']); saveUser(attUser);
-      return msg.reply(ok(`🗡️ **Titan Killer** — Bouclier anti-rob de **${tName}** brisé !`));
+      return msg.reply(ok(`🗡️ **Titan Killer** — Bouclier anti-rob de **${tName}** brisé !${tkExtra}`));
     }
 
     case 'spinattack': {
@@ -1346,15 +1463,17 @@ async function handleAttack(msg, args, name, attUser, attChar) {
 
     case 'ackerman': {
       B.setBuff(attUser, 'robMult', { exp: now + 8*H, v: 1.8 });
+      B.setBuff(attUser, 'reduceLoss', { exp: now + 8*H, v: 0.15 });
       setCD(attChar, name, CD_MS['4j']); saveUser(attUser);
-      return msg.reply(ok('⚡ **Ackerman Awakening** — Rob x1.8 pendant **8h** !'));
+      return msg.reply(ok('⚡ **Ackerman Awakening** — Le sang des Ackerman s\'éveille : rob x1.8 et pertes de rob réduites de **15%** pendant **8h** !'));
     }
 
     case 'formation': {
       B.setBuff(attUser, 'shield',     { exp: now + 8*H, type: 'basic' });
       B.setBuff(attUser, 'counterRob', { exp: now + 8*H, v: 0.10 });
+      B.setBuff(attUser, 'absorb',     { exp: now + 8*H, v: 0.10 });
       setCD(attChar, name, CD_MS['5j']); saveUser(attUser);
-      return msg.reply(ok('🛡️ **Survey Corps Formation** — Bouclier 8h + tout voleur perd 10% !'));
+      return msg.reply(ok('🛡️ **Survey Corps Formation** — La coordination du bataillon d\'exploration érige un bouclier 8h, fait perdre **10%** à tout voleur et en absorbe **10%** de plus !'));
     }
 
     case 'nomercy': {
@@ -1388,8 +1507,16 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'lightningpalm': {
       if (needTarget()) return;
       const res = doRob(attUser, targetUser, 1.2);
+      let extra = '';
+      if (!res.blocked && !res.empty && Math.random() < 0.25) {
+        const res2 = doRob(attUser, targetUser, 1.2);
+        if (!res2.blocked && !res2.empty && res2.stolen > 0) {
+          res.stolen = (res.stolen || 0) + res2.stolen;
+          extra = ` **Frappe Éclair** — Killua frappe une seconde fois à la vitesse de l'éclair !`;
+        }
+      }
       setCD(attChar, name, CD_MS['3h']); saveUser(attUser);
-      return robResult(res, `⚡ **Lightning Palm** — **{n}** ${COIN} sur **${tName}** !`);
+      return robResult(res, `⚡ **Lightning Palm** — **{n}** ${COIN} sur **${tName}** !${extra}`);
     }
 
     case 'narukami': {
@@ -1399,49 +1526,66 @@ async function handleAttack(msg, args, name, attUser, attChar) {
       const stolen = Math.min(amt, targetUser.wallet || 0);
       if (stolen <= 0) return msg.reply(cd(`💸 **${tName}** n\'a rien !`));
       targetUser.wallet -= stolen; attUser.wallet += stolen;
+      let narukamiExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(attUser, 'stealth', true);
+        narukamiExtra = ` **Frappe silencieuse** — Killua disparaît dans l\'ombre, son prochain vol sera indétectable !`;
+      }
       saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['8h']); saveUser(attUser);
-      return msg.reply(ok(`🔪 **Narukami** — **${fmtC(stolen)}** ${COIN} aspirés du wallet de **${tName}** !`));
+      return msg.reply(ok(`🔪 **Narukami** — **${fmtC(stolen)}** ${COIN} aspirés du wallet de **${tName}** !${narukamiExtra}`));
     }
 
     case 'rhythmecho': {
       B.setBuff(attUser, 'dodge',  true);
       B.setBuff(attUser, 'absorb', { exp: now + 12*H, v: 0.15 });
+      B.setBuff(attUser, 'counterRob', { exp: now + 12*H, v: 0.20 });
       setCD(attChar, name, CD_MS['12h']); saveUser(attUser);
-      return msg.reply(ok('💨 **Rhythm Echo** — Prochaine attaque esquivée + 15% renvoyés !'));
+      return msg.reply(ok('💨 **Rhythm Echo** — Le rythme du Nen esquive la prochaine attaque, renvoie **15%** et inflige une contre-attaque automatique de **20%** à quiconque tente de te voler pendant **12h** !'));
     }
 
     case 'stealthmode': {
       if (needTarget()) return;
       if (B.isImmune(targetUser)) return blocked('infini');
       const res = doRob(attUser, targetUser, 1.3, { ignoreCounter: true });
+      if (!res.blocked && !res.empty && res.stolen > 0) {
+        B.setBuff(attUser, 'stealth', true);
+      }
       setCD(attChar, name, CD_MS['1j']); saveUser(attUser);
-      return robResult(res, `🌑 **Stealth Mode** — Rob furtif : **{n}** ${COIN} sur **${tName}** !`);
+      return robResult(res, `🌑 **Stealth Mode** — Rob furtif : **{n}** ${COIN} sur **${tName}** ! Mode activé : ton prochain rob sera aussi silencieux.`);
     }
 
     case 'thunderbolt': {
       if (needTarget()) return;
       if (B.isImmune(targetUser)) return blocked('infini');
-      B.setBuff(targetUser, 'ko', { exp: now + 5 * 60_000, from: msg.author.id });
+      B.setBuff(targetUser, 'ko', { exp: now + 3 * 60_000, from: msg.author.id });
+      B.setBuff(attUser, 'ignoreCounter', { exp: now + H });
       saveUser(targetUser);
       const res = doRob(attUser, targetUser, 1.5);
       setCD(attChar, name, CD_MS['2j']); saveUser(attUser);
-      return robResult(res, `⚡ **Thunderbolt** — **{n}** ${COIN} + **${tName}** stunné 5min !`);
+      return robResult(res, `⚡ **Thunderbolt** — **{n}** ${COIN} + **${tName}** électrocuté(e) (KO 3min) ! La charge résiduelle t'immunise contre le counter-rob pendant 1h.`);
     }
 
     case 'yoyo': {
       if (needTarget()) return;
       if (B.isImmune(targetUser)) return blocked('infini');
-      B.clearBuff(targetUser, 'shield'); saveUser(targetUser);
+      B.clearBuff(targetUser, 'shield');
+      let yoyoExtra = '';
+      if (Math.random() < 0.25) {
+        B.setBuff(targetUser, 'ko', { exp: now + 5 * 60_000, from: msg.author.id });
+        yoyoExtra = ` Le fil électrifié électrocute **${tName}**, KO pendant **5 min** !`;
+      }
+      saveUser(targetUser); saveUser(attUser);
       setCD(attChar, name, CD_MS['2j']); saveUser(attUser);
-      return msg.reply(ok(`🗡️ **Yo-Yo** — Bouclier de **${tName}** brisé !`));
+      return msg.reply(ok(`🗡️ **Yo-Yo** — Bouclier de **${tName}** brisé !${yoyoExtra}`));
     }
 
     case 'pinshield': {
       B.setBuff(attUser, 'shield',     { exp: now + 6*H, type: 'basic' });
       B.setBuff(attUser, 'counterRob', { exp: now + 6*H, v: 0.08 });
+      B.setBuff(attUser, 'dodge',      true);
       setCD(attChar, name, CD_MS['4j']); saveUser(attUser);
-      return msg.reply(ok('🛡️ **Pin Shield** — Bouclier 6h + tout voleur perd 8% !'));
+      return msg.reply(ok('🛡️ **Pin Shield** — Les épingles électrifiées de Killua dressent un bouclier 6h, font perdre **8%** à tout voleur, et la prochaine attaque reçue est **esquivée** !'));
     }
 
     case 'silentkill': {
@@ -1521,7 +1665,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'nemesis': {
       if (needTarget()) return;
       const kira = targetUser.buffs?.kira;
-      if (!kira || kira.exp <= now) return msg.reply(cd(`❌ **${tName}** n\'a pas de Kira actif.`));
+      if (!kira || kira.exp <= now) return msg.reply(cd(`${PERDU} **${tName}** n\'a pas de Kira actif.`));
       const origSender = kira.from;
       const senderUser = getUser(origSender);
       B.clearBuff(targetUser, 'kira'); saveUser(targetUser);
@@ -1560,7 +1704,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
 
     default:
       // Commande dans ATTACK_MAP mais pas encore implémentée
-      return msg.reply(err(`❌ Technique \`=${name}\` non disponible pour l'instant.`));
+      return msg.reply(err(`${PERDU} Technique \`=${name}\` non disponible pour l'instant.`));
   }
 }
 
@@ -1577,6 +1721,8 @@ module.exports = {
       const [cmd, ...args] = content.slice(1).trim().split(/\s+/);
       const name = cmd.toLowerCase();
 
+      function errEmbed(desc) { return { embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} ${desc}`)] }; }
+
       // =persos — liste
       if (name === 'persos') {
         return msg.reply({ embeds: [buildListEmbed()] });
@@ -1592,25 +1738,22 @@ module.exports = {
       // =acheter <perso>
       if (name === 'acheter') {
         const query = args.join(' ').toLowerCase().trim();
-        if (!query) return msg.reply('❌ Utilise : `=acheter <nom du personnage>`');
+        if (!query) return msg.reply(errEmbed('Utilise : `=acheter <nom du personnage>`'));
 
         const key = ALIASES[query];
-        if (!key) return msg.reply('❌ Personnage inconnu. Utilise `=shop` pour voir la liste.');
+        if (!key) return msg.reply(errEmbed('Personnage inconnu. Utilise `=shop` pour voir la liste.'));
 
         const user     = getUser(msg.author.id);
         const charData = getCharData(user);
 
         if (charData.owned.includes(key))
-          return msg.reply(`❌ Tu possèdes déjà **${PERSOS[key].name}**.`);
+          return msg.reply(errEmbed(`Tu possèdes déjà **${PERSOS[key].name}**.`));
 
         const perso = PERSOS[key];
         const price = SHOP_PRICES[perso.tier];
 
         if (user.wallet < price)
-          return msg.reply({ embeds: [new EmbedBuilder()
-            .setColor(0xff4444)
-            .setDescription(`❌ Tu n'as pas assez d'argent.\n🪙 Prix : **${fmtCoins(price)}** · Ton wallet : **${fmtCoins(user.wallet)}**`)
-          ]});
+          return msg.reply(errEmbed(`Tu n'as pas assez d'argent.\n${COIN} Prix : **${fmtCoins(price)}** · Ton wallet : **${fmtCoins(user.wallet)}**`));
 
         user.wallet -= price;
         charData.owned.push(key);
@@ -1618,8 +1761,8 @@ module.exports = {
 
         return msg.reply({ embeds: [new EmbedBuilder()
           .setColor(TIER_COLORS[perso.tier])
-          .setTitle('✅ Achat confirmé !')
-          .setDescription(`Tu as acheté **${perso.emoji} ${perso.name}** pour **${fmtCoins(price)}** 🪙\nUtilise \`=equiper ${query}\` pour l'équiper.`)
+          .setTitle(`${CHECK} Achat confirmé !`)
+          .setDescription(`Tu as acheté **${perso.emoji} ${perso.name}** pour **${fmtCoins(price)}** ${COIN}\nUtilise \`=equiper ${query}\` pour l'équiper.`)
           .setFooter({ text: `Solde restant : ${fmtCoins(user.wallet)} coins` })
         ]});
       }
@@ -1630,7 +1773,7 @@ module.exports = {
         const charData = getCharData(user);
 
         if (!charData.owned.length)
-          return msg.reply('❌ Tu ne possèdes aucun personnage. Obtiens-en via les boîtes mystérieuses ou la boutique.');
+          return msg.reply(errEmbed('Tu ne possèdes aucun personnage. Obtiens-en via les boîtes mystérieuses ou la boutique.'));
 
         const embed = buildCdEmbed(msg.member, charData.owned, charData);
         return msg.reply({ embeds: [embed] });
@@ -1639,16 +1782,16 @@ module.exports = {
       // =equiper <perso>
       if (name === 'equiper') {
         const query = args.join(' ').toLowerCase().trim();
-        if (!query) return msg.reply('❌ Utilise : `=equiper <nom du personnage>`');
+        if (!query) return msg.reply(errEmbed('Utilise : `=equiper <nom du personnage>`'));
 
         const key = ALIASES[query];
-        if (!key) return msg.reply('❌ Personnage inconnu. Utilise `=persos` pour voir la liste.');
+        if (!key) return msg.reply(errEmbed('Personnage inconnu. Utilise `=persos` pour voir la liste.'));
 
         const user     = getUser(msg.author.id);
         const charData = getCharData(user);
 
         if (!charData.owned.includes(key))
-          return msg.reply(`❌ Tu ne possèdes pas **${PERSOS[key].name}**.`);
+          return msg.reply(errEmbed(`Tu ne possèdes pas **${PERSOS[key].name}**.`));
 
         charData.equipped = key;
         saveUser(user);
@@ -1656,7 +1799,7 @@ module.exports = {
         const perso = PERSOS[key];
         return msg.reply({ embeds: [new EmbedBuilder()
           .setColor(TIER_COLORS[perso.tier])
-          .setTitle('⚔️ Personnage équipé')
+          .setTitle(`${CHECK} Personnage équipé`)
           .setDescription(`Tu as équipé **${perso.emoji} ${perso.name}** !`)
         ]});
       }
@@ -1666,17 +1809,17 @@ module.exports = {
         if (!msg.member.permissions.has(PermissionFlagsBits.Administrator)) return;
 
         const target = msg.mentions.members.first();
-        if (!target) return msg.reply('❌ Mentionne un utilisateur. Ex : `=admindonnerperso @user zoro`');
+        if (!target) return msg.reply(errEmbed('Mentionne un utilisateur. Ex : `=admindonnerperso @user zoro`'));
 
         const query = args.slice(1).join(' ').toLowerCase().trim();
         const key   = ALIASES[query];
-        if (!key) return msg.reply('❌ Personnage inconnu. Utilise `=persos` pour voir la liste.');
+        if (!key) return msg.reply(errEmbed('Personnage inconnu. Utilise `=persos` pour voir la liste.'));
 
         const user     = getUser(target.id);
         const charData = getCharData(user);
 
         if (charData.owned.includes(key))
-          return msg.reply(`❌ **${target.displayName}** possède déjà **${PERSOS[key].name}**.`);
+          return msg.reply(errEmbed(`**${target.displayName}** possède déjà **${PERSOS[key].name}**.`));
 
         charData.owned.push(key);
         saveUser(user);
@@ -1684,7 +1827,7 @@ module.exports = {
         const perso = PERSOS[key];
         return msg.reply({ embeds: [new EmbedBuilder()
           .setColor(TIER_COLORS[perso.tier])
-          .setTitle('✅ Personnage donné')
+          .setTitle(`${CHECK} Personnage donné`)
           .setDescription(`**${perso.emoji} ${perso.name}** a été ajouté à l'inventaire de **${target.displayName}** !`)
         ]});
       }
@@ -1694,17 +1837,17 @@ module.exports = {
         if (!msg.member.permissions.has(PermissionFlagsBits.Administrator)) return;
 
         const target = msg.mentions.members.first();
-        if (!target) return msg.reply('❌ Mentionne un utilisateur. Ex : `=adminretirerperso @user zoro`');
+        if (!target) return msg.reply(errEmbed('Mentionne un utilisateur. Ex : `=adminretirerperso @user zoro`'));
 
         const query = args.slice(1).join(' ').toLowerCase().trim();
         const key   = ALIASES[query];
-        if (!key) return msg.reply('❌ Personnage inconnu.');
+        if (!key) return msg.reply(errEmbed('Personnage inconnu.'));
 
         const user     = getUser(target.id);
         const charData = getCharData(user);
 
         if (!charData.owned.includes(key))
-          return msg.reply(`❌ **${target.displayName}** ne possède pas **${PERSOS[key].name}**.`);
+          return msg.reply(errEmbed(`**${target.displayName}** ne possède pas **${PERSOS[key].name}**.`));
 
         charData.owned = charData.owned.filter(k => k !== key);
         if (charData.equipped === key) charData.equipped = null;
@@ -1723,13 +1866,13 @@ module.exports = {
         if (!msg.member.permissions.has(PermissionFlagsBits.Administrator)) return;
 
         const target = msg.mentions.members.first();
-        if (!target) return msg.reply('❌ Mentionne un utilisateur. Ex : `=adminlisterpersos @user`');
+        if (!target) return msg.reply(errEmbed('Mentionne un utilisateur. Ex : `=adminlisterpersos @user`'));
 
         const user     = getUser(target.id);
         const charData = getCharData(user);
 
         if (!charData.owned.length)
-          return msg.reply(`❌ **${target.displayName}** ne possède aucun personnage.`);
+          return msg.reply(errEmbed(`**${target.displayName}** ne possède aucun personnage.`));
 
         const lines = charData.owned.map(k => {
           const p = PERSOS[k];
@@ -1753,7 +1896,7 @@ module.exports = {
         }
         const key = ALIASES[query];
         if (!key || !PERSOS[key]) {
-          return msg.reply(`❌ Personnage inconnu. Utilise \`=persos\` pour voir la liste.`);
+          return msg.reply(errEmbed('Personnage inconnu. Utilise `=persos` pour voir la liste.'));
         }
         const embeds = buildEmbeds(PERSOS[key]);
         return msg.reply({ embeds });
@@ -1768,16 +1911,16 @@ module.exports = {
       // KO check
       if (B.isKOd(attUser)) {
         const rem = B.fmtT(attUser.buffs.ko.exp);
-        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Tu es KO pendant encore **${rem}** !`)] });
+        return msg.reply(errEmbed(`Tu es KO pendant encore **${rem}** !`));
       }
 
       const attChar = getCharData(attUser);
 
       // Possession + équipement
       if (!attChar.owned.includes(persoOwner))
-        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Tu ne possèdes pas **${PERSOS[persoOwner].name}**.`)] });
+        return msg.reply(errEmbed(`Tu ne possèdes pas **${PERSOS[persoOwner].name}**.`));
       if (attChar.equipped !== persoOwner)
-        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ Tu dois équiper **${PERSOS[persoOwner].name}** pour utiliser cette technique.\nUtilise \`=equiper ${persoOwner}\``)] });
+        return msg.reply(errEmbed(`Tu dois équiper **${PERSOS[persoOwner].name}** pour utiliser cette technique.\nUtilise \`=equiper ${persoOwner}\``));
 
       // Cooldown
       const cdEnd = attChar.cooldowns[name] || 0;

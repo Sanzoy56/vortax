@@ -30,12 +30,12 @@ function noFunds(user, cost) {
 async function cmdDep(msg, args) {
   const user  = getUser(msg.author.id);
   const input = args[0]?.toLowerCase();
-  if (!input) return msg.reply('❌ Usage : `=dep <montant|all>`');
+  if (!input) return msg.reply(re(0xef4444, `${PERDU} Usage : \`=dep <montant|all>\``));
   const isAll  = input === 'all';
   const amount = isAll ? user.wallet : parseInt(input);
-  if (!isAll && (isNaN(amount) || amount <= 0)) return msg.reply('❌ Montant invalide.');
-  if (user.wallet === 0 || amount === 0) return msg.reply('❌ Tu n\'as rien sur toi.');
-  if (amount > user.wallet) return msg.reply(`❌ Tu n'as que **${fmt(user.wallet)}** ${COIN} sur toi.`);
+  if (!isAll && (isNaN(amount) || amount <= 0)) return msg.reply(re(0xef4444, `${PERDU} Montant invalide.`));
+  if (user.wallet === 0 || amount === 0) return msg.reply(re(0xef4444, `${PERDU} Tu n'as rien sur toi.`));
+  if (amount > user.wallet) return msg.reply(re(0xef4444, `${PERDU} Tu n'as que **${fmt(user.wallet)}** ${COIN} sur toi.`));
   user.wallet -= amount; user.bank += amount; saveUser(user);
   await updateQuestProgress(msg.guild, msg.author.id, 'bank', 1).catch(() => {});
   msg.reply(re(0x39ff14, `${CHECK} ${COIN} **${fmt(amount)}** déposé en banque !`));
@@ -45,12 +45,12 @@ async function cmdDep(msg, args) {
 async function cmdWith(msg, args) {
   const user  = getUser(msg.author.id);
   const input = args[0]?.toLowerCase();
-  if (!input) return msg.reply('❌ Usage : `=with <montant|all>`');
+  if (!input) return msg.reply(re(0xef4444, `${PERDU} Usage : \`=with <montant|all>\``));
   const isAll  = input === 'all';
   const amount = isAll ? user.bank : parseInt(input);
-  if (!isAll && (isNaN(amount) || amount <= 0)) return msg.reply('❌ Montant invalide.');
-  if (user.bank === 0 || amount === 0) return msg.reply('❌ Tu n\'as rien en banque.');
-  if (amount > user.bank) return msg.reply(`❌ Tu n'as que **${fmt(user.bank)}** ${COIN} en banque.`);
+  if (!isAll && (isNaN(amount) || amount <= 0)) return msg.reply(re(0xef4444, `${PERDU} Montant invalide.`));
+  if (user.bank === 0 || amount === 0) return msg.reply(re(0xef4444, `${PERDU} Tu n'as rien en banque.`));
+  if (amount > user.bank) return msg.reply(re(0xef4444, `${PERDU} Tu n'as que **${fmt(user.bank)}** ${COIN} en banque.`));
   user.bank -= amount; user.wallet += amount; saveUser(user);
   msg.reply(re(0x39ff14, `${CHECK} ${COIN} **${fmt(amount)}** retiré de la banque !`));
 }
@@ -59,7 +59,7 @@ async function cmdWith(msg, args) {
 async function cmdBal(msg) {
   const target = msg.mentions.users.first() ?? msg.author;
   const member = await msg.guild.members.fetch(target.id).catch(() => null);
-  if (!member) return msg.reply('❌ Membre introuvable.');
+  if (!member) return msg.reply(re(0xef4444, `${PERDU} Membre introuvable.`));
   try {
     const { generateBal } = require('../levels/canvas');
     const userData = getUser(target.id);
@@ -75,10 +75,10 @@ async function cmdBal(msg) {
 async function cmdDonner(msg, args) {
   const target  = msg.mentions.users.first();
   const montant = parseInt(args.find(a => !isNaN(parseInt(a))));
-  if (!target)        return msg.reply('❌ Usage : `=donner @membre <montant>`');
-  if (target.bot)     return msg.reply('❌ Tu ne peux pas donner des coins à un bot.');
-  if (target.id === msg.author.id) return msg.reply('❌ Tu ne peux pas te donner des coins.');
-  if (!montant || montant < 1) return msg.reply('❌ Montant invalide.');
+  if (!target)        return msg.reply(re(0xef4444, `${PERDU} Usage : \`=donner @membre <montant>\``));
+  if (target.bot)     return msg.reply(re(0xef4444, `${PERDU} Tu ne peux pas donner des coins à un bot.`));
+  if (target.id === msg.author.id) return msg.reply(re(0xef4444, `${PERDU} Tu ne peux pas te donner des coins.`));
+  if (!montant || montant < 1) return msg.reply(re(0xef4444, `${PERDU} Montant invalide.`));
   const donneur  = getUser(msg.author.id);
   const receveur = getUser(target.id);
   if (donneur.wallet < montant) return msg.reply(noFunds(donneur, montant));
@@ -91,21 +91,21 @@ async function cmdDonner(msg, args) {
 // ── =rob @mention ────────────────────────────────────────────
 async function cmdRob(msg) {
   const target = msg.mentions.users.first();
-  if (!target) return msg.reply('❌ Usage : `=rob @membre`');
-  if (target.id === msg.author.id) return msg.reply('❌ Tu ne peux pas te voler toi-même.');
-  if (PROTECTED_USERS.includes(target.id)) return msg.reply('🛡️ Cette personne est protégée.');
+  if (!target) return msg.reply(re(0xef4444, `${PERDU} Usage : \`=rob @membre\``));
+  if (target.id === msg.author.id) return msg.reply(re(0xef4444, `${PERDU} Tu ne peux pas te voler toi-même.`));
+  if (PROTECTED_USERS.includes(target.id)) return msg.reply(re(0x5a5a7a, `🛡️ Cette personne est protégée.`));
   const robber = getUser(msg.author.id), victim = getUser(target.id);
   const now = Date.now();
 
   // KO check
   const { isKOd, isImmune, getShield, fmtT } = require('../levels/buffs');
-  if (isKOd(robber)) return msg.reply(`❌ Tu es KO pendant encore **${fmtT(robber.buffs.ko.exp)}** !`);
+  if (isKOd(robber)) return msg.reply(re(0xef4444, `${PERDU} Tu es KO pendant encore **${fmtT(robber.buffs.ko.exp)}** !`));
 
   const diff = now - (robber.rob?.lastUsed || 0);
   if (diff < ROB.COOLDOWN_MS) {
     const rem = Math.ceil((ROB.COOLDOWN_MS - diff) / 60_000);
     const h = Math.floor(rem / 60), m = rem % 60;
-    return msg.reply(`⏳ Attends encore **${h > 0 ? `${h}h ${m}min` : `${m} min`}** avant de re-voler.`);
+    return msg.reply(re(0xf59e0b, `⏳ Attends encore **${h > 0 ? `${h}h ${m}min` : `${m} min`}** avant de re-voler.`));
   }
   if (!robber.rob) robber.rob = {};
   robber.rob.lastUsed = now;
@@ -151,7 +151,7 @@ async function cmdWork(msg) {
   const CD = 4 * 3600 * 1000;
   if (diff < CD) {
     const rem = CD - diff;
-    return msg.reply(`⏳ Prochaine prise de poste dans **${Math.floor(rem/3600000)}h ${Math.floor(rem%3600000/60000)}min**.`);
+    return msg.reply(re(0xf59e0b, `⏳ Prochaine prise de poste dans **${Math.floor(rem/3600000)}h ${Math.floor(rem%3600000/60000)}min**.`));
   }
   const earned = Math.floor(Math.random() * 1001) + 500;
   if (!user.work) user.work = {};
@@ -163,7 +163,7 @@ async function cmdWork(msg) {
 async function cmdProfil(msg) {
   const target = msg.mentions.users.first() ?? msg.author;
   const member = await msg.guild.members.fetch(target.id).catch(() => null);
-  if (!member) return msg.reply('❌ Membre introuvable.');
+  if (!member) return msg.reply(re(0xef4444, `${PERDU} Membre introuvable.`));
   try {
     const { generateProfile } = require('../levels/canvas');
     const userData = getUser(target.id);
@@ -222,7 +222,7 @@ async function cmdTop(msg, args) {
 
     const collector = reply.createMessageComponentCollector({ time: 120_000 });
     collector.on('collect', async btn => {
-      if (btn.user.id !== msg.author.id) return btn.reply({ content: '❌ Utilise ta propre commande `=top`.', ephemeral: true });
+      if (btn.user.id !== msg.author.id) return btn.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} Utilise ta propre commande \`=top\`.`)], ephemeral: true });
       mode = btn.customId === 'top_coins' ? 'coins' : 'exp';
       await btn.deferUpdate();
       try {
@@ -234,7 +234,7 @@ async function cmdTop(msg, args) {
     collector.on('end', () => reply.edit({ components: [] }).catch(() => {}));
   } catch(e) {
     console.error('[Prefix] top:', e.message);
-    msg.reply('❌ Erreur lors de la génération du classement.');
+    msg.reply(re(0xef4444, `${PERDU} Erreur lors de la génération du classement.`));
   }
 }
 
@@ -245,7 +245,7 @@ async function cmdQuetes(msg) {
     const { generateDailyQuests } = require('../levels/quests');
     const { generateQuests }      = require('../levels/canvas');
     const member = await msg.guild.members.fetch(msg.author.id).catch(() => null);
-    if (!member) return msg.reply('❌ Membre introuvable.');
+    if (!member) return msg.reply(re(0xef4444, `${PERDU} Membre introuvable.`));
     const user = getUser(msg.author.id);
     generateDailyQuests(user);
     saveUser(user);
@@ -254,12 +254,12 @@ async function cmdQuetes(msg) {
       cat:  TYPE_CAT[q.type] || 'SPE',
       desc: `Progression : ${q.progress||0}/${q.target}`,
     }));
-    if (!quests.length) return msg.reply('Aucune quête pour aujourd\'hui.');
+    if (!quests.length) return msg.reply(re(0x6366f1, `Aucune quête pour aujourd'hui.`));
     const buffer = await generateQuests(member, quests);
     msg.reply({ files: [new AttachmentBuilder(buffer, { name: 'quetes.png' })] });
   } catch(e) {
     console.error('[Prefix] quetes:', e.message);
-    msg.reply('❌ Erreur lors de la génération des quêtes.');
+    msg.reply(re(0xef4444, `${PERDU} Erreur lors de la génération des quêtes.`));
   }
 }
 
@@ -302,7 +302,7 @@ async function cmdCreateRoles(msg, args) {
     ? args.join(' ').split(',').map(r => r.trim()).filter(Boolean)
     : SYSTEM_ROLES;
 
-  if (!toCreate.length) return msg.reply('❌ Aucun rôle à créer.');
+  if (!toCreate.length) return msg.reply(re(0xef4444, `${PERDU} Aucun rôle à créer.`));
 
   const existing = msg.guild.roles.cache.map(r => r.name.toLowerCase());
   const pending  = toCreate.filter(r => !existing.includes(r.toLowerCase()));
@@ -319,9 +319,9 @@ async function cmdCreateRoles(msg, args) {
   }
 
   const lines = [];
-  if (created.length) lines.push(`✅ **Créés (${created.length}) :** ${created.map(r => `\`${r}\``).join(', ')}`);
+  if (created.length) lines.push(`${CHECK} **Créés (${created.length}) :** ${created.map(r => `\`${r}\``).join(', ')}`);
   if (skipped.length) lines.push(`⏭️ **Déjà existants (${skipped.length}) :** ${skipped.map(r => `\`${r}\``).join(', ')}`);
-  if (failed.length)  lines.push(`❌ **Échec (${failed.length}) :** ${failed.map(r => `\`${r}\``).join(', ')}`);
+  if (failed.length)  lines.push(`${PERDU} **Échec (${failed.length}) :** ${failed.map(r => `\`${r}\``).join(', ')}`);
 
   status.edit(re(failed.length ? 0xf59e0b : 0x22c55e, lines.join('\n')));
 }
@@ -347,7 +347,7 @@ module.exports = {
       if (!handler) return;
       const cfg = await getConfig();
       if ((cfg.disabled_commands || []).includes(name))
-        return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ La commande \`=${name}\` est désactivée.`)] });
+        return msg.reply(re(0xef4444, `${PERDU} La commande \`=${name}\` est désactivée.`));
       try { await handler(msg, args); } catch(e) { console.error('[Prefix]', e.message); }
     });
     console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide');

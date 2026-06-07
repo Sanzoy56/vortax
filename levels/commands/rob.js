@@ -3,6 +3,8 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { getUser, saveUser } = require('../db');
 const { PROTECTED_USERS, ROB } = require('../config');
 
+const PERDU = '<:26643crossmark:1510067005066055690>';
+
 function fmt(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
   if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'k';
@@ -20,9 +22,9 @@ module.exports = {
     const userId = interaction.user.id;
 
     if (target.id === userId)
-      return interaction.reply({ content: '❌ Tu ne peux pas te voler toi-même.', ephemeral: true });
+      return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} Tu ne peux pas te voler toi-même.`)], ephemeral: true });
     if (PROTECTED_USERS.includes(target.id))
-      return interaction.reply({ content: '🛡️ Cette personne est protégée.', ephemeral: true });
+      return interaction.reply({ embeds: [new EmbedBuilder().setColor(0x5a5a7a).setDescription('🛡️ Cette personne est protégée.')], ephemeral: true });
 
     const robber = getUser(userId);
     const victim = getUser(target.id);
@@ -35,7 +37,7 @@ module.exports = {
       const hrs  = Math.floor(remaining / 60);
       const mins = remaining % 60;
       const label = hrs > 0 ? `${hrs}h ${mins}min` : `${mins} min`;
-      return interaction.reply({ content: `⏳ Attends encore **${label}** avant de re-voler.`, ephemeral: true });
+      return interaction.reply({ embeds: [new EmbedBuilder().setColor(0xf59e0b).setDescription(`⏳ Attends encore **${label}** avant de re-voler.`)], ephemeral: true });
     }
 
     if (!robber.rob) robber.rob = {};
