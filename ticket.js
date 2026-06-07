@@ -1,8 +1,9 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, AttachmentBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const config = require('./config.json');
 const token = require('./token.json');
 
 const { getConfig } = require('./config')
+const discordTranscripts = require('discord-html-transcripts');
 
 // ========== HISTORIQUE IA ==========
 const ticketHistories = new Map();
@@ -59,145 +60,6 @@ const askGrok = async (history, ticketType) => {
     console.error('[Grok ERREUR]', err);
     throw err;
   }
-};
-
-// ========== GENERATEUR DE TRANSCRIPT HTML ==========
-const genererTranscript = async (channel, fermeParMembre, staffRoleId) => {
-  const messages = [];
-  let dernierId  = null;
-
-  while (true) {
-    const opts  = { limit: 100 };
-    if (dernierId) opts.before = dernierId;
-    const batch = await channel.messages.fetch(opts).catch(() => null);
-    if (!batch || batch.size === 0) break;
-    messages.push(...batch.values());
-    dernierId = batch.last().id;
-    if (batch.size < 100) break;
-  }
-
-  messages.reverse();
-
-  const now       = new Date();
-  const dateFr    = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const totalMsgs = messages.length;
-
-  const lignesMsgs = messages.map(msg => {
-    const auteur  = msg.author;
-    const avatar  = auteur.displayAvatarURL({ extension: 'png', size: 64 });
-    const pseudo  = msg.member?.displayName || auteur.username;
-    const isBot   = auteur.bot;
-    const isStaff = msg.member?.roles?.cache?.has(staffRoleId);
-    const badge   = isBot ? '<span class="badge bot">BOT</span>' : isStaff ? '<span class="badge staff">STAFF</span>' : '';
-    const dateMsgFr = msg.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    let contenu = (msg.content || '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/\n/g, '<br>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`(.+?)`/g, '<code>$1</code>');
-
-    const pj = msg.attachments.map(a => {
-      if (a.contentType?.startsWith('image/'))
-        return `<img class="attachment-img" src="${a.url}" alt="image">`;
-      return `<a class="attachment-file" href="${a.url}" target="_blank">📎 ${a.name}</a>`;
-    }).join('');
-
-    const embeds = msg.embeds.map(e => {
-      const titre = e.title ? `<div class="embed-title">${e.title}</div>` : '';
-      const desc  = e.description ? `<div class="embed-desc">${e.description.replace(/\n/g, '<br>').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` : '';
-      const color = e.color ? `#${e.color.toString(16).padStart(6, '0')}` : '#5865f2';
-      return `<div class="embed" style="border-left-color:${color}">${titre}${desc}</div>`;
-    }).join('');
-
-    if (!contenu && !pj && !embeds) return '';
-
-    return `
-    <div class="msg">
-      <img class="avatar" src="${avatar}" alt="">
-      <div class="msg-content">
-        <div class="msg-header">
-          <span class="pseudo">${pseudo}</span>
-          ${badge}
-          <span class="date">${dateMsgFr}</span>
-        </div>
-        <div class="msg-body">${contenu}${pj}${embeds}</div>
-      </div>
-    </div>`;
-  }).filter(Boolean).join('\n');
-
-  const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Transcript — ${channel.name}</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=gg+sans:wght@400;500;600;700&display=swap');
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #1e1f22; color: #dcddde; font-family: 'gg sans', 'Noto Sans', sans-serif; font-size: 15px; line-height: 1.5; }
-  .header { background: linear-gradient(135deg, #111214 0%, #1a1b1e 100%); border-bottom: 1px solid #3a3c41; padding: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
-  .header-inner { max-width: 960px; margin: 0 auto; padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
-  .header-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #5865f2, #7289da); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; box-shadow: 0 0 16px rgba(88,101,242,0.4); }
-  .header-info { flex: 1; }
-  .header-title { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
-  .header-sub { font-size: 13px; color: #8e9297; margin-top: 2px; }
-  .header-stats { display: flex; gap: 20px; }
-  .stat { text-align: center; }
-  .stat-value { font-size: 20px; font-weight: 700; color: #fff; }
-  .stat-label { font-size: 11px; color: #8e9297; text-transform: uppercase; letter-spacing: 0.5px; }
-  .messages { max-width: 960px; margin: 0 auto; padding: 24px; }
-  .msg { display: flex; gap: 14px; padding: 8px 12px; border-radius: 8px; transition: background 0.1s; margin-bottom: 2px; }
-  .msg:hover { background: rgba(255,255,255,0.03); }
-  .avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; object-fit: cover; margin-top: 2px; }
-  .msg-content { flex: 1; min-width: 0; }
-  .msg-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
-  .pseudo { font-weight: 600; font-size: 15px; color: #fff; }
-  .badge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
-  .badge.staff { background: #5865f2; color: #fff; }
-  .badge.bot   { background: #5865f2; color: #fff; opacity: 0.8; }
-  .date { font-size: 12px; color: #72767d; }
-  .msg-body { color: #dcddde; word-break: break-word; }
-  .msg-body strong { font-weight: 700; color: #fff; }
-  .msg-body em { font-style: italic; }
-  .msg-body code { background: #2b2d31; border: 1px solid #3a3c41; border-radius: 3px; padding: 1px 5px; font-family: 'Consolas', monospace; font-size: 13px; color: #e3e5e8; }
-  .attachment-img { max-width: 400px; max-height: 300px; border-radius: 8px; margin-top: 8px; display: block; border: 1px solid #3a3c41; }
-  .attachment-file { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: #00aff4; text-decoration: none; font-size: 14px; }
-  .attachment-file:hover { text-decoration: underline; }
-  .embed { margin-top: 8px; background: #2b2d31; border-left: 4px solid #5865f2; border-radius: 0 6px 6px 0; padding: 12px 16px; max-width: 520px; }
-  .embed-title { font-weight: 700; color: #fff; margin-bottom: 6px; font-size: 15px; }
-  .embed-desc { font-size: 14px; color: #dcddde; }
-  .footer { text-align: center; padding: 32px 24px; color: #4f545c; font-size: 13px; border-top: 1px solid #2b2d31; margin-top: 32px; }
-  .footer strong { color: #72767d; }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="header-inner">
-    <div class="header-icon">🎫</div>
-    <div class="header-info">
-      <div class="header-title">#${channel.name}</div>
-      <div class="header-sub">Fermé par ${fermeParMembre?.displayName || 'Staff'} • ${dateFr}</div>
-    </div>
-    <div class="header-stats">
-      <div class="stat">
-        <div class="stat-value">${totalMsgs}</div>
-        <div class="stat-label">Messages</div>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="messages">
-${lignesMsgs}
-</div>
-<div class="footer">
-  Transcript généré automatiquement par <strong>Team Vortax Bot</strong> • ${dateFr}
-</div>
-</body>
-</html>`;
-
-  return html;
 };
 
 // ========== HELPER LOG ACTION TICKET ==========
@@ -289,9 +151,14 @@ Il y a 3 catégories de tickets mis à votre disposition :
       ticketHistories.delete(msgChannel.id);
 
       try {
-        const html    = await genererTranscript(msgChannel, message.member, staffRoleId);
-        const buffer  = Buffer.from(html, 'utf-8');
-        const fichier = new AttachmentBuilder(buffer, { name: `transcript-${msgChannel.name}.html` });
+        const cfg        = await getConfig();
+        const fichier    = await discordTranscripts.createTranscript(msgChannel, {
+          limit: -1,
+          filename: `transcript-${msgChannel.name}.html`,
+          saveImages: true,
+          poweredBy: false,
+          footerText: 'Transcript généré par Team Vortax — {number} message{s}',
+        });
 
         const logsChannel = msgChannel.guild.channels.cache.get(cfg.log_transcripts);
         if (logsChannel) {
@@ -306,13 +173,13 @@ Il y a 3 catégories de tickets mis à votre disposition :
             .setFooter({ text: 'Team Vortax — Système de tickets' })
             .setTimestamp();
 
-          const logMsg = await logsChannel.send({ embeds: [logEmbed], files: [fichier] });
+          const logMsg  = await logsChannel.send({ embeds: [logEmbed], files: [fichier] });
           const fileUrl = logMsg.attachments.first()?.url ?? null;
           if (fileUrl) {
             const btnRow = new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setLabel('📄 Voir le transcript').setStyle(ButtonStyle.Link).setURL(fileUrl)
+              new ButtonBuilder().setLabel('📄 Voir le transcript').setEmoji('🔗').setStyle(ButtonStyle.Link).setURL(fileUrl)
             );
-            await logsChannel.send({ content: '🔗 Lien direct vers le transcript :', components: [btnRow] });
+            await logMsg.edit({ embeds: [logEmbed], components: [btnRow] });
           }
         }
       } catch (err) {

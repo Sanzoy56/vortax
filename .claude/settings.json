@@ -8,7 +8,10 @@
       "Bash(rm _rewrite_quest_desc.js)",
       "Bash(cd \"E:/Projects/js/BOT/Vortax\" && cp /tmp/quest_desc_map.json ./tmp_quest_desc_map.json && ls tmp_quest_desc_map.json)",
       "Bash(rm _rewrite_quest_desc.js tmp_quest_desc_map.json)",
-      "Bash(node -e \"console.log\\(Object.keys\\(require\\('./config.json'\\)\\)\\)\")"
+      "Bash(node -e \"console.log\\(Object.keys\\(require\\('./config.json'\\)\\)\\)\")",
+      "Bash(npm install *)",
+      "Bash(cd \"E:\\\\Projects\\\\Panel\\\\vortax\" && grep -rln \"log_transcripts\\\\|transcript\" --include=\"*.js\" --include=\"*.json\" -i . 2>/dev/null | head -30)",
+      "Read(//e/Projects/Panel/vortax/**)"
     ],
     "additionalDirectories": [
       "\\tmp"
