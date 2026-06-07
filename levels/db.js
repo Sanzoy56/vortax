@@ -55,6 +55,17 @@ const _flushTimer = setInterval(flush, 5_000);
 if (_flushTimer.unref) _flushTimer.unref();
 process.on('exit', flush);
 
+// L'event 'exit' ne se déclenche PAS sur SIGTERM/SIGINT (signaux envoyés par
+// l'hébergeur lors d'un redéploiement) — Node tue le process instantanément,
+// perdant jusqu'à 5s de gains XP/coins en mémoire non encore sauvegardés.
+// D'où les "retours en arrière" observés juste après un déploiement.
+function flushAndExit() {
+  flush();
+  process.exit(0);
+}
+process.on('SIGTERM', flushAndExit);
+process.on('SIGINT', flushAndExit);
+
 // ─── Structure par défaut d'un utilisateur ──────────────────
 function defaultUser(userId) {
   return {
