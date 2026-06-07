@@ -138,70 +138,102 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
     fresh.lastAnnouncedLevel = Math.max(fresh.lastAnnouncedLevel || 0, newLevel);
     saveUser(fresh);
   }
-  const guild       = member.guild;
-  const oldRank     = getRankForLevel(oldLevel);
-  const newRank     = getRankForLevel(newLevel);
-
-  // ── Salon level-up ───────────────────────────────────────
+  const guild        = member.guild;
   const levelChannel = guild.channels.cache.get(CHANNELS.LEVELS);
-  if (levelChannel) {
-    if (newLevel > oldLevel) {
-      const buf = await generateLevelUpCard(member, oldLevel, newLevel, user).catch(() => null);
+  const rankChannel  = guild.channels.cache.get(CHANNELS.RANKS);
 
-      // Après le await (canvas async), vérifier que cette annonce n'est pas déjà dépassée
-      // (ex : VoiceXP 14→15 + message 15→16 simultanés : le canvas 15→16 finit en premier,
-      //  quand 14→15 finit on voit que lastAnnouncedLevel=16 > 15 → on skip)
-      const stale = getUser(member.id);
-      if (!isAdminCall && (stale.lastAnnouncedLevel || 0) > newLevel) {
-        console.log(`[LevelUp] SKIP annonce ${oldLevel}→${newLevel} (dépassé par niveau ${stale.lastAnnouncedLevel})`);
-      } else {
+  // Annonce (et applique) un éventuel changement de rang entre deux niveaux consécutifs
+  async function announceRankUp(stepOldLevel, stepNewLevel) {
+    const stepOldRank = getRankForLevel(stepOldLevel);
+    const stepNewRank = getRankForLevel(stepNewLevel);
+    if (stepNewRank?.roleId === stepOldRank?.roleId) return;
+
+    if (stepOldRank) {
+      const oldRole = guild.roles.cache.get(stepOldRank.roleId);
+      if (oldRole && member.roles.cache.has(stepOldRank.roleId))
+        await member.roles.remove(oldRole).catch(() => {});
+    }
+    if (stepNewRank) {
+      const alreadyHas = member.roles.cache.has(stepNewRank.roleId);
+      if (!alreadyHas) {
+        const newRole = guild.roles.cache.get(stepNewRank.roleId);
+        if (newRole) await member.roles.add(newRole).catch(() => {});
+      }
+      if (rankChannel && !alreadyHas && (!stepOldRank || stepNewRank.level > stepOldRank.level)) {
+        const rankIdx  = RANKS.indexOf(stepNewRank);
+        const nextRank = rankIdx >= 0 && rankIdx + 1 < RANKS.length ? RANKS[rankIdx + 1] : null;
+        const buf      = await generateRankUpCard(member, stepNewRank, nextRank, stepNewLevel, user).catch(() => null);
+        const files    = buf ? [new AttachmentBuilder(buf, { name: 'rankup.png' })] : [];
+        await rankChannel.send({
+          content: `🏆 <@${member.id}> **Toutes nos félicitations !** Tu as passé le rang **${stepNewRank.name}** ! Tu obtiens le rôle **${stepNewRank.name}** !`,
+          files,
+        }).catch(() => {});
+      }
+    }
+  }
+
+  if (newLevel > oldLevel) {
+    // Après les éventuels await précédents, vérifier que cette annonce n'est pas déjà dépassée
+    // (ex : VoiceXP 14→15 + message 15→16 simultanés : le calcul 15→16 finit en premier,
+    //  quand 14→15 arrive on voit que lastAnnouncedLevel=16 > 15 → on skip)
+    const stale = getUser(member.id);
+    if (!isAdminCall && (stale.lastAnnouncedLevel || 0) > newLevel) {
+      console.log(`[LevelUp] SKIP annonce ${oldLevel}→${newLevel} (dépassé par niveau ${stale.lastAnnouncedLevel})`);
+      return;
+    }
+
+    const span = newLevel - oldLevel;
+    const MAX_STEP_ANNOUNCES = 10; // au-delà (ex : gros ajout admin), une seule annonce groupée
+
+    if (span > MAX_STEP_ANNOUNCES) {
+      if (levelChannel) {
+        const buf   = await generateLevelUpCard(member, oldLevel, newLevel, user).catch(() => null);
         const files = buf ? [new AttachmentBuilder(buf, { name: 'levelup.png' })] : [];
         await levelChannel.send({
           content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${oldLevel}** au niveau **${newLevel}** !`,
           files,
         }).catch(() => {});
+      }
+      await announceRankUp(oldLevel, newLevel);
+      if (!isAdminCall) {
+        const { updateQuestProgress } = require('./quests');
+        updateQuestProgress(guild, member.id, 'levelup', span).catch(() => {});
+      }
+    } else {
+      // Une annonce séparée par niveau franchi : un boost / une grosse récompense qui
+      // fait gagner plusieurs niveaux d'un coup affichera 0→1 puis 1→2 plutôt qu'un saut 0→2
+      for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
+        const stepOld = lvl - 1;
+
+        if (levelChannel) {
+          const buf   = await generateLevelUpCard(member, stepOld, lvl, user).catch(() => null);
+          const files = buf ? [new AttachmentBuilder(buf, { name: 'levelup.png' })] : [];
+          await levelChannel.send({
+            content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${stepOld}** au niveau **${lvl}** !`,
+            files,
+          }).catch(() => {});
+        }
+
+        await announceRankUp(stepOld, lvl);
+
         if (!isAdminCall) {
           const { updateQuestProgress } = require('./quests');
           updateQuestProgress(guild, member.id, 'levelup', 1).catch(() => {});
         }
       }
-    } else if (isAdminCall) {
-      // Uniquement pour les commandes admin qui retirent de l'EXP
+    }
+  } else if (isAdminCall && newLevel < oldLevel) {
+    // ── Descente de niveau / rang (uniquement via commande admin) ──────
+    if (levelChannel) {
       await levelChannel.send({
         content: `<@${member.id}> Tu es redescendu au niveau **${newLevel}**.`,
       }).catch(() => {});
     }
-  }
 
-  // ── Changement de rang ───────────────────────────────────
-  const rankChannel = guild.channels.cache.get(CHANNELS.RANKS);
+    const oldRank = getRankForLevel(oldLevel);
+    const newRank = getRankForLevel(newLevel);
 
-  if (newLevel > oldLevel && newRank?.roleId !== oldRank?.roleId) {
-    // ── Montée de rang ────────────────────────────────────
-    if (oldRank) {
-      const oldRole = guild.roles.cache.get(oldRank.roleId);
-      if (oldRole && member.roles.cache.has(oldRank.roleId))
-        await member.roles.remove(oldRole).catch(() => {});
-    }
-    if (newRank) {
-      const alreadyHas = member.roles.cache.has(newRank.roleId);
-      if (!alreadyHas) {
-        const newRole = guild.roles.cache.get(newRank.roleId);
-        if (newRole) await member.roles.add(newRole).catch(() => {});
-      }
-      if (rankChannel && !alreadyHas && (!oldRank || newRank.level > oldRank.level)) {
-        const rankIdx  = RANKS.indexOf(newRank);
-        const nextRank = rankIdx >= 0 && rankIdx + 1 < RANKS.length ? RANKS[rankIdx + 1] : null;
-        const buf      = await generateRankUpCard(member, newRank, nextRank, newLevel, user).catch(() => null);
-        const files    = buf ? [new AttachmentBuilder(buf, { name: 'rankup.png' })] : [];
-        await rankChannel.send({
-          content: `🏆 <@${member.id}> **Toutes nos félicitations !** Tu as passé le rang **${newRank.name}** ! Tu obtiens le rôle **${newRank.name}** !`,
-          files,
-        }).catch(() => {});
-      }
-    }
-  } else if (isAdminCall && newLevel < oldLevel) {
-    // ── Descente de rang — retire TOUS les rangs au-dessus du niveau actuel ──
+    // Retire TOUS les rangs au-dessus du niveau actuel
     for (const rank of RANKS) {
       if (!newRank || rank.level > newRank.level) {
         const role = guild.roles.cache.get(rank.roleId);

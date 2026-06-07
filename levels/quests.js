@@ -2,13 +2,7 @@
 const { QUEST_POOL } = require('./ConfigQuests');
 const { getUser, saveUser, today } = require('./db');
 const { levelFromExp, handleLevelUp } = require('./levels');
-
-async function getConfig() {
-  try {
-    const res = await fetch('http://localhost:3001/config')
-    return await res.json()
-  } catch { return {} }
-}
+const { getConfig } = require('../config');
 
 const QUESTS_PER_DAY = 10;
 
@@ -63,11 +57,25 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
     const cfg = await getConfig();
     const channel = guild.channels.cache.get(cfg.quetes);
     if (channel) {
+      const { generateQuestCompleteCard } = require('./canvas');
+      const { AttachmentBuilder } = require('discord.js');
+      const member = await guild.members.fetch(userId).catch(() => null);
+
       for (const q of completed) {
         const parts = [];
         if (q.rewardExp)   parts.push(`+${q.rewardExp} EXP`);
         if (q.rewardCoins) parts.push(`+${q.rewardCoins} VTX-Coins`);
-        await channel.send(`🎯 <@${userId}> a terminé la quête **${q.label}** ! ${parts.join(' • ')} 🎁`);
+
+        let files = [];
+        if (member) {
+          const buf = await generateQuestCompleteCard(member, q).catch(() => null);
+          if (buf) files = [new AttachmentBuilder(buf, { name: 'quete.png' })];
+        }
+
+        await channel.send({
+          content: `🎯 <@${userId}> a terminé la quête **${q.label}** ! ${parts.join(' • ')} 🎁`,
+          files,
+        }).catch(() => {});
       }
     }
   }

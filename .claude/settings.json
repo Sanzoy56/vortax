@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(ls -la /tmp/quest_desc_map.json 2>/dev/null && echo EXISTS || echo MISSING)",
+      "Read(//tmp/**)",
+      "Bash(node _rewrite_quest_desc.js)",
+      "Bash(rm _rewrite_quest_desc.js)",
+      "Bash(cd \"E:/Projects/js/BOT/Vortax\" && cp /tmp/quest_desc_map.json ./tmp_quest_desc_map.json && ls tmp_quest_desc_map.json)",
+      "Bash(rm _rewrite_quest_desc.js tmp_quest_desc_map.json)",
+      "Bash(node -e \"console.log\\(Object.keys\\(require\\('./config.json'\\)\\)\\)\")"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}

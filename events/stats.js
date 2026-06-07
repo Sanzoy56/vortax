@@ -144,6 +144,12 @@ async function applyPendingResets() {
         db[userId].exp = 0;
         db[userId].level = 0;
         db[userId].lastAnnouncedLevel = 0;
+        // Vider aussi la progression des quêtes : sinon une quête déjà
+        // proche de la complétion (ex: 9/10 messages) se termine sur le
+        // tout premier message suivant le reset et octroie d'un coup
+        // tout son rewardExp sur un exp fraîchement remis à 0, ce qui
+        // déclenche une annonce de saut de niveau qui semble "sortie de nulle part"
+        db[userId].quests = { date: null, list: [] };
         changed = true;
 
         // Retirer tous les rôles de rang

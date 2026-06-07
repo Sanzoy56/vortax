@@ -833,8 +833,114 @@ async function generateRankUpCard(member, newRank, nextRank, currentLevel, userD
   return canvas.toBuffer('image/png');
 }
 
+// ════════════════════════════════════════════════════════════
+// 7. QUÊTE TERMINÉE
+// ════════════════════════════════════════════════════════════
+async function generateQuestCompleteCard(member, quest) {
+  const W = 700, H = 190;
+  const canvas = createCanvas(W, H);
+  const ctx    = canvas.getContext('2d');
+
+  ctx.fillStyle = '#08080f';
+  ctx.fillRect(0, 0, W, H);
+
+  roundRect(ctx, 1, 1, W - 2, H - 2, 14);
+  ctx.fillStyle = '#0d0d20';
+  ctx.fill();
+  roundRect(ctx, 1, 1, W - 2, H - 2, 14);
+  ctx.strokeStyle = '#1e1e45';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const accent = CAT_COLORS[quest.cat] || '#7c5cfc';
+
+  // Lueur dégradée à la couleur de la catégorie
+  const leftGrad = ctx.createLinearGradient(0, 0, 180, 0);
+  leftGrad.addColorStop(0, accent + '22');
+  leftGrad.addColorStop(1, accent + '00');
+  roundRect(ctx, 1, 1, W - 2, H - 2, 14);
+  ctx.fillStyle = leftGrad;
+  ctx.fill();
+
+  // Barre gauche
+  roundRect(ctx, 0, 0, 5, H, 4);
+  ctx.fillStyle = accent;
+  ctx.fill();
+
+  // Avatar
+  const sColor    = statusColor(member.presence);
+  const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: 256, forceStatic: true });
+  const AV_R = 55, AV_CX = 35 + AV_R, AV_CY = H / 2;
+  await drawAvatar(ctx, avatarURL, AV_CX, AV_CY, AV_R, sColor);
+
+  // Badge catégorie
+  const badgeCX = AV_CX + Math.round(AV_R * 0.72);
+  const badgeCY = AV_CY + Math.round(AV_R * 0.72);
+  ctx.beginPath(); ctx.arc(badgeCX, badgeCY, 16, 0, Math.PI * 2);
+  ctx.fillStyle = '#0d0d20'; ctx.fill();
+  ctx.beginPath(); ctx.arc(badgeCX, badgeCY, 16, 0, Math.PI * 2);
+  ctx.strokeStyle = accent; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = accent;
+  ctx.font = 'bold 9px ' + FONT;
+  ctx.textAlign = 'center';
+  ctx.fillText(quest.cat, badgeCX, badgeCY + 4);
+  ctx.textAlign = 'left';
+
+  const TX = AV_CX + AV_R + 24;
+  const TW = W - TX - 20;
+
+  // Nom du serveur
+  ctx.fillStyle = '#3a3a5a';
+  ctx.font = '11px ' + FONT;
+  ctx.fillText(sanitize(member.guild?.name || 'Vortax'), TX, 22);
+
+  // Titre
+  ctx.fillStyle = '#22c55e';
+  ctx.font = 'bold 22px ' + FONT;
+  ctx.fillText('Quête terminée !', TX, 50);
+
+  // Pseudo + nom de la quête
+  ctx.fillStyle = '#e8e8f5';
+  ctx.font = 'bold 16px ' + FONT;
+  ctx.fillText(truncate(ctx, '@' + member.user.username + '  —  ' + quest.label, TW), TX, 74);
+
+  // Description de la quête
+  ctx.fillStyle = '#5a5a7a';
+  ctx.font = '12px ' + FONT;
+  ctx.fillText(truncate(ctx, quest.desc || '', TW), TX, 94);
+
+  drawGoldLine(ctx, TX, 110, TW);
+
+  // Récompenses
+  ctx.fillStyle = '#5a5a7a';
+  ctx.font = '11px ' + FONT;
+  ctx.fillText('Récompenses obtenues', TX, 130);
+
+  let rx = TX;
+  if (quest.rewardExp) {
+    ctx.fillStyle = '#f5c842';
+    ctx.font = 'bold 18px ' + FONT;
+    const t = '+' + fmt(quest.rewardExp) + ' XP';
+    ctx.fillText(t, rx, 158);
+    rx += ctx.measureText(t).width + 24;
+  }
+  if (quest.rewardCoins) {
+    ctx.fillStyle = '#a855f7';
+    ctx.font = 'bold 18px ' + FONT;
+    ctx.fillText('+' + fmt(quest.rewardCoins) + ' VTX-Coins', rx, 158);
+  }
+
+  ctx.fillStyle = '#2a2a42';
+  ctx.font = '10px ' + FONT;
+  ctx.textAlign = 'right';
+  ctx.fillText('Team Vortax • ' + new Date().toLocaleDateString('fr-FR'), TX + TW, H - 14);
+  ctx.textAlign = 'left';
+
+  return canvas.toBuffer('image/png');
+}
+
 module.exports = {
   generateProfile, generateQuests, generateLeaderboard, generateBal,
-  generateLevelUpCard, generateRankUpCard,
+  generateLevelUpCard, generateRankUpCard, generateQuestCompleteCard,
   statusColor,
 };
