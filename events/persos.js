@@ -27,7 +27,7 @@ const PERSOS = {
       { name: '🔴 Red',              cmd: '=red @user',         desc: 'Casse boucliers normaux + counter-rob 10min (voleur perd 10%) · CD : 3h' },
       { name: '🔴 Red Max',          cmd: '=redmax @user',      desc: 'Casse boucliers + counter-tout 10min (attaquant perd 20%, toi +30%) · CD : 8h' },
       { name: '🟣 Violet',           cmd: '=violet @user',      desc: 'Ban casino 1h/2h/4h aléatoire · CD : 3j' },
-      { name: '🏴 Infinite Void',    cmd: '=territoire',        desc: 'Bloque le salon pour toi seul 5 min · CD : 9j' },
+      { name: '🏴 Infinite Void',    cmd: '=territoire',        desc: 'Quiconque parle dans le salon perd 80–250 coins reversés à toi pendant 5 min · CD : 9j' },
       { name: '♾️ Infini',           cmd: '=infini',            desc: 'Protection absolue 12h — brisable UNIQUEMENT par Sukuna (=worldslash) ou Saitama (=seriouspunch) · CD : 1j' },
       { name: '🌟 Éveil',            cmd: '=awak',              desc: 'Mode Dieu 24h — toutes techniques boostées · Débloque =lastblue et =lastred · CD : 12j' },
       { name: '🌀 Last Blue',        cmd: '=lastblue',          desc: 'Absorbe toutes attaques offensives + familiers 15min · CD : 4j' },
@@ -542,7 +542,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
     case 'territoire': {
       B.setGFX(msg.guild.id, 'territoire', { userId: msg.author.id, channel: msg.channel.id }, 5 * 60_000);
       setCD(attChar, name, CD_MS['9j']); saveUser(attUser);
-      return msg.reply(ok('🏴 **Infinite Void** — Tu contrôles le salon ! Seul toi reçois les gains éco pendant **5 minutes** !'));
+      return msg.reply(ok('🏴 **Infinite Void** — Le salon est ton territoire ! Quiconque y parle perd **80–250** ' + COIN + ' directement reversés dans ta poche pendant **5 minutes** !'));
     }
 
     case 'infini': {

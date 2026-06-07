@@ -110,8 +110,18 @@ async function cmdRob(msg) {
   if (!robber.rob) robber.rob = {};
   robber.rob.lastUsed = now;
 
-  // Immunité de la victime
-  if (isImmune(victim)) { saveUser(robber); return msg.reply(re(0x5a5a7a, `♾️ **${target.username}** est immunisé(e) — rob impossible !`)); }
+  // Immunité de la victime — l'Infini renvoie le coup : le voleur perd de l'argent au profit de la cible
+  if (isImmune(victim)) {
+    if (victim.buffs?.shield?.type === 'infini' && victim.buffs.shield.exp > now) {
+      const penalty = Math.min(robber.wallet, Math.max(50, Math.floor(robber.wallet * 0.10)));
+      robber.wallet -= penalty;
+      victim.wallet += penalty;
+      saveUser(robber); saveUser(victim);
+      return msg.reply(re(0x5a5a7a, `♾️ **${target.username}** est protégé(e) par l'**Infini** — le contrecoup te fait perdre **${fmt(penalty)}** ${COIN}, transférés à lui/elle !`));
+    }
+    saveUser(robber);
+    return msg.reply(re(0x5a5a7a, `♾️ **${target.username}** est immunisé(e) — rob impossible !`));
+  }
 
   // Bouclier de la victime
   const shield = getShield(victim);

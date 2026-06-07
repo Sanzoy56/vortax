@@ -1,4 +1,5 @@
 'use strict';
+const { EmbedBuilder } = require('discord.js');
 const { EXP, COINS } = require('./config');
 const { getUser, saveUser } = require('./db');
 const { addExp, addCoins, resetDailyStatsIfNeeded } = require('./levels');
@@ -6,6 +7,8 @@ const { updateQuestProgress, generateDailyQuests } = require('./quests');
 const B = require('./buffs');
 
 const cooldowns = new Map();
+const casinoBanReminders = new Map();
+const CASINO_CHANNEL_ID = '1497312598062796911';
 
 // ─── Config progression (cache 5 min depuis le dashboard) ────
 let _progCache = null, _progFetchedAt = 0;
@@ -46,8 +49,17 @@ module.exports = {
     if (hour >= 23)      await updateQuestProgress(guild, userId, 'night',   1); // après 23h → Noctambule
     if (hour === 0)      await updateQuestProgress(guild, userId, 'night',   1); // minuit    → Nuit blanche
 
-    // ── Effets de salon actifs (GUILD_FX) ──────────────────
+    // ── Rappel ban casino dans le salon commandes ──────────
     const chanId = message.channelId;
+    if (chanId === CASINO_CHANNEL_ID && B.isCasinoBanned(user)) {
+      const lastReminder = casinoBanReminders.get(userId) || 0;
+      if (now - lastReminder > 60_000) {
+        casinoBanReminders.set(userId, now);
+        const rem = B.fmtT(user.buffs.casinoBan.exp);
+        message.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`🎰 Tu es banni(e) du casino pendant encore **${rem}** !`)] }).catch(() => {});
+      }
+    }
+
 
     // =lastred : KO 1 min quiconque parle dans le salon (sauf l'activateur)
     const lred = B.getGFX(guild.id, 'lastred');
@@ -85,14 +97,25 @@ module.exports = {
 
     const terr = B.getGFX(guild.id, 'territoire');
     const bmax = B.getGFX(guild.id, 'bluemax');
-    const interceptor = (terr && terr.channel === chanId && terr.userId !== userId) ? terr
-                      : (bmax && bmax.channel === chanId && bmax.userId !== userId) ? bmax
-                      : null;
+
+    // Territoire : quiconque parle dans le salon perd de l'argent (taxe directe), reversé à l'activateur
+    if (terr && terr.channel === chanId && terr.userId !== userId) {
+      const toll = Math.min(user.wallet, 80 + Math.floor(Math.random() * 171)); // 80–250 coins
+      if (toll > 0) {
+        user.wallet -= toll;
+        saveUser(user);
+        const owner = getUser(terr.userId);
+        owner.wallet += toll;
+        saveUser(owner);
+        message.react('💸').catch(() => {});
+      }
+      return; // bloque aussi les gains normaux du message
+    }
 
     let gained;
-    if (interceptor) {
-      // Les coins vont à l'activateur, pas au sender
-      gained = addCoins(interceptor.userId, baseCoins);
+    if (bmax && bmax.channel === chanId && bmax.userId !== userId) {
+      // Blue Max : intercepte les gains éco du salon
+      gained = addCoins(bmax.userId, baseCoins);
     } else {
       gained = addCoins(userId, baseCoins);
       await updateQuestProgress(guild, userId, 'coins_earned', gained);
