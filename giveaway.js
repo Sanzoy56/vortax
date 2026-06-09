@@ -1,6 +1,18 @@
 const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
 
+const E = {
+  gift:    '<:4748blobgift:1513971386455167166>',
+  trophy:  '<:7356_trophy:1513971834373275708>',
+  time:    '<:81973time:1513973081498980392>',
+  check:   '<:85322greencheck1:1513974036982665359>',
+  purple:  '<:checkpurple1:1513974998057095268>',
+  members: '<:928205membericon:1513980909580320838>',
+  alarm:   '<:1558alarm:1513982112863092806>',
+  crown:   '<:905668crown:1513982366266167326>',
+  cross:   '<:26643crossmark:1510067005066055690>',
+};
+
 const GIVEAWAYS_FILE = './giveaways.json';
 
 function loadGiveaways() {
@@ -39,10 +51,6 @@ async function endGiveaway(client, messageId, channelId) {
             giveaway.ended = true; saveGiveaways(giveaways); return;
         }
 
-        // On marque terminé maintenant qu'on a le message
-        giveaway.ended = true;
-        saveGiveaways(giveaways);
-
         const participants = giveaway.participants || [];
 
         // Filtrer par rôle si requis
@@ -63,13 +71,21 @@ async function endGiveaway(client, messageId, channelId) {
         if (eligibles.length === 0) {
             const embed = new EmbedBuilder()
                 .setColor('#FF0000')
-                .setTitle(`🎁 ${giveaway.lot}`)
-                .setDescription('❌ Pas assez de participants pour ce giveaway !')
+                .setDescription([
+                    `${E.gift} **${giveaway.lot}**`,
+                    ``,
+                    `${E.cross} **Aucun participant éligible**`,
+                    `${E.time} **Fin :** <t:${Math.floor(giveaway.endsAt / 1000)}:R>`,
+                    ``,
+                    `━━━━━━━━━━━━━━━━━━━━━━`,
+                    `${E.members} **Participants :** ${participants.length}`,
+                ].join('\n'))
                 .setFooter({ text: 'Giveaway terminé' })
                 .setTimestamp();
 
             await message.edit({ embeds: [embed], components: [] });
-            await channel.send(`❌ Le giveaway **${giveaway.lot}** est terminé mais personne ne peut gagner !`);
+            await channel.send(`${E.cross} Le giveaway **${giveaway.lot}** est terminé mais personne ne peut gagner !`);
+            giveaway.ended = true; saveGiveaways(giveaways);
             return;
         }
 
@@ -78,13 +94,25 @@ async function endGiveaway(client, messageId, channelId) {
 
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
-            .setTitle(`🎁 ${giveaway.lot}`)
-            .setDescription(`🏆 **Gagnant(s) :** ${winners.map(w => `<@${w}>`).join(', ')}\n👥 **Participants :** ${participants.length}`)
+            .setDescription([
+                `${E.gift} **${giveaway.lot}**`,
+                ``,
+                `${E.crown} **Gagnant(s) :** ${winners.map(w => `<@${w}>`).join(', ')}`,
+                `${E.time} **Fin :** <t:${Math.floor(giveaway.endsAt / 1000)}:R>`,
+                `${E.check} **Terminé**`,
+                ``,
+                `━━━━━━━━━━━━━━━━━━━━━━`,
+                `${E.members} **Participants :** ${participants.length}`,
+            ].join('\n'))
             .setFooter({ text: 'Giveaway terminé' })
             .setTimestamp();
 
         await message.edit({ embeds: [embed], components: [] });
-        await channel.send(`🎉 Félicitations ${winners.map(w => `<@${w}>`).join(', ')} ! Vous avez gagné **${giveaway.lot}** !`);
+        await channel.send(`${E.crown} Félicitations ${winners.map(w => `<@${w}>`).join(', ')} ! Vous avez gagné **${giveaway.lot}** ! ${E.gift}`);
+        // On marque terminé uniquement après que les messages sont bien envoyés.
+        // Avant : ended=true était sauvegardé avant les discord ops → si le bot
+        // redémarrait entre-temps, le giveaway restait bloqué sans jamais annoncer.
+        giveaway.ended = true; saveGiveaways(giveaways);
 
     } catch (err) {
         console.error('[Giveaway] Erreur fin giveaway :', err);
@@ -129,22 +157,23 @@ module.exports = (client) => {
 
             const embed = new EmbedBuilder()
                 .setColor('#5865F2')
-                .setTitle(`🎁 ${lot}`)
                 .setDescription([
-                    `> Clique sur le bouton 🎉 pour participer !`,
+                    `${E.gift} **${lot}**`,
                     ``,
-                    `👥 **Gagnants :** ${nbGagnants}`,
-                    `⏱️ **Fin :** <t:${Math.floor(endsAt / 1000)}:R>`,
-                    roleRequis ? `🎭 **Rôle requis :** <@&${roleRequis.id}>` : `🌍 **Ouvert à tous**`,
+                    `${E.trophy} **Gagnants :** ${nbGagnants}`,
+                    `${E.time} **Fin :** <t:${Math.floor(endsAt / 1000)}:R>`,
+                    roleRequis ? `${E.purple} **Rôle requis :** <@&${roleRequis.id}>` : `${E.check} **Ouvert à tous**`,
                     ``,
-                    `📊 **Participants :** 0`
+                    `━━━━━━━━━━━━━━━━━━━━━━`,
+                    `${E.members} **Participants :** 0`,
                 ].join('\n'))
                 .setFooter({ text: `Lancé par ${interaction.user.tag}` })
                 .setTimestamp();
 
             const button = new ButtonBuilder()
                 .setCustomId('giveaway_participer')
-                .setLabel('Participer 🎉')
+                .setLabel('Participer')
+                .setEmoji({ id: '1513971386455167166', name: '4748blobgift' })
                 .setStyle(ButtonStyle.Primary);
 
             const row = new ActionRowBuilder().addComponents(button);
@@ -185,7 +214,7 @@ module.exports = (client) => {
                 saveGiveaways(giveaways);
 
                 const embed = EmbedBuilder.from(interaction.message.embeds[0])
-                    .setDescription(interaction.message.embeds[0].description.replace(/📊 \*\*Participants :\*\* \d+/, `📊 **Participants :** ${giveaway.participants.length}`));
+                    .setDescription(interaction.message.embeds[0].description.replace(/<:[^:]+:\d+> \*\*Participants :\*\* \d+/, `${E.members} **Participants :** ${giveaway.participants.length}`));
 
                 await interaction.update({ embeds: [embed] });
                 return interaction.followUp({ content: '❌ Tu t\'es retiré du giveaway.', ephemeral: true });
@@ -202,7 +231,7 @@ module.exports = (client) => {
             saveGiveaways(giveaways);
 
             const embed = EmbedBuilder.from(interaction.message.embeds[0])
-                .setDescription(interaction.message.embeds[0].description.replace(/📊 \*\*Participants :\*\* \d+/, `📊 **Participants :** ${giveaway.participants.length}`));
+                .setDescription(interaction.message.embeds[0].description.replace(/<:[^:]+:\d+> \*\*Participants :\*\* \d+/, `${E.members} **Participants :** ${giveaway.participants.length}`));
 
             await interaction.update({ embeds: [embed] });
             return interaction.followUp({ content: '✅ Tu participes au giveaway ! Bonne chance 🎉', ephemeral: true });
