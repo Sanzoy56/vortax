@@ -102,9 +102,9 @@ const commands = [
         .addIntegerOption(opt => opt.setName('messages').setDescription('Messages minimum à envoyer pour être éligible (0 = aucun)').setRequired(true).setMinValue(0))
         .addIntegerOption(opt => opt.setName('vocal').setDescription('Minutes en vocal minimum pour être éligible (0 = aucun)').setRequired(true).setMinValue(0))
         .addIntegerOption(opt => opt.setName('claim').setDescription('Minutes pour claim après avoir gagné (0 = pas de claim)').setRequired(true).setMinValue(0).setMaxValue(60))
-        .addRoleOption(opt => opt.setName('role').setDescription('Rôle requis pour participer').setRequired(false))
-        .addRoleOption(opt => opt.setName('role_blacklist').setDescription('Rôle interdit de participer').setRequired(false))
-        .addRoleOption(opt => opt.setName('role_bypass').setDescription('Rôle qui bypass le rôle requis').setRequired(false))
+        .addRoleOption(opt => opt.setName('role').setDescription('Rôle requis pour participer (@everyone = ouvert à tous)').setRequired(true))
+        .addRoleOption(opt => opt.setName('role_blacklist').setDescription('Rôle interdit de participer (@everyone = aucun blacklist)').setRequired(true))
+        .addRoleOption(opt => opt.setName('role_bypass').setDescription('Rôle qui bypass le rôle requis (@everyone = aucun bypass)').setRequired(true))
         .toJSON(),
 
     // ─── Boutique personnages ─────────────────────────────────────
