@@ -18,8 +18,6 @@ const E = {
   ticking: '<:44294ticking:1513976303634874449>',
 };
 
-const SEP = '─────────────────────────────────────────';
-
 // ─────────────────────────────────────────────────────────────
 //  Fichier
 // ─────────────────────────────────────────────────────────────
@@ -41,82 +39,78 @@ function parseDuration(str) {
 // ─────────────────────────────────────────────────────────────
 //  Builders d'embeds
 // ─────────────────────────────────────────────────────────────
-function buildActiveEmbed(gw) {
-  const count = (gw.participants || []).length;
-
-  const desc = [
-    `${E.gift} **Lot :** ${gw.lot}`,
-    `${E.trophy} **Gagnants :** ${gw.winners}`,
-    `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
-    ``,
-    SEP,
-    `**Conditions & options**`,
+function conditionsValue(gw) {
+  return [
     `• ${E.purple} Rôle requis : ${gw.requiredRole ? `<@&${gw.requiredRole}>` : '**aucun**'}`,
     `• ${E.ticking} Messages minimum : **${gw.messagesMin > 0 ? gw.messagesMin : 'aucun'}**`,
     `• ${E.volume} Minutes vocal minimum : **${gw.vocalMin > 0 ? gw.vocalMin : 'aucun'}**`,
     `• ${E.boost} Rôle bypass : ${gw.bypassRole ? `<@&${gw.bypassRole}>` : '**aucun**'}`,
     `• ${E.alarm} Temps pour claim : **${gw.claimMinutes > 0 ? gw.claimMinutes + ' minutes' : 'aucun'}**`,
-    ``,
-    SEP,
+  ].join('\n');
+}
+
+function participantsValue(gw) {
+  const count = (gw.participants || []).length;
+  return [
     `• ${E.members} Participants : **${count}**`,
     `• ${E.cross} Rôle blacklist : ${gw.blacklistRole ? `<@&${gw.blacklistRole}>` : '**aucun**'}`,
     `• ${E.boost} Bypass claim : ${gw.bypassRole ? `Oui (rôle : <@&${gw.bypassRole}>)` : '**Non**'}`,
     `• ${E.crown} Hôte : <@${gw.hostId}>`,
   ].join('\n');
+}
 
-  return new EmbedBuilder()
+function applyThumbnail(embed, gw) {
+  if (gw.image) embed.setThumbnail(gw.image);
+  return embed;
+}
+
+function buildActiveEmbed(gw) {
+  const embed = new EmbedBuilder()
     .setColor('#5865F2')
     .setTitle('Giveaway')
-    .setDescription(desc)
+    .setDescription([
+      `${E.gift} **Lot :** ${gw.lot}`,
+      `${E.trophy} **Gagnants :** ${gw.winners}`,
+      `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
+    ].join('\n'))
+    .addFields(
+      { name: 'Conditions & options', value: conditionsValue(gw) },
+      { name: '​',               value: participantsValue(gw) },
+    )
     .setFooter({ text: `Lancé par ${gw.hostTag}` })
     .setTimestamp(new Date(gw.endsAt));
+  return applyThumbnail(embed, gw);
 }
 
 function buildEndEmbed(gw, winners, claimed = []) {
-  const count = (gw.participants || []).length;
-
-  let resultLines;
+  let resultValue;
   if (winners.length > 0) {
     const lines = [`• ${E.trophy} Gagnant(s) : ${winners.map(w => `<@${w}>`).join(', ')}`];
     if (gw.claimMinutes > 0) {
       lines.push(`• ${E.check} Claimé(s) : ${claimed.length ? claimed.map(w => `<@${w}>`).join(', ') : '**aucun**'}`);
     }
-    resultLines = lines.join('\n');
+    resultValue = lines.join('\n');
   } else {
-    resultLines = `• ${E.cross} Aucun participant éligible`;
+    resultValue = `• ${E.cross} Aucun participant éligible`;
   }
 
-  const desc = [
-    `${E.gift} **Lot :** ${gw.lot}`,
-    `${E.trophy} **Gagnants :** ${gw.winners}`,
-    `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
-    `${E.check} **Terminé**`,
-    ``,
-    SEP,
-    `**Conditions & options**`,
-    `• ${E.purple} Rôle requis : ${gw.requiredRole ? `<@&${gw.requiredRole}>` : '**aucun**'}`,
-    `• ${E.ticking} Messages minimum : **${gw.messagesMin > 0 ? gw.messagesMin : 'aucun'}**`,
-    `• ${E.volume} Minutes vocal minimum : **${gw.vocalMin > 0 ? gw.vocalMin : 'aucun'}**`,
-    `• ${E.boost} Rôle bypass : ${gw.bypassRole ? `<@&${gw.bypassRole}>` : '**aucun**'}`,
-    `• ${E.alarm} Temps pour claim : **${gw.claimMinutes > 0 ? gw.claimMinutes + ' minutes' : 'aucun'}**`,
-    ``,
-    SEP,
-    `• ${E.members} Participants : **${count}**`,
-    `• ${E.cross} Rôle blacklist : ${gw.blacklistRole ? `<@&${gw.blacklistRole}>` : '**aucun**'}`,
-    `• ${E.boost} Bypass claim : ${gw.bypassRole ? `Oui (rôle : <@&${gw.bypassRole}>)` : '**Non**'}`,
-    `• ${E.crown} Hôte : <@${gw.hostId}>`,
-    ``,
-    SEP,
-    `**Résultat**`,
-    resultLines,
-  ].join('\n');
-
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(winners.length > 0 ? '#FFD700' : '#FF0000')
     .setTitle('Giveaway')
-    .setDescription(desc)
+    .setDescription([
+      `${E.gift} **Lot :** ${gw.lot}`,
+      `${E.trophy} **Gagnants :** ${gw.winners}`,
+      `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
+      `${E.check} **Terminé**`,
+    ].join('\n'))
+    .addFields(
+      { name: 'Conditions & options', value: conditionsValue(gw) },
+      { name: '​',               value: participantsValue(gw) },
+      { name: 'Résultat',             value: resultValue },
+    )
     .setFooter({ text: `Lancé par ${gw.hostTag}` })
     .setTimestamp();
+  return applyThumbnail(embed, gw);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -374,6 +368,7 @@ module.exports = (client) => {
       const roleBypass    = interaction.options.getRole('role_bypass');
       const messagesVal   = interaction.options.getInteger('messages');
       const vocalVal      = interaction.options.getInteger('vocal');
+      const imageUrl      = interaction.options.getString('image');
 
       // Validation messages / vocal
       if (messagesActif && !messagesVal)
@@ -404,6 +399,7 @@ module.exports = (client) => {
         messagesMin:   messagesActif ? messagesVal : 0,
         vocalMin:      vocalActif    ? vocalVal    : 0,
         claimMinutes,
+        image:         imageUrl || null,
         participants:  [],
         messageCounts: {},
         voiceMins:     {},

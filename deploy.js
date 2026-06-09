@@ -108,6 +108,7 @@ const commands = [
         .addRoleOption(opt => opt.setName('role_bypass').setDescription('Rôle qui bypass le rôle requis (@everyone = aucun bypass)').setRequired(true))
         .addIntegerOption(opt => opt.setName('messages').setDescription('Nombre de messages minimum (obligatoire si messages_actif = oui)').setRequired(false).setMinValue(1))
         .addIntegerOption(opt => opt.setName('vocal').setDescription('Nombre de minutes vocal minimum (obligatoire si vocal_actif = oui)').setRequired(false).setMinValue(1))
+        .addStringOption(opt => opt.setName('image').setDescription('URL d\'une image pour illustrer le lot (élargit l\'embed)').setRequired(false))
         .toJSON(),
 
     // ─── Boutique personnages ─────────────────────────────────────
