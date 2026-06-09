@@ -2,14 +2,14 @@ const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, PermissionFl
 const fs = require('fs');
 
 const E = {
-  gift:    '<:4748blobgift:1513971386455167166>',
-  trophy:  '<:7356_trophy:1513971834373275708>',
+  gift:    '<a:4748blobgift:1513971386455167166>',
+  trophy:  '<a:7356_trophy:1513971834373275708>',
   time:    '<:81973time:1513973081498980392>',
-  check:   '<:85322greencheck1:1513974036982665359>',
-  purple:  '<:checkpurple1:1513974998057095268>',
+  check:   '<a:85322greencheck1:1513974036982665359>',
+  purple:  '<a:checkpurple1:1513974998057095268>',
   members: '<:928205membericon:1513980909580320838>',
-  alarm:   '<:1558alarm:1513982112863092806>',
-  crown:   '<:905668crown:1513982366266167326>',
+  alarm:   '<a:1558alarm:1513982112863092806>',
+  crown:   '<a:905668crown:1513982366266167326>',
   cross:   '<:26643crossmark:1510067005066055690>',
 };
 
@@ -71,14 +71,14 @@ async function endGiveaway(client, messageId, channelId) {
         if (eligibles.length === 0) {
             const embed = new EmbedBuilder()
                 .setColor('#FF0000')
+                .setTitle('Giveaway')
                 .setDescription([
-                    `${E.gift} **${giveaway.lot}**`,
-                    ``,
-                    `${E.cross} **Aucun participant éligible**`,
+                    `${E.gift} **Lot :** ${giveaway.lot}`,
+                    `${E.trophy} **Gagnants :** ${giveaway.winners}`,
                     `${E.time} **Fin :** <t:${Math.floor(giveaway.endsAt / 1000)}:R>`,
+                    `${E.cross} **Aucun participant éligible**`,
                     ``,
-                    `━━━━━━━━━━━━━━━━━━━━━━`,
-                    `${E.members} **Participants :** ${participants.length}`,
+                    `> ${E.members} **Participants :** ${participants.length}`,
                 ].join('\n'))
                 .setFooter({ text: 'Giveaway terminé' })
                 .setTimestamp();
@@ -94,15 +94,17 @@ async function endGiveaway(client, messageId, channelId) {
 
         const embed = new EmbedBuilder()
             .setColor('#FFD700')
+            .setTitle('Giveaway')
             .setDescription([
-                `${E.gift} **${giveaway.lot}**`,
-                ``,
-                `${E.crown} **Gagnant(s) :** ${winners.map(w => `<@${w}>`).join(', ')}`,
+                `${E.gift} **Lot :** ${giveaway.lot}`,
+                `${E.trophy} **Gagnants :** ${giveaway.winners}`,
                 `${E.time} **Fin :** <t:${Math.floor(giveaway.endsAt / 1000)}:R>`,
                 `${E.check} **Terminé**`,
                 ``,
-                `━━━━━━━━━━━━━━━━━━━━━━`,
-                `${E.members} **Participants :** ${participants.length}`,
+                `> ${E.members} **Participants :** ${participants.length}`,
+                ``,
+                `**Résultat**`,
+                `> ${E.crown} **Gagnant(s) :** ${winners.map(w => `<@${w}>`).join(', ')}`,
             ].join('\n'))
             .setFooter({ text: 'Giveaway terminé' })
             .setTimestamp();
@@ -157,15 +159,14 @@ module.exports = (client) => {
 
             const embed = new EmbedBuilder()
                 .setColor('#5865F2')
+                .setTitle('Giveaway')
                 .setDescription([
-                    `${E.gift} **${lot}**`,
-                    ``,
+                    `${E.gift} **Lot :** ${lot}`,
                     `${E.trophy} **Gagnants :** ${nbGagnants}`,
                     `${E.time} **Fin :** <t:${Math.floor(endsAt / 1000)}:R>`,
                     roleRequis ? `${E.purple} **Rôle requis :** <@&${roleRequis.id}>` : `${E.check} **Ouvert à tous**`,
                     ``,
-                    `━━━━━━━━━━━━━━━━━━━━━━`,
-                    `${E.members} **Participants :** 0`,
+                    `> ${E.members} **Participants :** 0`,
                 ].join('\n'))
                 .setFooter({ text: `Lancé par ${interaction.user.tag}` })
                 .setTimestamp();
@@ -173,7 +174,7 @@ module.exports = (client) => {
             const button = new ButtonBuilder()
                 .setCustomId('giveaway_participer')
                 .setLabel('Participer')
-                .setEmoji({ id: '1513971386455167166', name: '4748blobgift' })
+                .setEmoji({ id: '1513971386455167166', name: '4748blobgift', animated: true })
                 .setStyle(ButtonStyle.Primary);
 
             const row = new ActionRowBuilder().addComponents(button);
@@ -214,7 +215,7 @@ module.exports = (client) => {
                 saveGiveaways(giveaways);
 
                 const embed = EmbedBuilder.from(interaction.message.embeds[0])
-                    .setDescription(interaction.message.embeds[0].description.replace(/<:[^:]+:\d+> \*\*Participants :\*\* \d+/, `${E.members} **Participants :** ${giveaway.participants.length}`));
+                    .setDescription(interaction.message.embeds[0].description.replace(/> <:[^:]+:\d+> \*\*Participants :\*\* \d+/, `> ${E.members} **Participants :** ${giveaway.participants.length}`));
 
                 await interaction.update({ embeds: [embed] });
                 return interaction.followUp({ content: '❌ Tu t\'es retiré du giveaway.', ephemeral: true });
@@ -231,7 +232,7 @@ module.exports = (client) => {
             saveGiveaways(giveaways);
 
             const embed = EmbedBuilder.from(interaction.message.embeds[0])
-                .setDescription(interaction.message.embeds[0].description.replace(/<:[^:]+:\d+> \*\*Participants :\*\* \d+/, `${E.members} **Participants :** ${giveaway.participants.length}`));
+                .setDescription(interaction.message.embeds[0].description.replace(/> <:[^:]+:\d+> \*\*Participants :\*\* \d+/, `> ${E.members} **Participants :** ${giveaway.participants.length}`));
 
             await interaction.update({ embeds: [embed] });
             return interaction.followUp({ content: '✅ Tu participes au giveaway ! Bonne chance 🎉', ephemeral: true });
