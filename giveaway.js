@@ -64,6 +64,9 @@ function applyThumbnail(embed, gw) {
   return embed;
 }
 
+// Ligne invisible de 45 caractères Braille blank → force l'embed à sa largeur maximale
+const WIDE = '⠀'.repeat(45);
+
 function buildActiveEmbed(gw) {
   const embed = new EmbedBuilder()
     .setColor('#5865F2')
@@ -72,6 +75,7 @@ function buildActiveEmbed(gw) {
       `${E.gift} **Lot :** ${gw.lot}`,
       `${E.trophy} **Gagnants :** ${gw.winners}`,
       `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
+      WIDE,
     ].join('\n'))
     .addFields(
       { name: 'Conditions & options', value: conditionsValue(gw) },
@@ -102,6 +106,7 @@ function buildEndEmbed(gw, winners, claimed = []) {
       `${E.trophy} **Gagnants :** ${gw.winners}`,
       `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
       `${E.check} **Terminé**`,
+      WIDE,
     ].join('\n'))
     .addFields(
       { name: 'Conditions & options', value: conditionsValue(gw) },
