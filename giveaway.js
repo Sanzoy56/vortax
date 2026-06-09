@@ -59,13 +59,13 @@ function participantsValue(gw) {
   ].join('\n');
 }
 
+// Thumbnail par défaut = gift emoji animé depuis Discord CDN → force l'embed à pleine largeur
+const DEFAULT_THUMBNAIL = 'https://cdn.discordapp.com/emojis/1513971386455167166.gif';
+
 function applyThumbnail(embed, gw) {
-  if (gw.image) embed.setThumbnail(gw.image);
+  embed.setThumbnail(gw.image || DEFAULT_THUMBNAIL);
   return embed;
 }
-
-// Ligne invisible de 45 caractères Braille blank → force l'embed à sa largeur maximale
-const WIDE = '⠀'.repeat(45);
 
 function buildActiveEmbed(gw) {
   const embed = new EmbedBuilder()
@@ -75,7 +75,6 @@ function buildActiveEmbed(gw) {
       `${E.gift} **Lot :** ${gw.lot}`,
       `${E.trophy} **Gagnants :** ${gw.winners}`,
       `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
-      WIDE,
     ].join('\n'))
     .addFields(
       { name: 'Conditions & options', value: conditionsValue(gw) },
@@ -106,7 +105,6 @@ function buildEndEmbed(gw, winners, claimed = []) {
       `${E.trophy} **Gagnants :** ${gw.winners}`,
       `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
       `${E.check} **Terminé**`,
-      WIDE,
     ].join('\n'))
     .addFields(
       { name: 'Conditions & options', value: conditionsValue(gw) },
