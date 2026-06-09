@@ -23,20 +23,19 @@ function startVoicexp(client) {
         // Uniquement les salons vocaux
         if (!channel.isVoiceBased()) continue;
 
-        // Membres actifs : non-bot, ni muet (soi-même ou modérateur), ni sourd
+        const prog = await getProgConfig();
+
+        // Membres actifs : non-bot, pas sanctionné par un modo (serverMute/serverDeaf)
+        // selfMute et selfDeaf sont ignorés — se muter soi-même ne pénalise pas
         const actifs = [...channel.members.values()].filter(m =>
           !m.user.bot &&
-          !m.voice.selfMute &&
           !m.voice.serverMute &&
-          !m.voice.selfDeaf &&
           !m.voice.serverDeaf
         );
 
         // Minimum de personnes requis (configurable depuis le dashboard, défaut = 1)
         const minUsers = prog.voc_min_users ?? 1;
         if (actifs.length < minUsers) continue;
-
-        const prog     = await getProgConfig();
         const expMin   = prog.voc_exp_min   ?? VOCAL_DEFAULTS.MIN_EXP;
         const expMax   = prog.voc_exp_max   ?? VOCAL_DEFAULTS.MAX_EXP;
         const coinsMin = prog.voc_coins_min ?? VOCAL_DEFAULTS.MIN_COINS;

@@ -69,7 +69,10 @@ function flush() {
   } catch { _dirty = true; }
 }
 
-function markDirty() { _dirty = true; }
+function markDirty() {
+  _dirty = true;
+  flush(); // écriture immédiate — plus aucune perte possible même sur SIGKILL
+}
 
 const _flushTimer = setInterval(flush, 5_000);
 if (_flushTimer.unref) _flushTimer.unref();
