@@ -32,8 +32,9 @@ function startVoicexp(client) {
           !m.voice.serverDeaf
         );
 
-        // XP seulement si au moins 2 personnes actives dans le salon
-        if (actifs.length < 2) continue;
+        // Minimum de personnes requis (configurable depuis le dashboard, défaut = 1)
+        const minUsers = prog.voc_min_users ?? 1;
+        if (actifs.length < minUsers) continue;
 
         const prog     = await getProgConfig();
         const expMin   = prog.voc_exp_min   ?? VOCAL_DEFAULTS.MIN_EXP;

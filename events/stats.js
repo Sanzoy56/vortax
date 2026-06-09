@@ -235,6 +235,27 @@ async function flushActiveSessions() {
 // ════════════════════════════════════════════════════════════
 //  EXPORT
 // ════════════════════════════════════════════════════════════
+// Initialise les sessions pour les membres déjà en vocal au démarrage du bot
+function initExistingSessions(client) {
+  const now = Date.now();
+  for (const guild of client.guilds.cache.values()) {
+    for (const channel of guild.channels.cache.values()) {
+      if (!channel.isVoiceBased()) continue;
+      for (const member of channel.members.values()) {
+        if (member.user.bot) continue;
+        const key = `${guild.id}:${member.id}`;
+        if (voiceSessions.has(key)) continue;
+        voiceSessions.set(key, {
+          start:       now,
+          lastFlushed: now,
+          channelId:   channel.id,
+          channelName: channel.name,
+        });
+      }
+    }
+  }
+}
+
 module.exports = {
   init(client) {
     _client  = client;
@@ -242,6 +263,10 @@ module.exports = {
 
     client.on("voiceStateUpdate", onVoiceStateUpdate);
     client.on("messageCreate", onMessageCreate);
+
+    client.once("ready", () => {
+      initExistingSessions(client);
+    });
 
     if (!_guildId) {
       console.warn("[Stats] ⚠️ GUILD_ID manquant dans .env");
