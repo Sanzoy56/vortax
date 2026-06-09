@@ -99,7 +99,11 @@ const commands = [
         .addStringOption(opt => opt.setName('lot').setDescription('Ce qu\'on gagne').setRequired(true))
         .addStringOption(opt => opt.setName('durée').setDescription('Durée : 10m, 2h, 1d').setRequired(true))
         .addIntegerOption(opt => opt.setName('gagnants').setDescription('Nombre de gagnants').setRequired(true).setMinValue(1))
-        .addRoleOption(opt => opt.setName('role').setDescription('Rôle requis (optionnel)').setRequired(false))
+        .addRoleOption(opt => opt.setName('role').setDescription('Rôle requis pour participer').setRequired(false))
+        .addRoleOption(opt => opt.setName('role_blacklist').setDescription('Rôle interdit de participer').setRequired(false))
+        .addRoleOption(opt => opt.setName('role_bypass').setDescription('Rôle qui bypass le rôle requis').setRequired(false))
+        .addIntegerOption(opt => opt.setName('messages').setDescription('Nombre minimum de messages pendant le giveaway').setRequired(false).setMinValue(1))
+        .addIntegerOption(opt => opt.setName('claim').setDescription('Minutes pour claim après avoir gagné (0 = pas de claim)').setRequired(false).setMinValue(1).setMaxValue(60))
         .toJSON(),
 
     // ─── Boutique personnages ─────────────────────────────────────
