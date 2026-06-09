@@ -18,6 +18,8 @@ const E = {
   ticking: '<:44294ticking:1513976303634874449>',
 };
 
+const SEP = '─────────────────────────────────────────';
+
 // ─────────────────────────────────────────────────────────────
 //  Fichier
 // ─────────────────────────────────────────────────────────────
@@ -40,22 +42,22 @@ function parseDuration(str) {
 //  Builders d'embeds
 // ─────────────────────────────────────────────────────────────
 function buildActiveEmbed(gw) {
+  const count = (gw.participants || []).length;
+
   const desc = [
     `${E.gift} **Lot :** ${gw.lot}`,
     `${E.trophy} **Gagnants :** ${gw.winners}`,
     `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
-  ].join('\n');
-
-  const conditions = [
+    ``,
+    SEP,
+    `**Conditions & options**`,
     `• ${E.purple} Rôle requis : ${gw.requiredRole ? `<@&${gw.requiredRole}>` : '**aucun**'}`,
-    `• ${E.ticking} Messages minimum : **${gw.messagesMin}**`,
-    `• ${E.volume} Minutes vocal minimum : **${gw.vocalMin}**`,
+    `• ${E.ticking} Messages minimum : **${gw.messagesMin > 0 ? gw.messagesMin : 'aucun'}**`,
+    `• ${E.volume} Minutes vocal minimum : **${gw.vocalMin > 0 ? gw.vocalMin : 'aucun'}**`,
     `• ${E.boost} Rôle bypass : ${gw.bypassRole ? `<@&${gw.bypassRole}>` : '**aucun**'}`,
     `• ${E.alarm} Temps pour claim : **${gw.claimMinutes > 0 ? gw.claimMinutes + ' minutes' : 'aucun'}**`,
-  ].join('\n');
-
-  const count = (gw.participants || []).length;
-  const participants = [
+    ``,
+    SEP,
     `• ${E.members} Participants : **${count}**`,
     `• ${E.cross} Rôle blacklist : ${gw.blacklistRole ? `<@&${gw.blacklistRole}>` : '**aucun**'}`,
     `• ${E.boost} Bypass claim : ${gw.bypassRole ? `Oui (rôle : <@&${gw.bypassRole}>)` : '**Non**'}`,
@@ -66,58 +68,53 @@ function buildActiveEmbed(gw) {
     .setColor('#5865F2')
     .setTitle('Giveaway')
     .setDescription(desc)
-    .addFields(
-      { name: 'Conditions & options', value: conditions },
-      { name: '​', value: participants },
-    )
     .setFooter({ text: `Lancé par ${gw.hostTag}` })
     .setTimestamp(new Date(gw.endsAt));
 }
 
 function buildEndEmbed(gw, winners, claimed = []) {
-  const desc = [
-    `${E.gift} **Lot :** ${gw.lot}`,
-    `${E.trophy} **Gagnants :** ${gw.winners}`,
-    `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
-    `${E.check} **Terminé**`,
-  ].join('\n');
-
-  const conditions = [
-    `• ${E.purple} Rôle requis : ${gw.requiredRole ? `<@&${gw.requiredRole}>` : '**aucun**'}`,
-    `• ${E.ticking} Messages minimum : **${gw.messagesMin}**`,
-    `• ${E.volume} Minutes vocal minimum : **${gw.vocalMin}**`,
-    `• ${E.boost} Rôle bypass : ${gw.bypassRole ? `<@&${gw.bypassRole}>` : '**aucun**'}`,
-    `• ${E.alarm} Temps pour claim : **${gw.claimMinutes > 0 ? gw.claimMinutes + ' minutes' : 'aucun'}**`,
-  ].join('\n');
-
   const count = (gw.participants || []).length;
-  const participants = [
-    `• ${E.members} Participants : **${count}**`,
-    `• ${E.cross} Rôle blacklist : ${gw.blacklistRole ? `<@&${gw.blacklistRole}>` : '**aucun**'}`,
-    `• ${E.boost} Bypass claim : ${gw.bypassRole ? `Oui (rôle : <@&${gw.bypassRole}>)` : '**Non**'}`,
-    `• ${E.crown} Hôte : <@${gw.hostId}>`,
-  ].join('\n');
 
-  let resultValue;
+  let resultLines;
   if (winners.length > 0) {
     const lines = [`• ${E.trophy} Gagnant(s) : ${winners.map(w => `<@${w}>`).join(', ')}`];
     if (gw.claimMinutes > 0) {
       lines.push(`• ${E.check} Claimé(s) : ${claimed.length ? claimed.map(w => `<@${w}>`).join(', ') : '**aucun**'}`);
     }
-    resultValue = lines.join('\n');
+    resultLines = lines.join('\n');
   } else {
-    resultValue = `• ${E.cross} Aucun participant éligible`;
+    resultLines = `• ${E.cross} Aucun participant éligible`;
   }
+
+  const desc = [
+    `${E.gift} **Lot :** ${gw.lot}`,
+    `${E.trophy} **Gagnants :** ${gw.winners}`,
+    `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
+    `${E.check} **Terminé**`,
+    ``,
+    SEP,
+    `**Conditions & options**`,
+    `• ${E.purple} Rôle requis : ${gw.requiredRole ? `<@&${gw.requiredRole}>` : '**aucun**'}`,
+    `• ${E.ticking} Messages minimum : **${gw.messagesMin > 0 ? gw.messagesMin : 'aucun'}**`,
+    `• ${E.volume} Minutes vocal minimum : **${gw.vocalMin > 0 ? gw.vocalMin : 'aucun'}**`,
+    `• ${E.boost} Rôle bypass : ${gw.bypassRole ? `<@&${gw.bypassRole}>` : '**aucun**'}`,
+    `• ${E.alarm} Temps pour claim : **${gw.claimMinutes > 0 ? gw.claimMinutes + ' minutes' : 'aucun'}**`,
+    ``,
+    SEP,
+    `• ${E.members} Participants : **${count}**`,
+    `• ${E.cross} Rôle blacklist : ${gw.blacklistRole ? `<@&${gw.blacklistRole}>` : '**aucun**'}`,
+    `• ${E.boost} Bypass claim : ${gw.bypassRole ? `Oui (rôle : <@&${gw.bypassRole}>)` : '**Non**'}`,
+    `• ${E.crown} Hôte : <@${gw.hostId}>`,
+    ``,
+    SEP,
+    `**Résultat**`,
+    resultLines,
+  ].join('\n');
 
   return new EmbedBuilder()
     .setColor(winners.length > 0 ? '#FFD700' : '#FF0000')
     .setTitle('Giveaway')
     .setDescription(desc)
-    .addFields(
-      { name: 'Conditions & options', value: conditions },
-      { name: '​', value: participants },
-      { name: 'Résultat', value: resultValue },
-    )
     .setFooter({ text: `Lancé par ${gw.hostTag}` })
     .setTimestamp();
 }
@@ -128,13 +125,11 @@ function buildEndEmbed(gw, winners, claimed = []) {
 async function pickEligibles(gw, channel, now = Date.now()) {
   let eligibles = [...(gw.participants || [])];
 
-  // Filtre messages minimum
   if (gw.messagesMin > 0) {
     const counts = gw.messageCounts || {};
     eligibles = eligibles.filter(id => (counts[id] || 0) >= gw.messagesMin);
   }
 
-  // Filtre vocal minimum — intègre les sessions encore actives
   if (gw.vocalMin > 0) {
     const voiceMins  = gw.voiceMins  || {};
     const voiceJoins = gw.voiceJoins || {};
@@ -145,7 +140,6 @@ async function pickEligibles(gw, channel, now = Date.now()) {
     });
   }
 
-  // Filtre rôle requis / blacklist / bypass
   if (gw.requiredRole || gw.blacklistRole) {
     const guild    = channel.guild;
     const filtered = [];
@@ -190,7 +184,7 @@ async function startClaimPhase(client, messageId, channelId, winners) {
   }).catch(() => null);
 
   if (claimMsg) {
-    giveaways[messageId].claimMsgId   = claimMsg.id;
+    giveaways[messageId].claimMsgId    = claimMsg.id;
     giveaways[messageId].claimDeadline = Date.now() + claimMs;
     saveGiveaways(giveaways);
   }
@@ -207,11 +201,10 @@ async function resolveClaimPhase(client, messageId, channelId) {
   const winners   = gw.winnersPicked || [];
   const unclaimed = winners.filter(w => !claimed.includes(w));
 
-  // Reroll les non-claimeurs parmi les participants restants
   const rerolled = [];
   if (unclaimed.length > 0) {
-    const pool      = (gw.participants || []).filter(id => !winners.includes(id));
-    const shuffled  = pool.sort(() => Math.random() - 0.5);
+    const pool     = (gw.participants || []).filter(id => !winners.includes(id));
+    const shuffled = pool.sort(() => Math.random() - 0.5);
     for (let i = 0; i < unclaimed.length && i < shuffled.length; i++) {
       rerolled.push(shuffled[i]);
     }
@@ -226,13 +219,11 @@ async function resolveClaimPhase(client, messageId, channelId) {
   const channel = await client.channels.fetch(channelId).catch(() => null);
   if (!channel) return;
 
-  // Supprimer le message de claim
   if (gw.claimMsgId) {
     const cm = await channel.messages.fetch(gw.claimMsgId).catch(() => null);
     if (cm) await cm.delete().catch(() => {});
   }
 
-  // Mettre à jour l'embed principal
   const message = await channel.messages.fetch(messageId).catch(() => null);
   if (message) {
     await message.edit({ embeds: [buildEndEmbed(gw, finalWinners, claimed)], components: [] }).catch(() => {});
@@ -319,7 +310,7 @@ module.exports = (client) => {
     }
   });
 
-  // ── Comptage des messages (pour messagesMin) ──────────────
+  // ── Comptage des messages ─────────────────────────────────
   client.on('messageCreate', msg => {
     if (msg.author.bot || !msg.guild) return;
     const giveaways = loadGiveaways();
@@ -335,11 +326,11 @@ module.exports = (client) => {
     if (changed) saveGiveaways(giveaways);
   });
 
-  // ── Tracking vocal (pour vocalMin) ───────────────────────
+  // ── Tracking vocal ────────────────────────────────────────
   client.on('voiceStateUpdate', (oldState, newState) => {
     const giveaways = loadGiveaways();
     let changed = false;
-    const now = Date.now();
+    const now     = Date.now();
     const userId  = newState.member?.id || oldState.member?.id;
     const guildId = newState.guild?.id  || oldState.guild?.id;
     if (!userId || !guildId) return;
@@ -351,15 +342,11 @@ module.exports = (client) => {
       if (!gw.voiceJoins) gw.voiceJoins = {};
       if (!gw.voiceMins)  gw.voiceMins  = {};
 
-      const joined  = !oldState.channel && newState.channel;
-      const left    = oldState.channel  && !newState.channel;
-
-      if (joined) {
+      if (!oldState.channel && newState.channel) {
         gw.voiceJoins[userId] = now;
         changed = true;
-      } else if (left && gw.voiceJoins[userId]) {
-        const mins = (now - gw.voiceJoins[userId]) / 60000;
-        gw.voiceMins[userId] = (gw.voiceMins[userId] || 0) + mins;
+      } else if (oldState.channel && !newState.channel && gw.voiceJoins[userId]) {
+        gw.voiceMins[userId] = (gw.voiceMins[userId] || 0) + (now - gw.voiceJoins[userId]) / 60000;
         delete gw.voiceJoins[userId];
         changed = true;
       }
@@ -375,18 +362,33 @@ module.exports = (client) => {
       if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator))
         return interaction.reply({ content: '❌ Admins uniquement.', ephemeral: true });
 
-      const lot          = interaction.options.getString('lot');
-      const dureeStr     = interaction.options.getString('durée');
-      const nbGagnants   = interaction.options.getInteger('gagnants');
-      const messagesMin  = interaction.options.getInteger('messages');
-      const vocalMin     = interaction.options.getInteger('vocal');
-      const claimMinutes = interaction.options.getInteger('claim');
-      const roleRequis   = interaction.options.getRole('role');
-      const roleBlack    = interaction.options.getRole('role_blacklist');
-      const roleBypass   = interaction.options.getRole('role_bypass');
+      const lot           = interaction.options.getString('lot');
+      const dureeStr      = interaction.options.getString('durée');
+      const nbGagnants    = interaction.options.getInteger('gagnants');
+      const hote          = interaction.options.getUser('hote');
+      const messagesActif = interaction.options.getBoolean('messages_actif');
+      const vocalActif    = interaction.options.getBoolean('vocal_actif');
+      const claimMinutes  = interaction.options.getInteger('claim');
+      const roleRequis    = interaction.options.getRole('role');
+      const roleBlack     = interaction.options.getRole('role_blacklist');
+      const roleBypass    = interaction.options.getRole('role_bypass');
+      const messagesVal   = interaction.options.getInteger('messages');
+      const vocalVal      = interaction.options.getInteger('vocal');
+
+      // Validation messages / vocal
+      if (messagesActif && !messagesVal)
+        return interaction.reply({ content: '❌ Tu as activé les messages minimum mais tu n\'as pas précisé le nombre (option `messages`).', ephemeral: true });
+      if (vocalActif && !vocalVal)
+        return interaction.reply({ content: '❌ Tu as activé le vocal minimum mais tu n\'as pas précisé le nombre de minutes (option `vocal`).', ephemeral: true });
 
       const duree = parseDuration(dureeStr);
       if (!duree) return interaction.reply({ content: '❌ Durée invalide. Format : `10m`, `2h`, `1d`', ephemeral: true });
+
+      // @everyone = pas de restriction
+      const everyoneId = interaction.guildId;
+      const requiredRole  = roleRequis?.id !== everyoneId  ? roleRequis?.id  : null;
+      const blacklistRole = roleBlack?.id  !== everyoneId  ? roleBlack?.id   : null;
+      const bypassRole    = roleBypass?.id !== everyoneId  ? roleBypass?.id  : null;
 
       const gw = {
         lot,
@@ -394,13 +396,13 @@ module.exports = (client) => {
         endsAt:        Date.now() + duree,
         guildId:       interaction.guildId,
         channelId:     interaction.channelId,
-        hostId:        interaction.user.id,
-        hostTag:       interaction.user.tag,
-        requiredRole:  roleRequis ? roleRequis.id  : null,
-        blacklistRole: roleBlack  ? roleBlack.id   : null,
-        bypassRole:    roleBypass ? roleBypass.id  : null,
-        messagesMin,
-        vocalMin,
+        hostId:        hote.id,
+        hostTag:       hote.tag,
+        requiredRole,
+        blacklistRole,
+        bypassRole,
+        messagesMin:   messagesActif ? messagesVal : 0,
+        vocalMin:      vocalActif    ? vocalVal    : 0,
         claimMinutes,
         participants:  [],
         messageCounts: {},
@@ -442,7 +444,6 @@ module.exports = (client) => {
 
       const userId = interaction.user.id;
 
-      // Désistement
       if (gw.participants.includes(userId)) {
         gw.participants = gw.participants.filter(id => id !== userId);
         saveGiveaways(giveaways);
@@ -450,17 +451,15 @@ module.exports = (client) => {
         return interaction.followUp({ content: `${E.cross} Tu t'es retiré du giveaway.`, ephemeral: true });
       }
 
-      // Blacklist
       if (gw.blacklistRole) {
         const member = await interaction.guild.members.fetch(userId).catch(() => null);
         if (member?.roles.cache.has(gw.blacklistRole))
           return interaction.reply({ content: `${E.cross} Tu ne peux pas participer à ce giveaway.`, ephemeral: true });
       }
 
-      // Rôle requis (avec bypass)
       if (gw.requiredRole) {
-        const member  = await interaction.guild.members.fetch(userId).catch(() => null);
-        const bypass  = gw.bypassRole && member?.roles.cache.has(gw.bypassRole);
+        const member = await interaction.guild.members.fetch(userId).catch(() => null);
+        const bypass = gw.bypassRole && member?.roles.cache.has(gw.bypassRole);
         if (!bypass && !member?.roles.cache.has(gw.requiredRole))
           return interaction.reply({ content: `${E.cross} Tu dois avoir le rôle <@&${gw.requiredRole}> pour participer !`, ephemeral: true });
       }

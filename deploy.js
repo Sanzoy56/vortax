@@ -99,12 +99,15 @@ const commands = [
         .addStringOption(opt => opt.setName('lot').setDescription('Ce qu\'on gagne').setRequired(true))
         .addStringOption(opt => opt.setName('durée').setDescription('Durée : 10m, 2h, 1d').setRequired(true))
         .addIntegerOption(opt => opt.setName('gagnants').setDescription('Nombre de gagnants').setRequired(true).setMinValue(1))
-        .addIntegerOption(opt => opt.setName('messages').setDescription('Messages minimum à envoyer pour être éligible (0 = aucun)').setRequired(true).setMinValue(0))
-        .addIntegerOption(opt => opt.setName('vocal').setDescription('Minutes en vocal minimum pour être éligible (0 = aucun)').setRequired(true).setMinValue(0))
+        .addUserOption(opt => opt.setName('hote').setDescription('Membre qui organise le giveaway').setRequired(true))
+        .addBooleanOption(opt => opt.setName('messages_actif').setDescription('Activer un minimum de messages pour être éligible ?').setRequired(true))
+        .addBooleanOption(opt => opt.setName('vocal_actif').setDescription('Activer un minimum de minutes en vocal pour être éligible ?').setRequired(true))
         .addIntegerOption(opt => opt.setName('claim').setDescription('Minutes pour claim après avoir gagné (0 = pas de claim)').setRequired(true).setMinValue(0).setMaxValue(60))
         .addRoleOption(opt => opt.setName('role').setDescription('Rôle requis pour participer (@everyone = ouvert à tous)').setRequired(true))
         .addRoleOption(opt => opt.setName('role_blacklist').setDescription('Rôle interdit de participer (@everyone = aucun blacklist)').setRequired(true))
         .addRoleOption(opt => opt.setName('role_bypass').setDescription('Rôle qui bypass le rôle requis (@everyone = aucun bypass)').setRequired(true))
+        .addIntegerOption(opt => opt.setName('messages').setDescription('Nombre de messages minimum (obligatoire si messages_actif = oui)').setRequired(false).setMinValue(1))
+        .addIntegerOption(opt => opt.setName('vocal').setDescription('Nombre de minutes vocal minimum (obligatoire si vocal_actif = oui)').setRequired(false).setMinValue(1))
         .toJSON(),
 
     // ─── Boutique personnages ─────────────────────────────────────
