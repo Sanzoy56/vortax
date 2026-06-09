@@ -67,9 +67,11 @@ async function onVoiceStateUpdate(oldState, newState) {
 
   // Rejoint un salon
   if (joined) {
+    const now = Date.now();
     voiceSessions.set(key, {
-      start: Date.now(),
-      channelId: newState.channelId,
+      start:       now,
+      lastFlushed: now,
+      channelId:   newState.channelId,
       channelName: newState.channel?.name || "Inconnu",
     });
     return;
@@ -95,9 +97,11 @@ async function onVoiceStateUpdate(oldState, newState) {
 
   // Change de salon → nouvelle session pour le nouveau salon
   if (changed) {
+    const now = Date.now();
     voiceSessions.set(key, {
-      start: Date.now(),
-      channelId: newState.channelId,
+      start:       now,
+      lastFlushed: now,
+      channelId:   newState.channelId,
       channelName: newState.channel?.name || "Inconnu",
     });
   }
@@ -205,6 +209,30 @@ async function syncFromLevelDB(guildId) {
 }
 
 // ════════════════════════════════════════════════════════════
+//  PUSH PÉRIODIQUE des sessions vocales actives (toutes les 60s)
+//  → le dashboard reçoit le temps vocal en temps réel, même si
+//    l'utilisateur ne quitte jamais le salon pendant la session
+// ════════════════════════════════════════════════════════════
+async function flushActiveSessions() {
+  if (!_guildId) return;
+  const now = Date.now();
+  for (const [key, session] of voiceSessions.entries()) {
+    const elapsed = Math.floor((now - session.lastFlushed) / 1000);
+    if (elapsed < 10) continue;
+    const [guildId, userId] = key.split(':');
+    await push("vocal", {
+      guildId,
+      userId,
+      channelId:   session.channelId,
+      channelName: session.channelName,
+      duration:    elapsed,
+      date:        dayKey(),
+    });
+    session.lastFlushed = now;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
 //  EXPORT
 // ════════════════════════════════════════════════════════════
 module.exports = {
@@ -221,6 +249,7 @@ module.exports = {
       syncFromLevelDB(_guildId);
       applyPendingResets();
       setInterval(() => { syncFromLevelDB(_guildId); applyPendingResets(); }, 5 * 60 * 1000);
+      setInterval(flushActiveSessions, 60_000);
     }
 
     console.log("[Stats] ✅ Tracker chargé.");

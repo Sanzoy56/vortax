@@ -105,8 +105,9 @@ module.exports = (client) => {
         const logSalon = guild.channels.cache.get(config.log_moderation);
         if (!logSalon) return console.error('❌ [TIMEOUT] Salon introuvable ! ID:', config.logs?.moderation);
 
-        // Timeout ajouté
-        if (isTimedOut && (!wasTimedOut || wasTimedOut < new Date())) {
+        // Timeout ajouté — uniquement si le nouveau timeout est dans le futur ET différent de l'ancien
+        const now = new Date();
+        if (isTimedOut && isTimedOut > now && (!wasTimedOut || wasTimedOut.getTime() !== isTimedOut.getTime())) {
             const auditLogs = await guild.fetchAuditLogs({ type: AuditLogEvent.MemberUpdate, limit: 1 }).catch(() => null);
             const entry     = auditLogs?.entries.first();
             const executeur = entry?.executor;
