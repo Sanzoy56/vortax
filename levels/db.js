@@ -1,7 +1,8 @@
 const fs   = require('fs');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, '..', 'level.json');
+const DB_PATH  = path.join(__dirname, '..', 'level.json');
+const BAK_PATH = path.join(__dirname, '..', 'level.json.bak');
 
 // ─── Cache mémoire unique ────────────────────────────────────
 // Avant : chaque getUser/saveUser relisait et réécrivait le fichier JSON
@@ -33,8 +34,24 @@ function loadCache() {
   if (_cache && mtime !== _lastMtime) _cache = null;
   if (_cache) return _cache;
 
-  if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, '{}', 'utf8');
-  try { _cache = JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
+  // Si level.json est absent ou vide, on tente de restaurer depuis le backup
+  let raw = null;
+  if (fs.existsSync(DB_PATH)) {
+    try { raw = fs.readFileSync(DB_PATH, 'utf8'); } catch {}
+  }
+  if (!raw || raw.trim() === '' || raw.trim() === '{}') {
+    if (fs.existsSync(BAK_PATH)) {
+      try {
+        const bak = fs.readFileSync(BAK_PATH, 'utf8');
+        if (bak && bak.trim() !== '' && bak.trim() !== '{}') {
+          console.log('[DB] level.json vide/absent — restauration depuis level.json.bak');
+          raw = bak;
+          fs.writeFileSync(DB_PATH, bak, 'utf8');
+        }
+      } catch {}
+    }
+  }
+  try { _cache = raw ? JSON.parse(raw) : {}; }
   catch { _cache = {}; }
   _lastMtime = statMtime();
   return _cache;
@@ -44,7 +61,10 @@ function flush() {
   if (!_dirty || !_cache) return;
   _dirty = false;
   try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(_cache, null, 2), 'utf8');
+    const data = JSON.stringify(_cache, null, 2);
+    fs.writeFileSync(DB_PATH, data, 'utf8');
+    // Backup immédiat après chaque flush réussi
+    fs.writeFileSync(BAK_PATH, data, 'utf8');
     _lastMtime = statMtime();
   } catch { _dirty = true; }
 }

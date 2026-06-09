@@ -209,48 +209,20 @@ async function handleLevelUp(member, client, oldLevel, newLevel, user) {
     }
 
     const span = newLevel - oldLevel;
-    const MAX_STEP_ANNOUNCES = 10; // au-delà (ex : gros ajout admin), une seule annonce groupée
 
-    if (span > MAX_STEP_ANNOUNCES) {
-      if (levelChannel) {
-        const buf   = await generateLevelUpCard(member, oldLevel, newLevel, user).catch(() => null);
-        const files = buf ? [new AttachmentBuilder(buf, { name: 'levelup.png' })] : [];
-        await levelChannel.send({
-          content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${oldLevel}** au niveau **${newLevel}** !`,
-          files,
-        }).catch(() => {});
-      }
-      await announceRankUp(oldLevel, newLevel);
-      if (!isAdminCall) {
-        const { updateQuestProgress } = require('./quests');
-        updateQuestProgress(guild, member.id, 'levelup', span).catch(() => {});
-      }
-    } else {
-      // Une annonce séparée par niveau franchi : un boost / une grosse récompense qui
-      // fait gagner plusieurs niveaux d'un coup affichera 0→1 puis 1→2 plutôt qu'un saut 0→2
-      for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
-        const stepOld = lvl - 1;
-        // Paliers intermédiaires d'un saut multi-niveaux : barre pleine (niveau franchi),
-        // seul le dernier palier reflète la vraie progression actuelle de l'utilisateur
-        const isLast = lvl === newLevel;
-        const stepProgress = isLast ? null : { current: expForLevel(stepOld), required: expForLevel(stepOld) };
-
-        if (levelChannel) {
-          const buf   = await generateLevelUpCard(member, stepOld, lvl, user, stepProgress).catch(() => null);
-          const files = buf ? [new AttachmentBuilder(buf, { name: 'levelup.png' })] : [];
-          await levelChannel.send({
-            content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${stepOld}** au niveau **${lvl}** !`,
-            files,
-          }).catch(() => {});
-        }
-
-        await announceRankUp(stepOld, lvl);
-
-        if (!isAdminCall) {
-          const { updateQuestProgress } = require('./quests');
-          updateQuestProgress(guild, member.id, 'levelup', 1).catch(() => {});
-        }
-      }
+// Une seule annonce, même pour un saut multi-niveaux (ex : 0→2 = une seule notif)
+    if (levelChannel) {
+      const buf   = await generateLevelUpCard(member, oldLevel, newLevel, user).catch(() => null);
+      const files = buf ? [new AttachmentBuilder(buf, { name: 'levelup.png' })] : [];
+      await levelChannel.send({
+        content: `🎉 <@${member.id}> **Félicitations !** Tu es passé du niveau **${oldLevel}** au niveau **${newLevel}** !`,
+        files,
+      }).catch(() => {});
+    }
+    await announceRankUp(oldLevel, newLevel);
+    if (!isAdminCall) {
+      const { updateQuestProgress } = require('./quests');
+      updateQuestProgress(guild, member.id, 'levelup', span).catch(() => {});
     }
   } else if (isAdminCall && newLevel < oldLevel) {
     // ── Descente de niveau / rang (uniquement via commande admin) ──────
