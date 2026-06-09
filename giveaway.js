@@ -19,18 +19,16 @@ const E = {
 };
 
 // ─────────────────────────────────────────────────────────────
-//  Helpers fichier
+//  Fichier
 // ─────────────────────────────────────────────────────────────
 function loadGiveaways() {
   if (!fs.existsSync(GIVEAWAYS_FILE)) return {};
   try { return JSON.parse(fs.readFileSync(GIVEAWAYS_FILE, 'utf8')); }
   catch { return {}; }
 }
-
 function saveGiveaways(data) {
   fs.writeFileSync(GIVEAWAYS_FILE, JSON.stringify(data, null, 2));
 }
-
 function parseDuration(str) {
   const match = str.match(/^(\d+)(s|m|h|d)$/);
   if (!match) return null;
@@ -41,70 +39,93 @@ function parseDuration(str) {
 // ─────────────────────────────────────────────────────────────
 //  Builders d'embeds
 // ─────────────────────────────────────────────────────────────
-function conditionLines(gw) {
-  return [
-    `> ${gw.requiredRole ? `${E.purple} **Rôle requis :** <@&${gw.requiredRole}>` : `${E.check} **Rôle requis :** aucun`}`,
-    gw.blacklistRole ? `> ${E.cross} **Rôle blacklist :** <@&${gw.blacklistRole}>` : null,
-    gw.bypassRole    ? `> ${E.boost} **Rôle bypass :** <@&${gw.bypassRole}>` : null,
-    gw.messagesMin   ? `> ${E.ticking} **Messages minimum :** ${gw.messagesMin}` : null,
-    gw.claimMinutes  ? `> ${E.alarm} **Temps pour claim :** ${gw.claimMinutes} min` : null,
-  ].filter(Boolean).join('\n');
-}
-
 function buildActiveEmbed(gw) {
+  const desc = [
+    `${E.gift} **Lot :** ${gw.lot}`,
+    `${E.trophy} **Gagnants :** ${gw.winners}`,
+    `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
+  ].join('\n');
+
+  const conditions = [
+    `• ${E.purple} Rôle requis : ${gw.requiredRole ? `<@&${gw.requiredRole}>` : '**aucun**'}`,
+    `• ${E.ticking} Messages minimum : **${gw.messagesMin}**`,
+    `• ${E.volume} Minutes vocal minimum : **${gw.vocalMin}**`,
+    `• ${E.boost} Rôle bypass : ${gw.bypassRole ? `<@&${gw.bypassRole}>` : '**aucun**'}`,
+    `• ${E.alarm} Temps pour claim : **${gw.claimMinutes > 0 ? gw.claimMinutes + ' minutes' : 'aucun'}**`,
+  ].join('\n');
+
+  const count = (gw.participants || []).length;
+  const participants = [
+    `• ${E.members} Participants : **${count}**`,
+    `• ${E.cross} Rôle blacklist : ${gw.blacklistRole ? `<@&${gw.blacklistRole}>` : '**aucun**'}`,
+    `• ${E.boost} Bypass claim : ${gw.bypassRole ? `Oui (rôle : <@&${gw.bypassRole}>)` : '**Non**'}`,
+    `• ${E.crown} Hôte : <@${gw.hostId}>`,
+  ].join('\n');
+
   return new EmbedBuilder()
     .setColor('#5865F2')
     .setTitle('Giveaway')
-    .setDescription([
-      `${E.gift} **Lot :** ${gw.lot}`,
-      `${E.trophy} **Gagnants :** ${gw.winners}`,
-      `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
-      ``,
-      `**Conditions & options**`,
-      conditionLines(gw),
-      ``,
-      `> ${E.members} **Participants :** ${(gw.participants || []).length}`,
-      `> ${E.crown} **Hôte :** <@${gw.hostId}>`,
-    ].join('\n'))
+    .setDescription(desc)
+    .addFields(
+      { name: 'Conditions & options', value: conditions },
+      { name: '​', value: participants },
+    )
     .setFooter({ text: `Lancé par ${gw.hostTag}` })
     .setTimestamp(new Date(gw.endsAt));
 }
 
 function buildEndEmbed(gw, winners, claimed = []) {
-  const hasClaim = gw.claimMinutes > 0;
-  const resultLines = winners.length > 0
-    ? [
-        `> ${E.trophy} **Gagnant(s) :** ${winners.map(w => `<@${w}>`).join(', ')}`,
-        hasClaim ? `> ${E.check} **Claimés :** ${claimed.length ? claimed.map(w => `<@${w}>`).join(', ') : 'aucun'}` : null,
-      ].filter(Boolean).join('\n')
-    : `> ${E.cross} **Aucun participant éligible**`;
+  const desc = [
+    `${E.gift} **Lot :** ${gw.lot}`,
+    `${E.trophy} **Gagnants :** ${gw.winners}`,
+    `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
+    `${E.check} **Terminé**`,
+  ].join('\n');
+
+  const conditions = [
+    `• ${E.purple} Rôle requis : ${gw.requiredRole ? `<@&${gw.requiredRole}>` : '**aucun**'}`,
+    `• ${E.ticking} Messages minimum : **${gw.messagesMin}**`,
+    `• ${E.volume} Minutes vocal minimum : **${gw.vocalMin}**`,
+    `• ${E.boost} Rôle bypass : ${gw.bypassRole ? `<@&${gw.bypassRole}>` : '**aucun**'}`,
+    `• ${E.alarm} Temps pour claim : **${gw.claimMinutes > 0 ? gw.claimMinutes + ' minutes' : 'aucun'}**`,
+  ].join('\n');
+
+  const count = (gw.participants || []).length;
+  const participants = [
+    `• ${E.members} Participants : **${count}**`,
+    `• ${E.cross} Rôle blacklist : ${gw.blacklistRole ? `<@&${gw.blacklistRole}>` : '**aucun**'}`,
+    `• ${E.boost} Bypass claim : ${gw.bypassRole ? `Oui (rôle : <@&${gw.bypassRole}>)` : '**Non**'}`,
+    `• ${E.crown} Hôte : <@${gw.hostId}>`,
+  ].join('\n');
+
+  let resultValue;
+  if (winners.length > 0) {
+    const lines = [`• ${E.trophy} Gagnant(s) : ${winners.map(w => `<@${w}>`).join(', ')}`];
+    if (gw.claimMinutes > 0) {
+      lines.push(`• ${E.check} Claimé(s) : ${claimed.length ? claimed.map(w => `<@${w}>`).join(', ') : '**aucun**'}`);
+    }
+    resultValue = lines.join('\n');
+  } else {
+    resultValue = `• ${E.cross} Aucun participant éligible`;
+  }
 
   return new EmbedBuilder()
     .setColor(winners.length > 0 ? '#FFD700' : '#FF0000')
     .setTitle('Giveaway')
-    .setDescription([
-      `${E.gift} **Lot :** ${gw.lot}`,
-      `${E.trophy} **Gagnants :** ${gw.winners}`,
-      `${E.time} **Fin :** <t:${Math.floor(gw.endsAt / 1000)}:R>`,
-      `${E.check} **Terminé**`,
-      ``,
-      `**Conditions & options**`,
-      conditionLines(gw),
-      ``,
-      `> ${E.members} **Participants :** ${(gw.participants || []).length}`,
-      `> ${E.crown} **Hôte :** <@${gw.hostId}>`,
-      ``,
-      `**Résultat**`,
-      resultLines,
-    ].join('\n'))
+    .setDescription(desc)
+    .addFields(
+      { name: 'Conditions & options', value: conditions },
+      { name: '​', value: participants },
+      { name: 'Résultat', value: resultValue },
+    )
     .setFooter({ text: `Lancé par ${gw.hostTag}` })
     .setTimestamp();
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Fin du giveaway + système de claim
+//  Éligibilité
 // ─────────────────────────────────────────────────────────────
-async function pickEligibles(gw, channel) {
+async function pickEligibles(gw, channel, now = Date.now()) {
   let eligibles = [...(gw.participants || [])];
 
   // Filtre messages minimum
@@ -113,17 +134,28 @@ async function pickEligibles(gw, channel) {
     eligibles = eligibles.filter(id => (counts[id] || 0) >= gw.messagesMin);
   }
 
+  // Filtre vocal minimum — intègre les sessions encore actives
+  if (gw.vocalMin > 0) {
+    const voiceMins  = gw.voiceMins  || {};
+    const voiceJoins = gw.voiceJoins || {};
+    eligibles = eligibles.filter(id => {
+      let mins = voiceMins[id] || 0;
+      if (voiceJoins[id]) mins += (now - voiceJoins[id]) / 60000;
+      return mins >= gw.vocalMin;
+    });
+  }
+
   // Filtre rôle requis / blacklist / bypass
   if (gw.requiredRole || gw.blacklistRole) {
-    const guild = channel.guild;
+    const guild    = channel.guild;
     const filtered = [];
     for (const userId of eligibles) {
       try {
         const member = await guild.members.fetch(userId);
         if (gw.blacklistRole && member.roles.cache.has(gw.blacklistRole)) continue;
         if (gw.requiredRole) {
-          const hasBypass = gw.bypassRole && member.roles.cache.has(gw.bypassRole);
-          if (!hasBypass && !member.roles.cache.has(gw.requiredRole)) continue;
+          const bypass = gw.bypassRole && member.roles.cache.has(gw.bypassRole);
+          if (!bypass && !member.roles.cache.has(gw.requiredRole)) continue;
         }
         filtered.push(userId);
       } catch {}
@@ -134,8 +166,14 @@ async function pickEligibles(gw, channel) {
   return eligibles;
 }
 
-async function startClaimPhase(client, giveaways, messageId, channelId, winners) {
+// ─────────────────────────────────────────────────────────────
+//  Phase de claim
+// ─────────────────────────────────────────────────────────────
+async function startClaimPhase(client, messageId, channelId, winners) {
+  const giveaways = loadGiveaways();
   const gw = giveaways[messageId];
+  if (!gw) return;
+
   const channel = await client.channels.fetch(channelId).catch(() => null);
   if (!channel) return;
 
@@ -147,13 +185,13 @@ async function startClaimPhase(client, giveaways, messageId, channelId, winners)
     .setStyle(ButtonStyle.Success);
 
   const claimMsg = await channel.send({
-    content: `${E.crown} ${winners.map(w => `<@${w}>`).join(', ')} vous avez **${gw.claimMinutes} minute(s)** pour claim le lot **${gw.lot}** !`,
+    content: `${E.crown} ${winners.map(w => `<@${w}>`).join(', ')} — vous avez **${gw.claimMinutes} minute(s)** pour claim **${gw.lot}** !`,
     components: [new ActionRowBuilder().addComponents(claimBtn)],
   }).catch(() => null);
 
   if (claimMsg) {
-    gw.claimMsgId = claimMsg.id;
-    gw.claimDeadline = Date.now() + claimMs;
+    giveaways[messageId].claimMsgId   = claimMsg.id;
+    giveaways[messageId].claimDeadline = Date.now() + claimMs;
     saveGiveaways(giveaways);
   }
 
@@ -169,31 +207,29 @@ async function resolveClaimPhase(client, messageId, channelId) {
   const winners   = gw.winnersPicked || [];
   const unclaimed = winners.filter(w => !claimed.includes(w));
 
-  // Reroll les non-claimeurs
+  // Reroll les non-claimeurs parmi les participants restants
   const rerolled = [];
   if (unclaimed.length > 0) {
-    const eligible = (gw.participants || []).filter(id => !winners.includes(id));
-    const shuffled = eligible.sort(() => Math.random() - 0.5);
+    const pool      = (gw.participants || []).filter(id => !winners.includes(id));
+    const shuffled  = pool.sort(() => Math.random() - 0.5);
     for (let i = 0; i < unclaimed.length && i < shuffled.length; i++) {
       rerolled.push(shuffled[i]);
     }
   }
 
   const finalWinners = [...claimed, ...rerolled];
-
-  // Fermer la phase de claim
-  gw.claimActive = false;
-  gw.ended = true;
+  gw.claimActive  = false;
+  gw.ended        = true;
   gw.winnersFinal = finalWinners;
   saveGiveaways(giveaways);
 
   const channel = await client.channels.fetch(channelId).catch(() => null);
   if (!channel) return;
 
-  // Effacer le message de claim
+  // Supprimer le message de claim
   if (gw.claimMsgId) {
-    const claimMsg = await channel.messages.fetch(gw.claimMsgId).catch(() => null);
-    if (claimMsg) await claimMsg.delete().catch(() => {});
+    const cm = await channel.messages.fetch(gw.claimMsgId).catch(() => null);
+    if (cm) await cm.delete().catch(() => {});
   }
 
   // Mettre à jour l'embed principal
@@ -203,12 +239,19 @@ async function resolveClaimPhase(client, messageId, channelId) {
   }
 
   if (rerolled.length > 0) {
-    await channel.send(`${E.crown} Reroll ! ${rerolled.map(w => `<@${w}>`).join(', ')} remplace(nt) les non-claimeurs. Félicitations !`).catch(() => {});
+    await channel.send(
+      `${E.crown} **Reroll !** ${rerolled.map(w => `<@${w}>`).join(', ')} remplace(nt) les non-claimeurs. Félicitations ! ${E.gift}`
+    ).catch(() => {});
   } else if (finalWinners.length > 0) {
-    await channel.send(`${E.crown} Félicitations ${finalWinners.map(w => `<@${w}>`).join(', ')} ! Vous avez gagné **${gw.lot}** ! ${E.gift}`).catch(() => {});
+    await channel.send(
+      `${E.crown} Félicitations ${finalWinners.map(w => `<@${w}>`).join(', ')} ! Vous avez gagné **${gw.lot}** ! ${E.gift}`
+    ).catch(() => {});
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+//  Fin du giveaway
+// ─────────────────────────────────────────────────────────────
 async function endGiveaway(client, messageId, channelId) {
   const giveaways = loadGiveaways();
   const gw = giveaways[messageId];
@@ -225,30 +268,30 @@ async function endGiveaway(client, messageId, channelId) {
 
     if (eligibles.length === 0) {
       await message.edit({ embeds: [buildEndEmbed(gw, [], [])], components: [] });
-      await channel.send(`${E.cross} Le giveaway **${gw.lot}** est terminé mais personne n'est éligible !`);
-      gw.ended = true; saveGiveaways(giveaways);
+      await channel.send(`${E.cross} Le giveaway **${gw.lot}** est terminé mais aucun participant n'est éligible.`);
+      gw.ended = true;
+      saveGiveaways(giveaways);
       return;
     }
 
     const shuffled = eligibles.sort(() => Math.random() - 0.5);
     const winners  = shuffled.slice(0, Math.min(gw.winners, eligibles.length));
-
     gw.winnersPicked = winners;
     gw.claimed = [];
 
     if (gw.claimMinutes > 0) {
-      // Phase de claim : pas encore "ended", on attend les claims
       gw.claimActive = true;
       saveGiveaways(giveaways);
       await message.edit({ embeds: [buildEndEmbed(gw, winners, [])], components: [] });
-      await startClaimPhase(client, giveaways, messageId, channelId, winners);
+      await startClaimPhase(client, messageId, channelId, winners);
     } else {
-      // Pas de claim → terminé directement
       await message.edit({ embeds: [buildEndEmbed(gw, winners, [])], components: [] });
-      await channel.send(`${E.crown} Félicitations ${winners.map(w => `<@${w}>`).join(', ')} ! Vous avez gagné **${gw.lot}** ! ${E.gift}`);
-      gw.ended = true; saveGiveaways(giveaways);
+      await channel.send(
+        `${E.crown} Félicitations ${winners.map(w => `<@${w}>`).join(', ')} ! Vous avez gagné **${gw.lot}** ! ${E.gift}`
+      );
+      gw.ended = true;
+      saveGiveaways(giveaways);
     }
-
   } catch (err) {
     console.error('[Giveaway] Erreur fin giveaway :', err);
   }
@@ -263,23 +306,16 @@ module.exports = (client) => {
   client.once('ready', () => {
     const giveaways = loadGiveaways();
     const now = Date.now();
-
     for (const [messageId, gw] of Object.entries(giveaways)) {
       if (gw.ended) continue;
-
       if (gw.claimActive) {
-        const remaining = (gw.claimDeadline || 0) - now;
-        const delay = remaining > 0 ? remaining : 0;
-        setTimeout(() => resolveClaimPhase(client, messageId, gw.channelId), delay);
+        const remaining = Math.max((gw.claimDeadline || 0) - now, 0);
+        setTimeout(() => resolveClaimPhase(client, messageId, gw.channelId), remaining);
         continue;
       }
-
       const remaining = gw.endsAt - now;
-      if (remaining <= 0) {
-        endGiveaway(client, messageId, gw.channelId);
-      } else {
-        setTimeout(() => endGiveaway(client, messageId, gw.channelId), remaining);
-      }
+      if (remaining <= 0) endGiveaway(client, messageId, gw.channelId);
+      else setTimeout(() => endGiveaway(client, messageId, gw.channelId), remaining);
     }
   });
 
@@ -291,9 +327,42 @@ module.exports = (client) => {
     for (const gw of Object.values(giveaways)) {
       if (gw.ended || gw.claimActive) continue;
       if (!gw.messagesMin || gw.messagesMin <= 0) continue;
+      if (gw.guildId !== msg.guild.id) continue;
       if (!gw.messageCounts) gw.messageCounts = {};
       gw.messageCounts[msg.author.id] = (gw.messageCounts[msg.author.id] || 0) + 1;
       changed = true;
+    }
+    if (changed) saveGiveaways(giveaways);
+  });
+
+  // ── Tracking vocal (pour vocalMin) ───────────────────────
+  client.on('voiceStateUpdate', (oldState, newState) => {
+    const giveaways = loadGiveaways();
+    let changed = false;
+    const now = Date.now();
+    const userId  = newState.member?.id || oldState.member?.id;
+    const guildId = newState.guild?.id  || oldState.guild?.id;
+    if (!userId || !guildId) return;
+
+    for (const gw of Object.values(giveaways)) {
+      if (gw.ended || gw.claimActive) continue;
+      if (!gw.vocalMin || gw.vocalMin <= 0) continue;
+      if (gw.guildId !== guildId) continue;
+      if (!gw.voiceJoins) gw.voiceJoins = {};
+      if (!gw.voiceMins)  gw.voiceMins  = {};
+
+      const joined  = !oldState.channel && newState.channel;
+      const left    = oldState.channel  && !newState.channel;
+
+      if (joined) {
+        gw.voiceJoins[userId] = now;
+        changed = true;
+      } else if (left && gw.voiceJoins[userId]) {
+        const mins = (now - gw.voiceJoins[userId]) / 60000;
+        gw.voiceMins[userId] = (gw.voiceMins[userId] || 0) + mins;
+        delete gw.voiceJoins[userId];
+        changed = true;
+      }
     }
     if (changed) saveGiveaways(giveaways);
   });
@@ -303,37 +372,40 @@ module.exports = (client) => {
 
     // ── /giveaway ────────────────────────────────────────────
     if (interaction.isChatInputCommand() && interaction.commandName === 'giveaway') {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator))
         return interaction.reply({ content: '❌ Admins uniquement.', ephemeral: true });
-      }
 
       const lot          = interaction.options.getString('lot');
       const dureeStr     = interaction.options.getString('durée');
       const nbGagnants   = interaction.options.getInteger('gagnants');
+      const messagesMin  = interaction.options.getInteger('messages');
+      const vocalMin     = interaction.options.getInteger('vocal');
+      const claimMinutes = interaction.options.getInteger('claim');
       const roleRequis   = interaction.options.getRole('role');
       const roleBlack    = interaction.options.getRole('role_blacklist');
       const roleBypass   = interaction.options.getRole('role_bypass');
-      const messagesMin  = interaction.options.getInteger('messages') || 0;
-      const claimMinutes = interaction.options.getInteger('claim')    || 0;
 
       const duree = parseDuration(dureeStr);
       if (!duree) return interaction.reply({ content: '❌ Durée invalide. Format : `10m`, `2h`, `1d`', ephemeral: true });
 
-      const endsAt = Date.now() + duree;
       const gw = {
         lot,
         winners:       nbGagnants,
-        endsAt,
+        endsAt:        Date.now() + duree,
+        guildId:       interaction.guildId,
         channelId:     interaction.channelId,
         hostId:        interaction.user.id,
         hostTag:       interaction.user.tag,
-        requiredRole:  roleRequis  ? roleRequis.id  : null,
-        blacklistRole: roleBlack   ? roleBlack.id   : null,
-        bypassRole:    roleBypass  ? roleBypass.id  : null,
+        requiredRole:  roleRequis ? roleRequis.id  : null,
+        blacklistRole: roleBlack  ? roleBlack.id   : null,
+        bypassRole:    roleBypass ? roleBypass.id  : null,
         messagesMin,
+        vocalMin,
         claimMinutes,
         participants:  [],
         messageCounts: {},
+        voiceMins:     {},
+        voiceJoins:    {},
         ended:         false,
         claimActive:   false,
         winnersPicked: [],
@@ -355,7 +427,6 @@ module.exports = (client) => {
       const giveaways = loadGiveaways();
       giveaways[msg.id] = gw;
       saveGiveaways(giveaways);
-
       setTimeout(() => endGiveaway(client, msg.id, interaction.channelId), duree);
     }
 
@@ -379,18 +450,18 @@ module.exports = (client) => {
         return interaction.followUp({ content: `${E.cross} Tu t'es retiré du giveaway.`, ephemeral: true });
       }
 
-      // Vérif blacklist
+      // Blacklist
       if (gw.blacklistRole) {
         const member = await interaction.guild.members.fetch(userId).catch(() => null);
         if (member?.roles.cache.has(gw.blacklistRole))
           return interaction.reply({ content: `${E.cross} Tu ne peux pas participer à ce giveaway.`, ephemeral: true });
       }
 
-      // Vérif rôle requis (bypass possible)
+      // Rôle requis (avec bypass)
       if (gw.requiredRole) {
-        const member = await interaction.guild.members.fetch(userId).catch(() => null);
-        const hasBypass = gw.bypassRole && member?.roles.cache.has(gw.bypassRole);
-        if (!hasBypass && !member?.roles.cache.has(gw.requiredRole))
+        const member  = await interaction.guild.members.fetch(userId).catch(() => null);
+        const bypass  = gw.bypassRole && member?.roles.cache.has(gw.bypassRole);
+        if (!bypass && !member?.roles.cache.has(gw.requiredRole))
           return interaction.reply({ content: `${E.cross} Tu dois avoir le rôle <@&${gw.requiredRole}> pour participer !`, ephemeral: true });
       }
 
@@ -412,19 +483,21 @@ module.exports = (client) => {
       const userId = interaction.user.id;
       if (!gw.winnersPicked.includes(userId))
         return interaction.reply({ content: `${E.cross} Tu n'es pas gagnant de ce giveaway.`, ephemeral: true });
-
       if (gw.claimed.includes(userId))
         return interaction.reply({ content: `${E.check} Tu as déjà claimé ta récompense !`, ephemeral: true });
 
       gw.claimed.push(userId);
       saveGiveaways(giveaways);
 
-      // Mise à jour de l'embed principal
-      const channel = interaction.channel;
-      const mainMsg = await channel.messages.fetch(messageId).catch(() => null);
-      if (mainMsg) await mainMsg.edit({ embeds: [buildEndEmbed(gw, gw.winnersPicked, gw.claimed)] }).catch(() => {});
+      const mainMsg = await interaction.channel.messages.fetch(messageId).catch(() => null);
+      if (mainMsg) {
+        await mainMsg.edit({ embeds: [buildEndEmbed(gw, gw.winnersPicked, gw.claimed)] }).catch(() => {});
+      }
 
-      return interaction.reply({ content: `${E.check} Récompense claimée ! L'hôte <@${gw.hostId}> va te contacter.`, ephemeral: true });
+      return interaction.reply({
+        content: `${E.check} Récompense claimée ! L'hôte <@${gw.hostId}> va te contacter.`,
+        ephemeral: true,
+      });
     }
   });
 };
