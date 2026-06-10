@@ -310,14 +310,24 @@ function spinLose() {
   let rrr=Math.random()*t3,r3=p3[0]; for(const x of p3){rrr-=x.w;if(rrr<=0){r3=x;break;}}
   return [r1,r2,r3];
 }
-function spinFrame() { return [spinOne(),spinOne(),spinOne()]; }
+// Calcule le résultat AVANT l'animation, pour que les rouleaux s'arrêtent
+// un par un sur le résultat final (au lieu de tout changer d'un coup à la fin).
+function computeSpinResult() {
+  let r1, r2, r3, gain = 0, isWin = false, sym = null;
+  if (Math.random() < 0.35) {
+    sym = spinOne(); r1 = r2 = r3 = sym;
+    gain = Math.min(Math.floor(SPIN_COST * sym.m), 200_000);
+    isWin = true;
+  } else {
+    [r1,r2,r3] = spinLose();
+  }
+  return { r1, r2, r3, gain, isWin, sym };
+}
 
 // wallet = déjà après déduction SPIN_COST — ne pas soustraire une seconde fois
-function buildSpinResult(wallet) {
-  let r1, r2, r3, gain = 0;
-  if (Math.random() < 0.35) {
-    const sym = spinOne(); r1 = r2 = r3 = sym;
-    gain = Math.min(Math.floor(SPIN_COST * sym.m), 200_000);
+function buildSpinResult(wallet, result) {
+  const { r1, r2, r3, gain, isWin, sym } = result;
+  if (isWin) {
     const newWallet = wallet + gain;
     const rewardLine = sym.m >= 50
       ? `${EM.jackpot} **JACKPOT!!! +${fmt(gain)}** ${EM.coin} **(x${sym.m})**`
@@ -325,7 +335,7 @@ function buildSpinResult(wallet) {
     return { gain, newWallet, embed: new EmbedBuilder()
       .setColor(sym.color).setTitle('🎰 Casino Royal')
       .setDescription([
-        `| ${sym.e} | ${sym.e} | ${sym.e} |`, '',
+        `| ${r1.e} | ${r2.e} | ${r3.e} |`, '',
         `**${sym.name}**`,
         `${sym.icon} ${sym.rarity}`,
         `*${sym.desc}*`, '',
@@ -333,7 +343,6 @@ function buildSpinResult(wallet) {
         `Mise : **${fmt(SPIN_COST)}** | Nouveau cash : **${fmt(newWallet)}** ${EM.coin}`,
       ].join('\n')) };
   } else {
-    [r1,r2,r3] = spinLose();
     const newWallet = wallet;
     return { gain: 0, newWallet, embed: new EmbedBuilder()
       .setColor(0xef4444).setTitle('🎰 Casino Royal')
@@ -349,17 +358,40 @@ function buildSpinResult(wallet) {
 }
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
-function mkSpinEmbed(name, frame) {
-  const [a,b,c] = spinFrame();
+function mkSpinEmbed(name, a, b, c, spinning) {
   const dots = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧'];
+  const status = spinning
+    ? `${dots[Math.floor(Math.random()*dots.length)]} *Les rouleaux tournent...*`
+    : '✅ *Les rouleaux se sont arrêtés !*';
   return new EmbedBuilder().setColor(0x6366f1).setTitle('🎰 Casino Royal')
-    .setDescription([`**${name}** tire le levier...`,'',`| ${a.e} | ${b.e} | ${c.e} |`,'',`${dots[frame%dots.length]} *Les rouleaux tournent...*`,'',`Mise : **${fmt(SPIN_COST)}** ${EM.coin}`].join('\n'));
+    .setDescription([`**${name}** tire le levier...`,'',`| ${a} | ${b} | ${c} |`,'',status,'',`Mise : **${fmt(SPIN_COST)}** ${EM.coin}`].join('\n'));
 }
-async function doAnimation(m, name) {
-  for (let f = 0; f < 7; f++) {
-    await delay(600);
-    await m.edit({ embeds: [mkSpinEmbed(name, f)] }).catch(() => {});
+// Anime les 3 rouleaux qui s'arrêtent UN PAR UN sur le résultat final
+// (au lieu de tourner tous ensemble puis de changer d'un coup à la fin).
+async function doAnimation(m, name, result) {
+  const { r1, r2, r3 } = result;
+  let a = '❔', b = '❔', c = '❔';
+  const FRAMES = 3;
+  for (let f = 0; f < FRAMES; f++) {
+    a = spinOne().e; b = spinOne().e; c = spinOne().e;
+    await delay(450);
+    await m.edit({ embeds: [mkSpinEmbed(name, a, b, c, true)] }).catch(() => {});
   }
+  a = r1.e;
+  for (let f = 0; f < FRAMES; f++) {
+    b = spinOne().e; c = spinOne().e;
+    await delay(450);
+    await m.edit({ embeds: [mkSpinEmbed(name, a, b, c, true)] }).catch(() => {});
+  }
+  b = r2.e;
+  for (let f = 0; f < FRAMES; f++) {
+    c = spinOne().e;
+    await delay(450);
+    await m.edit({ embeds: [mkSpinEmbed(name, a, b, c, true)] }).catch(() => {});
+  }
+  c = r3.e;
+  await delay(400);
+  await m.edit({ embeds: [mkSpinEmbed(name, a, b, c, false)] }).catch(() => {});
 }
 function spinRow(uid) {
   return new ActionRowBuilder().addComponents(
@@ -385,9 +417,10 @@ async function cmdSpin(msg) {
   if (user.wallet < SPIN_COST) return msg.reply(noFunds(user, SPIN_COST));
   user.wallet -= SPIN_COST; saveUser(user);
   const name = msg.member?.displayName ?? msg.author.username;
-  const m = await msg.reply({ embeds: [mkSpinEmbed(name, 0)] });
-  await doAnimation(m, name);
-  const { embed, gain, newWallet } = buildSpinResult(user.wallet);
+  const m = await msg.reply({ embeds: [mkSpinEmbed(name, '❔', '❔', '❔', true)] });
+  const result = computeSpinResult();
+  await doAnimation(m, name, result);
+  const { embed, gain, newWallet } = buildSpinResult(user.wallet, result);
   user.wallet = newWallet; saveUser(user); setCD(userId, 'spin');
   await m.edit({ embeds: [embed], components: [spinRow(userId)] }).catch(() => {});
 }
@@ -440,9 +473,10 @@ module.exports = {
           await btn.deferUpdate();
           const name = btn.member?.displayName ?? btn.user.username;
           const m    = btn.message;
-          await m.edit({ embeds: [mkSpinEmbed(name, 0)], components: [] }).catch(() => {});
-          await doAnimation(m, name);
-          const res = buildSpinResult(u.wallet);
+          await m.edit({ embeds: [mkSpinEmbed(name, '❔', '❔', '❔', true)], components: [] }).catch(() => {});
+          const result = computeSpinResult();
+          await doAnimation(m, name, result);
+          const res = buildSpinResult(u.wallet, result);
           u.wallet = res.newWallet; saveUser(u); setCD(userId, 'spin');
           await m.edit({ embeds: [res.embed], components: [spinRow(userId)] }).catch(() => {});
         } catch {
