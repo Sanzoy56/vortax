@@ -234,7 +234,7 @@ client.on('interactionCreate', async (interaction) => {
 // ───────────────────────────────────────────────────
 
 client.once('clientReady', () => {
-  console.log(`✅ Connecté en tant que ${client.user.tag}`);
+  console.log(`✅ Connecté en tant que ${client.user.tag} — démarré le ${new Date().toLocaleString('fr-FR')}`);
 
   checkYoutube(client);
   setInterval(() => checkYoutube(client), CHECK_INTERVAL);
