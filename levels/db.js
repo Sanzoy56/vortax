@@ -18,6 +18,8 @@ if (!fs.existsSync(DB_PATH) && fs.existsSync(OLD_DB_PATH)) {
   fs.copyFileSync(OLD_DB_PATH, DB_PATH);
 }
 
+console.log(`[DB] Données stockées dans : ${DB_PATH}`);
+
 // ─── Cache mémoire unique ────────────────────────────────────
 // Avant : chaque getUser/saveUser relisait et réécrivait le fichier JSON
 // ENTIER à chaque appel. Avec des dizaines d'appels concurrents par seconde

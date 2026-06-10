@@ -16,6 +16,8 @@ if (!fs.existsSync(GIVEAWAYS_FILE) && fs.existsSync(OLD_GIVEAWAYS_FILE)) {
   fs.copyFileSync(OLD_GIVEAWAYS_FILE, GIVEAWAYS_FILE);
 }
 
+console.log(`[Giveaway] Données stockées dans : ${GIVEAWAYS_FILE}`);
+
 const E = {
   gift:    '<a:4748blobgift:1513971386455167166>',
   trophy:  '<a:7356_trophy:1513971834373275708>',
