@@ -307,6 +307,23 @@ module.exports = (client) => {
     }
   });
 
+  // ── Filet de sécurité : vérifie toutes les 30s les giveaways en retard ──
+  // Couvre les cas où le setTimeout initial est perdu (mise en veille du PC,
+  // redémarrage non détecté...). endGiveaway/resolveClaimPhase sont sans
+  // effet si le giveaway est déjà terminé, donc pas de double traitement.
+  setInterval(() => {
+    const giveaways = loadGiveaways();
+    const now = Date.now();
+    for (const [messageId, gw] of Object.entries(giveaways)) {
+      if (gw.ended) continue;
+      if (gw.claimActive) {
+        if ((gw.claimDeadline || 0) <= now) resolveClaimPhase(client, messageId, gw.channelId);
+        continue;
+      }
+      if (gw.endsAt <= now) endGiveaway(client, messageId, gw.channelId);
+    }
+  }, 30_000);
+
   // ── Comptage des messages ─────────────────────────────────
   client.on('messageCreate', msg => {
     if (msg.author.bot || !msg.guild) return;
