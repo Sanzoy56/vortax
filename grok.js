@@ -201,6 +201,34 @@ function startTyping(channel) {
   return () => clearInterval(interval);
 }
 
+// ── Extraction de la durée depuis le texte (pour mute/timeout) ───────────────
+const TIMEOUT_MAX_MS = 28 * 24 * 60 * 60 * 1000; // limite Discord
+const TIMEOUT_DEFAULT_MS = 10 * 60 * 1000;       // si aucune durée précisée
+
+function parseDuration(text) {
+  const m = text.match(/(\d+)\s*(secondes?|sec|s|minutes?|mins?|m(?!ois)|heures?|hrs?|h|jours?|j|semaines?|sem|mois|ann[ée]es?|ans?)\b/i);
+  if (!m) return null;
+  const val  = parseInt(m[1], 10);
+  const unit = m[2].toLowerCase();
+  let unitMs;
+  if (/^(s|sec|secondes?)$/.test(unit))        unitMs = 1000;
+  else if (/^(m|mins?|minutes?)$/.test(unit))  unitMs = 60_000;
+  else if (/^(h|hrs?|heures?)$/.test(unit))    unitMs = 3_600_000;
+  else if (/^(j|jours?)$/.test(unit))          unitMs = 86_400_000;
+  else if (/^(sem|semaines?)$/.test(unit))     unitMs = 7 * 86_400_000;
+  else if (unit === 'mois')                    unitMs = 30 * 86_400_000;
+  else if (/^(ans?|ann[ée]es?)$/.test(unit))   unitMs = 365 * 86_400_000;
+  else return null;
+  return val * unitMs;
+}
+
+function fmtDuration(ms) {
+  if (ms % 86_400_000 === 0) { const j = ms / 86_400_000; return `${j} jour${j > 1 ? 's' : ''}`; }
+  if (ms % 3_600_000 === 0)  { const h = ms / 3_600_000;  return `${h} heure${h > 1 ? 's' : ''}`; }
+  const m = Math.round(ms / 60_000);
+  return `${m} minute${m > 1 ? 's' : ''}`;
+}
+
 // ── Extraction du motif depuis le texte de la commande ───────────────────────
 function extractReason(text) {
   const m = text.match(/\b(?:raison|motif|reason)\s*:?\s*(.+)/i)
@@ -230,11 +258,14 @@ async function detectMod(message, client, userInput) {
   if (!matched) return null;
 
   const reason = extractReason(userInput);
+  const duration = (matched.action === 'mute' || matched.action === 'timeout')
+    ? parseDuration(userInput)
+    : null;
 
   // Priorité aux @mentions
   const mentionedUser = message.mentions.users?.find(u => !u.bot && u.id !== message.author.id);
   if (mentionedUser) {
-    return { action: matched.action, targetId: mentionedUser.id, targetMention: `<@${mentionedUser.id}>`, reason };
+    return { action: matched.action, targetId: mentionedUser.id, targetMention: `<@${mentionedUser.id}>`, reason, duration };
   }
 
   // Fallback : ID numérique brut dans le message (17-20 chiffres)
@@ -243,7 +274,7 @@ async function detectMod(message, client, userInput) {
     try {
       const user = await client.users.fetch(id);
       if (user && !user.bot) {
-        return { action: matched.action, targetId: user.id, targetMention: `<@${user.id}>`, reason };
+        return { action: matched.action, targetId: user.id, targetMention: `<@${user.id}>`, reason, duration };
       }
     } catch {}
   }
@@ -368,7 +399,7 @@ module.exports = (client) => {
     await interaction.deferUpdate();
     const guild = interaction.guild;
     const msg   = interaction.message;
-    const { action, targetId, reason, roleId, roleName, channelId, channelName, categoryId } = pending;
+    const { action, targetId, reason, durationMs, roleId, roleName, channelId, channelName, categoryId } = pending;
 
     async function done(text) {
       await msg.edit({ content: text, embeds: [], components: [] }).catch(console.error);
@@ -428,18 +459,19 @@ module.exports = (client) => {
           return done(`Sujet expulsé. Efficacement.`);
         }
         if (action === 'mute' || action === 'timeout') {
-          const durMs    = 10 * 60 * 1000;
+          const durMs    = Math.min(durationMs ?? TIMEOUT_DEFAULT_MS, TIMEOUT_MAX_MS);
+          const durLabel = fmtDuration(durMs);
           const unmuteTs = Math.floor((Date.now() + durMs) / 1000);
           await member.send({ embeds: [dmEmbed(
             '🔇 Vous avez été mis en timeout', 0x5865F2,
             `Vous avez été mis en timeout sur **${guild.name}**.`,
             [
-              { name: '⏳ Durée',     value: '10 minutes', inline: true },
+              { name: '⏳ Durée',     value: durLabel, inline: true },
               { name: '🔓 Démute le', value: `<t:${unmuteTs}:F> (<t:${unmuteTs}:R>)`, inline: false },
             ]
           )] }).catch(() => {});
           await member.timeout(durMs, auditR('Timeout'));
-          return done(`Sujet mis en timeout 10 minutes. Comme c'est reposant.`);
+          return done(`Sujet mis en timeout ${durLabel}. Comme c'est reposant.`);
         }
         if (action === 'unmute') {
           await member.timeout(null, auditR('Timeout retiré'));
@@ -529,7 +561,7 @@ module.exports = (client) => {
     // ── Détection modération ─────────────────────────────────────────────
     const modAction = await detectMod(message, client, userInput);
     if (modAction) {
-      const { action, targetId, targetMention, reason } = modAction;
+      const { action, targetId, targetMention, reason, duration } = modAction;
       const hasPerm = message.member?.roles.cache.has(MOD_ROLES[action]);
       if (!hasPerm) return gladosReject(message, action);
 
@@ -540,11 +572,15 @@ module.exports = (client) => {
         warn: 'avertir', unwarn: 'retirer l\'avertissement de',
       };
       const reasonLine = reason ? `\n*Motif : ${reason}*` : '';
+      const durationMs = (action === 'mute' || action === 'timeout')
+        ? Math.min(duration ?? TIMEOUT_DEFAULT_MS, TIMEOUT_MAX_MS)
+        : null;
+      const durationLine = durationMs ? ` pour **${fmtDuration(durationMs)}**` : '';
       const { embed, row, confirmId, cancelId } = buildConfirmation(
-        `Es-tu sûr de vouloir **${labels[action]}** ${targetMention} ?${reasonLine}`
+        `Es-tu sûr de vouloir **${labels[action]}** ${targetMention}${durationLine} ?${reasonLine}`
       );
       await message.reply({ embeds: [embed], components: [row] });
-      const data = { action, targetId, reason, requesterId: message.author.id, confirmId, cancelId };
+      const data = { action, targetId, reason, durationMs, requesterId: message.author.id, confirmId, cancelId };
       storePending(confirmId, data);
       storePending(cancelId, data);
       return;
