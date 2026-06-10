@@ -9,7 +9,7 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const { token } = require('../token.json');
 const { RANKS } = require('../levels/config');
 
-const DB_PATH  = path.join(__dirname, '..', 'level.json');
+const DB_PATH  = path.join(__dirname, '..', '..', 'vortax-data', 'level.json');
 const GUILD_ID = process.env.GUILD_ID || (require('dotenv').config(), process.env.GUILD_ID);
 
 async function main() {

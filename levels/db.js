@@ -1,8 +1,22 @@
 const fs   = require('fs');
 const path = require('path');
 
-const DB_PATH  = path.join(__dirname, '..', 'level.json');
-const BAK_PATH = path.join(__dirname, '..', 'level.json.bak');
+// Stocké en dehors du repo : un git pull/reset/clean (sync auto GitHub
+// Desktop sur la box) supprime les fichiers non trackés du repo, ce qui
+// remettait l'XP à zéro à chaque déploiement. En dehors du repo, ces
+// fichiers ne sont jamais touchés par git.
+const DATA_DIR = path.join(__dirname, '..', '..', 'vortax-data');
+const DB_PATH  = path.join(DATA_DIR, 'level.json');
+const BAK_PATH = path.join(DATA_DIR, 'level.json.bak');
+
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+// Migration : si l'ancien level.json (dans le repo) existe encore et que le
+// nouveau n'existe pas, on le déplace vers son nouvel emplacement.
+const OLD_DB_PATH = path.join(__dirname, '..', 'level.json');
+if (!fs.existsSync(DB_PATH) && fs.existsSync(OLD_DB_PATH)) {
+  fs.copyFileSync(OLD_DB_PATH, DB_PATH);
+}
 
 // ─── Cache mémoire unique ────────────────────────────────────
 // Avant : chaque getUser/saveUser relisait et réécrivait le fichier JSON

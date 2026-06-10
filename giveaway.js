@@ -1,7 +1,20 @@
 const { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
+const path = require('path');
 
-const GIVEAWAYS_FILE = './giveaways.json';
+// Stocké en dehors du repo : un git pull/reset/clean (sync auto GitHub
+// Desktop sur la box) supprime les fichiers non trackés du repo.
+const DATA_DIR = path.join(__dirname, '..', 'vortax-data');
+const GIVEAWAYS_FILE = path.join(DATA_DIR, 'giveaways.json');
+
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+// Migration : si l'ancien giveaways.json (dans le repo) existe encore et que
+// le nouveau n'existe pas, on le déplace vers son nouvel emplacement.
+const OLD_GIVEAWAYS_FILE = path.join(__dirname, 'giveaways.json');
+if (!fs.existsSync(GIVEAWAYS_FILE) && fs.existsSync(OLD_GIVEAWAYS_FILE)) {
+  fs.copyFileSync(OLD_GIVEAWAYS_FILE, GIVEAWAYS_FILE);
+}
 
 const E = {
   gift:    '<a:4748blobgift:1513971386455167166>',
