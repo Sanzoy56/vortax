@@ -10,9 +10,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@discordjs/opus": "^0.10.0",
     "@discordjs/voice": "^0.19.2",
-    "@distube/ytdl-core": "^4.16.12",
     "@fontsource/noto-sans": "^5.2.10",
     "canvas": "^3.2.3",
     "discord-html-transcripts": "^3.2.0",
