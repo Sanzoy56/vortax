@@ -293,12 +293,12 @@ async function cmdBJ(msg, args) {
 // ════════════════════════════════════════════════════════════
 const SPIN_COST = 2500;
 const SPIN_SYMS = [
-  { e:'🏆', w:2,  m:28,  name:'Jackpot Absolu',  rarity:'LÉGENDAIRE', color:0xf5c842, icon:'👑', desc:'La roue de la fortune sourit aux audacieux' },
-  { e:'💎', w:9,  m:9,   name:'Diamant Brut',     rarity:'TRÈS RARE',  color:0xa855f7, icon:'💜', desc:"Une pierre précieuse d'une valeur inestimable" },
-  { e:'⭐', w:16, m:4,   name:"Lingot d'or",      rarity:'RARE',       color:0x38bdf8, icon:'💙', desc:'Un lingot massif' },
-  { e:'🍒', w:21, m:2.2, name:'Cerise Dorée',     rarity:'PEU COMMUN', color:0x22c55e, icon:'💚', desc:'La chance du débutant' },
-  { e:'🍊', w:26, m:1.6, name:'Orange Juteuse',   rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Un gain modeste mais appréciable' },
-  { e:'🍋', w:26, m:1.3, name:'Citron Pressé',    rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Mieux que rien !' },
+  { e:'🏆', w:3,  m:28,  name:'Jackpot Absolu',  rarity:'LÉGENDAIRE', color:0xf5c842, icon:'👑', desc:'La roue de la fortune sourit aux audacieux' },
+  { e:'💎', w:12, m:9,   name:'Diamant Brut',     rarity:'TRÈS RARE',  color:0xa855f7, icon:'💜', desc:"Une pierre précieuse d'une valeur inestimable" },
+  { e:'⭐', w:35, m:4,   name:"Lingot d'or",      rarity:'RARE',       color:0x38bdf8, icon:'💙', desc:'Un lingot massif' },
+  { e:'🍒', w:20, m:2.2, name:'Cerise Dorée',     rarity:'PEU COMMUN', color:0x22c55e, icon:'💚', desc:'La chance du débutant' },
+  { e:'🍊', w:18, m:1.6, name:'Orange Juteuse',   rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Un gain modeste mais appréciable' },
+  { e:'🍋', w:12, m:1.3, name:'Citron Pressé',    rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Mieux que rien !' },
 ];
 const SPIN_TOT = SPIN_SYMS.reduce((s,x)=>s+x.w,0);
 function spinOne() { let r=Math.random()*SPIN_TOT; for(const s of SPIN_SYMS){r-=s.w;if(r<=0)return s;} return SPIN_SYMS[0]; }
