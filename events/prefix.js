@@ -409,13 +409,12 @@ async function cmdDebanCasino(msg, args) {
 }
 
 // ── =testsaison ──────────────────────────────────────────────
-// Aperçu de l'annonce de fin de saison dans le salon test, SANS aucun reset.
+// Aperçu de l'annonce de fin de saison dans le salon courant, SANS aucun reset.
 async function cmdTestSaison(msg) {
   if (!msg.member.permissions.has('Administrator')) return msg.reply(re(0xef4444, `${PERDU} Réservé aux administrateurs.`));
-  const { TEST_CHANNEL_ID } = require('../levels/tasks/Seasontask');
   const { previewSeasonEnd } = require('../levels/seasons');
-  await previewSeasonEnd(msg.client, TEST_CHANNEL_ID);
-  msg.reply(re(0x22c55e, `${CHECK} Aperçu de fin de saison posté dans <#${TEST_CHANNEL_ID}> (aucune donnée réinitialisée).`));
+  await previewSeasonEnd(msg.client, msg.channel.id);
+  msg.reply(re(0x22c55e, `${CHECK} Aperçu de fin de saison posté ici (aucune donnée réinitialisée).`));
 }
 
 // ════════════════════════════════════════════════════════════
