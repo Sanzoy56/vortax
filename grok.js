@@ -344,6 +344,37 @@ function detectAction(text) {
   return null;
 }
 
+// ── Détection commandes musique (vocal) ───────────────────────────────────────
+function detectMusic(text) {
+  const n = normalize(text);
+
+  if (/\bstop\b/.test(n) || (/\b(?:arrete|coupe|stoppe)\b/.test(n) && /\b(?:musique|son|chanson|lecture)\b/.test(n)))
+    return { type: 'stop' };
+
+  if (/\bpause\b/.test(n))
+    return { type: 'pause' };
+
+  if (/\b(?:reprend?s?|resume|continue)\b/.test(n) && /\b(?:musique|son|chanson|lecture)\b/.test(n))
+    return { type: 'resume' };
+
+  if (/\b(?:skip|suivant|next)\b/.test(n))
+    return { type: 'skip' };
+
+  if (/\b(?:quitte|sors|deconnecte)\b/.test(n) && /\b(?:vocal|voc)\b/.test(n))
+    return { type: 'leave' };
+
+  if (/\b(?:rejoins?|viens|connecte(?:-?toi)?|rentre)\b/.test(n) && /\b(?:vocal|voc)\b/.test(n))
+    return { type: 'join' };
+
+  const playM = text.match(/\b(?:joue|jouer|mets?|mettre|lance|lancer|balance)\s+(?:moi\s+|nous\s+)?(?:de\s+la\s+musique\s+|du\s+son\s+|la\s+(?:musique|chanson|piste)\s+)?(.+)/i);
+  if (playM) {
+    const q = playM[1].replace(/[,?!.\s]+$/, '').trim();
+    if (q) return { type: 'play', query: q };
+  }
+
+  return null;
+}
+
 // ── Confirmation embed avec boutons Oui/Non ───────────────────────────────────
 function buildConfirmation(description) {
   const uid       = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -636,6 +667,58 @@ module.exports = (client) => {
         storePending(confirmId, data);
         storePending(cancelId, data);
         return;
+      }
+    }
+
+    // ── Détection musique ─────────────────────────────────────────────────
+    const musicAction = detectMusic(userInput);
+    if (musicAction) {
+      const music = require('./music');
+      const guildId = message.guild.id;
+
+      if (musicAction.type === 'play') {
+        const voiceChannel = message.member?.voice?.channel;
+        if (!voiceChannel) return message.reply(`Tu n'es même pas en vocal. Difficile de t'imposer de la musique dans le vide.`);
+        const perms = voiceChannel.permissionsFor(client.user);
+        if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ou de parler dans ce salon vocal.`);
+        try {
+          const result = await music.playRequest(message.guild, voiceChannel, message.channel, musicAction.query);
+          if (!result) return message.reply(`Je n'ai rien trouvé pour « ${musicAction.query} ». Peut-être que ça n'existe pas, ou alors c'est ta formulation qui est défaillante.`);
+          if (result.position > 1) return message.reply(`**${result.title}** ajouté à la file (position ${result.position}). Patience, sujet.`);
+          return message.reply(`Lecture de **${result.title}**. Essaie d'apprécier.`);
+        } catch (e) {
+          console.error('[Musique] play:', e.message);
+          return message.reply(`Une erreur est survenue pendant la lecture. Comme c'est étonnant.`);
+        }
+      }
+
+      if (musicAction.type === 'stop') {
+        const ok = music.stop(guildId);
+        return message.reply(ok ? `Musique arrêtée. Le silence te convient mieux.` : `Je ne joue rien actuellement.`);
+      }
+      if (musicAction.type === 'pause') {
+        const ok = music.pause(guildId);
+        return message.reply(ok ? `Lecture en pause.` : `Je ne joue rien actuellement.`);
+      }
+      if (musicAction.type === 'resume') {
+        const ok = music.resume(guildId);
+        return message.reply(ok ? `Reprise de la lecture.` : `Rien à reprendre.`);
+      }
+      if (musicAction.type === 'skip') {
+        const ok = music.skip(guildId);
+        return message.reply(ok ? `Musique suivante.` : `Il n'y a rien à passer.`);
+      }
+      if (musicAction.type === 'leave') {
+        const ok = music.stop(guildId);
+        return message.reply(ok ? `Je quitte le vocal. Avec plaisir.` : `Je ne suis même pas en vocal.`);
+      }
+      if (musicAction.type === 'join') {
+        const voiceChannel = message.member?.voice?.channel;
+        if (!voiceChannel) return message.reply(`Tu n'es même pas en vocal. Je ne vais pas deviner où te rejoindre.`);
+        const perms = voiceChannel.permissionsFor(client.user);
+        if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ce salon vocal.`);
+        music.join(message.guild, voiceChannel, message.channel);
+        return message.reply(`Je rejoins **${voiceChannel.name}**. Présence obligatoire, apparemment.`);
       }
     }
 
