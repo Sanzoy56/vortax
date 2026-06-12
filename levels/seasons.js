@@ -62,8 +62,9 @@ async function postSeasonAnnouncement(client, channelId, seasonNumber) {
   const buffer = await generateSeasonEndCard(topExp.slice(0, 5), topCoins.slice(0, 5), seasonNumber);
 
   await channel.send({
-    content: `🏁 **Fin de la Saison #${seasonNumber} !** Félicitations aux meilleurs joueurs ! La **Saison #${seasonNumber + 1}** commence maintenant — tous les XP et VTX-Coins ont été remis à zéro. Bonne chance à tous !`,
+    content: `@everyone\n🏁 **Fin de la Saison #${seasonNumber} !** Félicitations aux meilleurs joueurs ! La **Saison #${seasonNumber + 1}** commence maintenant — tous les XP et VTX-Coins ont été remis à zéro. Bonne chance à tous !`,
     files: [new AttachmentBuilder(buffer, { name: 'saison.png' })],
+    allowedMentions: { parse: ['everyone'] },
   }).catch(e => console.error('[Saison] Envoi message:', e.message));
 
   return channel;
