@@ -115,6 +115,7 @@ function consumeStun(user) {
 
 // ── Format durée restante ──
 function fmtT(exp) {
+  if (exp === Infinity) return 'définitivement';
   const s = Math.max(0, Math.floor((exp - N()) / 1000));
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
   if (d > 0) return `${d}j ${h}h`;

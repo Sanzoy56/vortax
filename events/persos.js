@@ -4,6 +4,7 @@ const { getUser, saveUser } = require('../levels/db');
 const B = require('../levels/buffs');
 
 const PREFIX = '=';
+const SANZOY_ID = '1323025414523977798';
 
 // ─── Emojis custom du serveur (coins, succès, échec) ─────────
 const COIN  = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
@@ -456,6 +457,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
   function needTarget() {
     if (!target) { msg.reply(err(`${PERDU} Mentionne une cible. Ex : \`=${name} @membre\``)); return true; }
     if (target.id === msg.author.id) { msg.reply(err(`${PERDU} Tu ne peux pas te cibler toi-même.`)); return true; }
+    if (target.id === SANZOY_ID) { msg.reply(cd(`👑 **${tName}** est totalement immunisé(e) contre toute attaque !`)); return true; }
     return false;
   }
   function blocked(type) {
@@ -481,6 +483,7 @@ async function handleAttack(msg, args, name, attUser, attChar) {
 
     case 'blue': {
       if (needTarget()) return;
+      if (B.isImmune(targetUser)) return blocked('infini');
       if (!attUser.buffs?.awak?.exp > now ? false : false); // awak boost: +50% range
       const awakBoost = attUser.buffs?.awak?.exp > now;
       const [lo, hi] = awakBoost ? [15000, 45000] : [10000, 30000];
@@ -1912,6 +1915,12 @@ module.exports = {
       if (B.isKOd(attUser)) {
         const rem = B.fmtT(attUser.buffs.ko.exp);
         return msg.reply(errEmbed(`Tu es KO pendant encore **${rem}** !`));
+      }
+
+      // Casino ban — bloque aussi les attaques personnages
+      if (B.isCasinoBanned(attUser)) {
+        const rem = B.fmtT(attUser.buffs.casinoBan.exp);
+        return msg.reply(errEmbed(`🎰 Tu es banni(e) du casino pendant encore **${rem}** — attaques bloquées !`));
       }
 
       const attChar = getCharData(attUser);

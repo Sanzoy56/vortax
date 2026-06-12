@@ -15,6 +15,7 @@ const COIN   = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
 const PERDU  = '<:26643crossmark:1510067005066055690>';
 const CHECK  = '<:592053verified:1510069208661098546>';
 const PREFIX = '=';
+const SANZOY_ID = '1323025414523977798';
 
 function re(color, desc) {
   return { embeds: [new EmbedBuilder().setColor(color).setDescription(desc)] };
@@ -32,6 +33,10 @@ async function cmdDep(msg, args) {
   const input = args[0]?.toLowerCase();
   if (!input) return msg.reply(re(0xef4444, `${PERDU} Usage : \`=dep <montant|all>\``));
   const isAll  = input === 'all';
+  if (isAll) {
+    const { isCasinoBanned, fmtT } = require('../levels/buffs');
+    if (isCasinoBanned(user)) return msg.reply(re(0xef4444, `🎰 Tu es banni(e) du casino pendant encore **${fmtT(user.buffs.casinoBan.exp)}** — \`=dep all\` bloqué !`));
+  }
   const amount = isAll ? user.wallet : parseInt(input);
   if (!isAll && (isNaN(amount) || amount <= 0)) return msg.reply(re(0xef4444, `${PERDU} Montant invalide.`));
   if (user.wallet === 0 || amount === 0) return msg.reply(re(0xef4444, `${PERDU} Tu n'as rien sur toi.`));
@@ -47,6 +52,10 @@ async function cmdWith(msg, args) {
   const input = args[0]?.toLowerCase();
   if (!input) return msg.reply(re(0xef4444, `${PERDU} Usage : \`=with <montant|all>\``));
   const isAll  = input === 'all';
+  if (isAll) {
+    const { isCasinoBanned, fmtT } = require('../levels/buffs');
+    if (isCasinoBanned(user)) return msg.reply(re(0xef4444, `🎰 Tu es banni(e) du casino pendant encore **${fmtT(user.buffs.casinoBan.exp)}** — \`=with all\` bloqué !`));
+  }
   const amount = isAll ? user.bank : parseInt(input);
   if (!isAll && (isNaN(amount) || amount <= 0)) return msg.reply(re(0xef4444, `${PERDU} Montant invalide.`));
   if (user.bank === 0 || amount === 0) return msg.reply(re(0xef4444, `${PERDU} Tu n'as rien en banque.`));
@@ -287,6 +296,7 @@ async function cmdAide(msg) {
       { name: '🎰 Casino', value: '`=bj <mise>` — Blackjack\n`=spin` — Machine à sous\n`=slots` — Slots\n`=pf <mise> <pile|face>` — Pile ou face\n`=dice <mise> [1-6]` — Dé\n`=roulette <mise> <rouge|noir|vert>` — Roulette\n`=cup <mise> <1|2|3>` — Gobelets\n`=pfc <mise> <pierre|feuille|ciseaux>` — PFC\n`=rr <mise>` — Roulette russe' },
       { name: '⚔️ Personnages', value: '`=persos` — Liste des persos · `=attaques <nom>` — Techniques\n`=shop` — Boutique · `=acheter <nom>` — Acheter · `=equiper <nom>` — Équiper\n`=cd` — Cooldowns · `/boutique-persos` — Boutique slash (public)' },
       ...(isStaff ? [{ name: '🎫 Tickets (staff)', value: '`-delete` — Transcript + supprimer\n`vtxbot [action]` — IA modération' }] : []),
+      ...(isStaff ? [{ name: '🎰 Modération Casino (staff)', value: '`=bancasino @membre <perm|durée> [raison]` — Bannir du casino (ex : `7j`, `12h`, `30min`)\n`=debancasino @membre` — Débannir du casino' }] : []),
       ...(isAdmin ? [{ name: '🛡️ Admin', value: '`/adminexpajouter` `/adminexpretirer` `/adminmoneyajouter` `/adminmoneyretirer`\n`/adminpersos add @m <perso>` — Donner un perso\n`/adminpersos remove @m <perso>` — Retirer un perso\n`/adminpersos list @m` — Lister les persos\n`/adminpersos resetcd @m [perso]` — Reset cooldowns\n`=admindonnerperso @m <perso>` · `=adminretirerperso @m <perso>` · `=adminlisterpersos @m`' }] : []),
     )
     .setFooter({ text: 'Boosts : /boutique · Inventaire : /inventaire · Quêtes : =quetes' });
@@ -337,12 +347,75 @@ async function cmdCreateRoles(msg, args) {
 }
 
 // ════════════════════════════════════════════════════════════
+//  =bancasino / =debancasino — Modération casino (staff)
+// ════════════════════════════════════════════════════════════
+function isCasinoStaff(msg) {
+  return !!(msg.member?.permissions.has('ModerateMembers') || msg.member?.permissions.has('BanMembers') || msg.member?.permissions.has('Administrator'));
+}
+
+// Parse "perm"/"permanent" → Infinity (ms), "7j"/"12h"/"30min" → ms, sinon null/undefined
+function parseBanDuration(input) {
+  if (!input) return undefined;
+  const s = input.toLowerCase();
+  if (s === 'perm' || s === 'permanent' || s === 'def' || s === 'definitif' || s === 'définitif') return Infinity;
+  const m = s.match(/^(\d+)\s*(j|h|min|m)$/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  if (n <= 0) return null;
+  switch (m[2]) {
+    case 'j':   return n * 24 * 3600 * 1000;
+    case 'h':   return n * 3600 * 1000;
+    default:    return n * 60 * 1000; // min | m
+  }
+}
+
+// ── =bancasino @membre <perm|durée> [raison] ──────────────────
+async function cmdBanCasino(msg, args) {
+  if (!isCasinoStaff(msg)) return msg.reply(re(0xef4444, `${PERDU} Réservé au staff (modération).`));
+  const target = msg.mentions.users.first();
+  const usage  = `${PERDU} Usage : \`=bancasino @membre <perm|durée> [raison]\` (durée : ex \`7j\`, \`12h\`, \`30min\`)`;
+  if (!target) return msg.reply(re(0xef4444, usage));
+  if (target.bot) return msg.reply(re(0xef4444, `${PERDU} Impossible de bannir un bot.`));
+  if (target.id === SANZOY_ID) return msg.reply(re(0xef4444, `${PERDU} Impossible.`));
+
+  const durMs = parseBanDuration(args[1]);
+  if (durMs === undefined) return msg.reply(re(0xef4444, usage));
+  if (durMs === null) return msg.reply(re(0xef4444, `${PERDU} Durée invalide. Utilise \`perm\` ou un format comme \`7j\`, \`12h\`, \`30min\`.`));
+
+  const reason = args.slice(2).join(' ') || 'Aucune raison fournie';
+  const { setBuff, fmtT } = require('../levels/buffs');
+  const exp = durMs === Infinity ? Infinity : Date.now() + durMs;
+  const targetUser = getUser(target.id);
+  setBuff(targetUser, 'casinoBan', { exp, from: msg.author.id, reason });
+  saveUser(targetUser);
+
+  const durText = exp === Infinity ? 'définitivement' : `pendant **${fmtT(exp)}**`;
+  msg.reply(re(0xef4444, `🎰🚫 **${target.username}** a été banni(e) du casino ${durText}.\n📝 Raison : ${reason}`));
+}
+
+// ── =debancasino @membre ───────────────────────────────────────
+async function cmdDebanCasino(msg, args) {
+  if (!isCasinoStaff(msg)) return msg.reply(re(0xef4444, `${PERDU} Réservé au staff (modération).`));
+  const target = msg.mentions.users.first();
+  if (!target) return msg.reply(re(0xef4444, `${PERDU} Usage : \`=debancasino @membre\``));
+
+  const { isCasinoBanned, clearBuff } = require('../levels/buffs');
+  const targetUser = getUser(target.id);
+  if (!isCasinoBanned(targetUser)) return msg.reply(re(0xf59e0b, `${PERDU} **${target.username}** n'est pas banni(e) du casino.`));
+
+  clearBuff(targetUser, 'casinoBan');
+  saveUser(targetUser);
+  msg.reply(re(0x22c55e, `${CHECK} **${target.username}** a été débanni(e) du casino.`));
+}
+
+// ════════════════════════════════════════════════════════════
 //  ROUTING
 // ════════════════════════════════════════════════════════════
 const CMDS = {
   dep: cmdDep, with: cmdWith, bal: cmdBal, donner: cmdDonner,
   rob: cmdRob, work: cmdWork, profil: cmdProfil, top: cmdTop,
   quetes: cmdQuetes, aide: cmdAide, createroles: cmdCreateRoles,
+  bancasino: cmdBanCasino, debancasino: cmdDebanCasino,
 };
 
 module.exports = {
@@ -360,6 +433,6 @@ module.exports = {
         return msg.reply(re(0xef4444, `${PERDU} La commande \`=${name}\` est désactivée.`));
       try { await handler(msg, args); } catch(e) { console.error('[Prefix]', e.message); }
     });
-    console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide');
+    console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide =bancasino =debancasino');
   },
 };
