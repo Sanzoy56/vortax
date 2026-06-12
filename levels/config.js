@@ -61,7 +61,7 @@ module.exports = {
   EXP: {
     MIN_PER_MSG: 30,
     MAX_PER_MSG: 60,
-    COOLDOWN_MS: 5000,
+    COOLDOWN_MS: 15000,
   },
 
   // ─── Coins ────────────────────────────────────────────────

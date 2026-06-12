@@ -240,7 +240,7 @@ async function cmdBJ(msg, args) {
   const userId = msg.author.id;
   const last = bjCooldowns.get(userId) || 0;
   const rem  = 15_000 - (Date.now() - last);
-  if (rem > 0) return msg.reply(cdMsg(Math.ceil(rem/1000)));
+  if (rem > 0) return msg.reply(re(0xef4444, `${EM.perdu} Attends **${Math.ceil(rem/1000)}s** avant de relancer une partie de Black Jack.`));
   if (bjGames.has(userId)) {
     const stale = bjGames.get(userId);
     if (Date.now() - stale.startedAt < 120_000) return msg.reply('⚠️ Termine ta partie en cours !');
@@ -278,7 +278,7 @@ async function cmdBJ(msg, args) {
       while(hval(game.dealer)<17)game.dealer.push(game.deck.pop());
       const pv3=hval(game.player),dv2=hval(game.dealer);
       let color,res;
-      if(dv2>21||pv3>dv2){u.wallet+=game.mise*2;res=`✅ Victoire ! (${pv3} vs ${dv2}) +${fmt(game.mise)} ${EM.coin}`;color=0x22c55e;}
+      if(dv2>21||pv3>dv2){const payout=Math.floor(game.mise*2.3);const profit=payout-game.mise;u.wallet+=payout;res=`✅ Victoire ! (${pv3} vs ${dv2}) +${fmt(profit)} ${EM.coin}`;color=0x22c55e;}
       else if(pv3===dv2){u.wallet+=game.mise;res=`🤝 Égalité ! (${pv3} vs ${dv2}) Remboursé`;color=0xf59e0b;}
       else{res=`${EM.perdu} Défaite ! (${pv3} vs ${dv2}) -${fmt(game.mise)} ${EM.coin}`;color=0xef4444;}
       saveUser(u); return btn.update({embeds:[bjEmbed(game,true,'🎰 Black Jack — Résultat',color,res)],components:[]});
@@ -293,12 +293,12 @@ async function cmdBJ(msg, args) {
 // ════════════════════════════════════════════════════════════
 const SPIN_COST = 2500;
 const SPIN_SYMS = [
-  { e:'🏆', w:1,  m:25,  name:'Jackpot Absolu',  rarity:'LÉGENDAIRE', color:0xf5c842, icon:'👑', desc:'La roue de la fortune sourit aux audacieux' },
-  { e:'💎', w:6,  m:8,   name:'Diamant Brut',     rarity:'TRÈS RARE',  color:0xa855f7, icon:'💜', desc:"Une pierre précieuse d'une valeur inestimable" },
-  { e:'⭐', w:13, m:3.5, name:"Lingot d'or",      rarity:'RARE',       color:0x38bdf8, icon:'💙', desc:'Un lingot massif' },
-  { e:'🍒', w:20, m:2,   name:'Cerise Dorée',     rarity:'PEU COMMUN', color:0x22c55e, icon:'💚', desc:'La chance du débutant' },
-  { e:'🍊', w:27, m:1.5, name:'Orange Juteuse',   rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Un gain modeste mais appréciable' },
-  { e:'🍋', w:33, m:1.2, name:'Citron Pressé',    rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Mieux que rien !' },
+  { e:'🏆', w:2,  m:28,  name:'Jackpot Absolu',  rarity:'LÉGENDAIRE', color:0xf5c842, icon:'👑', desc:'La roue de la fortune sourit aux audacieux' },
+  { e:'💎', w:9,  m:9,   name:'Diamant Brut',     rarity:'TRÈS RARE',  color:0xa855f7, icon:'💜', desc:"Une pierre précieuse d'une valeur inestimable" },
+  { e:'⭐', w:16, m:4,   name:"Lingot d'or",      rarity:'RARE',       color:0x38bdf8, icon:'💙', desc:'Un lingot massif' },
+  { e:'🍒', w:21, m:2.2, name:'Cerise Dorée',     rarity:'PEU COMMUN', color:0x22c55e, icon:'💚', desc:'La chance du débutant' },
+  { e:'🍊', w:26, m:1.6, name:'Orange Juteuse',   rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Un gain modeste mais appréciable' },
+  { e:'🍋', w:26, m:1.3, name:'Citron Pressé',    rarity:'COMMUN',     color:0x94a3b8, icon:'🩶', desc:'Mieux que rien !' },
 ];
 const SPIN_TOT = SPIN_SYMS.reduce((s,x)=>s+x.w,0);
 function spinOne() { let r=Math.random()*SPIN_TOT; for(const s of SPIN_SYMS){r-=s.w;if(r<=0)return s;} return SPIN_SYMS[0]; }
@@ -314,7 +314,7 @@ function spinLose() {
 // un par un sur le résultat final (au lieu de tout changer d'un coup à la fin).
 function computeSpinResult() {
   let r1, r2, r3, gain = 0, isWin = false, sym = null;
-  if (Math.random() < 0.35) {
+  if (Math.random() < 0.45) {
     sym = spinOne(); r1 = r2 = r3 = sym;
     gain = Math.min(Math.floor(SPIN_COST * sym.m), 200_000);
     isWin = true;
@@ -401,13 +401,13 @@ function spinRow(uid) {
 }
 const LOTS_EMBED = new EmbedBuilder().setColor(0x6366f1).setTitle('🎰 Lots — =spin')
   .setDescription([
-    '🏆 **Jackpot Absolu** — x25 → 62 500 coins 👑 LÉGENDAIRE',
-    '💎 **Diamant Brut** — x8 → 20 000 coins 💜 TRÈS RARE',
-    '⭐ **Lingot d\'or** — x3.5 → 8 750 coins 💙 RARE',
-    '🍒 **Cerise Dorée** — x2 → 5 000 coins 💚 PEU COMMUN',
-    '🍊 **Orange Juteuse** — x1.5 → 3 750 coins 🩶 COMMUN',
-    '🍋 **Citron Pressé** — x1.2 → 3 000 coins 🩶 COMMUN',
-    '', '🎲 **35% de chance de gagner**',
+    '🏆 **Jackpot Absolu** — x28 → 70 000 coins 👑 LÉGENDAIRE',
+    '💎 **Diamant Brut** — x9 → 22 500 coins 💜 TRÈS RARE',
+    '⭐ **Lingot d\'or** — x4 → 10 000 coins 💙 RARE',
+    '🍒 **Cerise Dorée** — x2.2 → 5 500 coins 💚 PEU COMMUN',
+    '🍊 **Orange Juteuse** — x1.6 → 4 000 coins 🩶 COMMUN',
+    '🍋 **Citron Pressé** — x1.3 → 3 250 coins 🩶 COMMUN',
+    '', '🎲 **45% de chance de gagner**',
   ].join('\n'));
 
 async function cmdSpin(msg) {
