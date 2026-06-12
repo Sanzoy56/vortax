@@ -1,9 +1,11 @@
 'use strict';
 const {
   joinVoiceChannel, createAudioPlayer, createAudioResource,
-  AudioPlayerStatus, VoiceConnectionStatus,
+  AudioPlayerStatus, VoiceConnectionStatus, StreamType,
 } = require('@discordjs/voice');
-const play = require('play-dl');
+const play  = require('play-dl');
+const ytdlp = require('yt-dlp-exec');
+const prism = require('prism-media');
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // déconnexion après 5min sans musique
 
@@ -42,6 +44,7 @@ function createQueue(guild, voiceChannel, textChannel) {
   const queue = {
     connection, player, voiceChannel, textChannel,
     songs: [], playing: false, idleTimeout: null,
+    currentProcess: null, currentTranscoder: null,
   };
 
   player.on(AudioPlayerStatus.Idle, () => {
@@ -70,13 +73,38 @@ function createQueue(guild, voiceChannel, textChannel) {
   return queue;
 }
 
+// ── Tue le processus yt-dlp/ffmpeg en cours (changement/arrêt de piste) ──
+function killCurrent(queue) {
+  if (queue.currentProcess)    { queue.currentProcess.kill(); queue.currentProcess = null; }
+  if (queue.currentTranscoder) { queue.currentTranscoder.destroy(); queue.currentTranscoder = null; }
+}
+
 async function playNext(guildId) {
   const queue = queues.get(guildId);
   if (!queue || queue.songs.length === 0) return;
   const song = queue.songs[0];
+
+  killCurrent(queue);
+
   try {
-    const stream = await play.stream(song.url);
-    const resource = createAudioResource(stream.stream, { inputType: stream.type });
+    const subprocess = ytdlp.exec(song.url, {
+      format: 'bestaudio',
+      output: '-',
+      quiet: true,
+      noWarnings: true,
+    }, { stdio: ['ignore', 'pipe', 'ignore'] });
+    subprocess.catch(() => {}); // évite les rejets non gérés (kill volontaire)
+
+    const transcoder = new prism.FFmpeg({
+      args: ['-analyzeduration', '0', '-loglevel', '0', '-f', 's16le', '-ar', '48000', '-ac', '2'],
+    });
+
+    queue.currentProcess    = subprocess;
+    queue.currentTranscoder = transcoder;
+
+    const pcmStream = subprocess.stdout.pipe(transcoder);
+    const resource  = createAudioResource(pcmStream, { inputType: StreamType.Raw });
+
     clearIdleTimeout(queue);
     queue.playing = true;
     queue.player.play(resource);
@@ -127,6 +155,7 @@ function stop(guildId) {
   if (!queue) return false;
   queue.songs = [];
   clearIdleTimeout(queue);
+  killCurrent(queue);
   queue.player.stop();
   queue.connection.destroy();
   queues.delete(guildId);
