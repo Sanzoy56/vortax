@@ -49,6 +49,7 @@ const giveaway = require('./giveaway.js');
 const { startStreakReminder } = require('./levels/tasks/streaktask');
 const { startQuestReset }     = require('./levels/tasks/Questtask');
 const { startVoiceXp }        = require('./levels/Voicexp');
+const { startSeasonTask }     = require('./levels/tasks/Seasontask');
 
 // ── Levels : messageCreate ────────────────────────
 const levelMessage = require('./levels/Messagecreate');
@@ -242,6 +243,7 @@ client.once('clientReady', () => {
   startStreakReminder(client);
   startQuestReset(client);
   startVoiceXp(client);
+  startSeasonTask(client);
 });
 async function getConfig() {
   try {

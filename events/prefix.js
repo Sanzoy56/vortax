@@ -297,7 +297,7 @@ async function cmdAide(msg) {
       { name: '⚔️ Personnages', value: '`=persos` — Liste des persos · `=attaques <nom>` — Techniques\n`=shop` — Boutique · `=acheter <nom>` — Acheter · `=equiper <nom>` — Équiper\n`=cd` — Cooldowns · `/boutique-persos` — Boutique slash (public)' },
       ...(isStaff ? [{ name: '🎫 Tickets (staff)', value: '`-delete` — Transcript + supprimer\n`vtxbot [action]` — IA modération' }] : []),
       ...(isStaff ? [{ name: '🎰 Modération Casino (staff)', value: '`=bancasino @membre <perm|durée> [raison]` — Bannir du casino (ex : `7j`, `12h`, `30min`)\n`=debancasino @membre` — Débannir du casino' }] : []),
-      ...(isAdmin ? [{ name: '🛡️ Admin', value: '`/adminexpajouter` `/adminexpretirer` `/adminmoneyajouter` `/adminmoneyretirer`\n`/adminpersos add @m <perso>` — Donner un perso\n`/adminpersos remove @m <perso>` — Retirer un perso\n`/adminpersos list @m` — Lister les persos\n`/adminpersos resetcd @m [perso]` — Reset cooldowns\n`=admindonnerperso @m <perso>` · `=adminretirerperso @m <perso>` · `=adminlisterpersos @m`' }] : []),
+      ...(isAdmin ? [{ name: '🛡️ Admin', value: '`/adminexpajouter` `/adminexpretirer` `/adminmoneyajouter` `/adminmoneyretirer`\n`/adminpersos add @m <perso>` — Donner un perso\n`/adminpersos remove @m <perso>` — Retirer un perso\n`/adminpersos list @m` — Lister les persos\n`/adminpersos resetcd @m [perso]` — Reset cooldowns\n`=admindonnerperso @m <perso>` · `=adminretirerperso @m <perso>` · `=adminlisterpersos @m`\n`=testsaison` — Aperçu de l\'annonce de fin de saison (sans reset)' }] : []),
     )
     .setFooter({ text: 'Boosts : /boutique · Inventaire : /inventaire · Quêtes : =quetes' });
   msg.reply({ embeds: [embed] });
@@ -408,6 +408,16 @@ async function cmdDebanCasino(msg, args) {
   msg.reply(re(0x22c55e, `${CHECK} **${target.username}** a été débanni(e) du casino.`));
 }
 
+// ── =testsaison ──────────────────────────────────────────────
+// Aperçu de l'annonce de fin de saison dans le salon test, SANS aucun reset.
+async function cmdTestSaison(msg) {
+  if (!msg.member.permissions.has('Administrator')) return msg.reply(re(0xef4444, `${PERDU} Réservé aux administrateurs.`));
+  const { TEST_CHANNEL_ID } = require('../levels/tasks/Seasontask');
+  const { previewSeasonEnd } = require('../levels/seasons');
+  await previewSeasonEnd(msg.client, TEST_CHANNEL_ID);
+  msg.reply(re(0x22c55e, `${CHECK} Aperçu de fin de saison posté dans <#${TEST_CHANNEL_ID}> (aucune donnée réinitialisée).`));
+}
+
 // ════════════════════════════════════════════════════════════
 //  ROUTING
 // ════════════════════════════════════════════════════════════
@@ -416,6 +426,7 @@ const CMDS = {
   rob: cmdRob, work: cmdWork, profil: cmdProfil, top: cmdTop,
   quetes: cmdQuetes, aide: cmdAide, createroles: cmdCreateRoles,
   bancasino: cmdBanCasino, debancasino: cmdDebanCasino,
+  testsaison: cmdTestSaison,
 };
 
 module.exports = {
@@ -433,6 +444,6 @@ module.exports = {
         return msg.reply(re(0xef4444, `${PERDU} La commande \`=${name}\` est désactivée.`));
       try { await handler(msg, args); } catch(e) { console.error('[Prefix]', e.message); }
     });
-    console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide =bancasino =debancasino');
+    console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide =bancasino =debancasino =testsaison');
   },
 };

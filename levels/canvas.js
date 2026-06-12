@@ -490,6 +490,130 @@ async function generateLeaderboard(entries, mode) {
 }
 
 // ════════════════════════════════════════════════════════════
+// 3b. FIN DE SAISON
+// ════════════════════════════════════════════════════════════
+async function generateSeasonEndCard(topExp, topCoins, seasonNumber) {
+  const W      = 1060;
+  const HEAD_H = 120;
+  const FOOT_H = 34;
+  const ROW_H  = 86;
+  const GAP    = 6;
+  const ROWS   = 5;
+  const COL_W  = 480;
+  const PAD    = 18;
+  const AV_R   = 26;
+  const MID    = W / 2;
+
+  const H = HEAD_H + ROWS * (ROW_H + GAP) - GAP + FOOT_H + 16;
+
+  const canvas = createCanvas(W, H);
+  const ctx    = canvas.getContext('2d');
+
+  drawBackground(ctx, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f5c842';
+  ctx.font = 'bold 30px ' + FONT;
+  ctx.fillText(`🏁 Fin de la Saison #${seasonNumber}`, MID, 42);
+
+  ctx.fillStyle = '#9a9ac0';
+  ctx.font = '14px ' + FONT;
+  ctx.fillText(`Felicitations aux meilleurs joueurs ! La Saison #${seasonNumber + 1} commence maintenant.`, MID, 68);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = 'bold 14px ' + FONT;
+  ctx.fillText('⭐ Top EXP', PAD + COL_W / 2, 102);
+  ctx.fillText('💰 Top Coins', MID + 10 + COL_W / 2, 102);
+  ctx.textAlign = 'left';
+
+  drawGoldLine(ctx, PAD, 110, W - PAD * 2);
+
+  ctx.strokeStyle = '#2a2a50';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(MID, HEAD_H + 4);
+  ctx.lineTo(MID, H - FOOT_H - 4);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const medals    = ['1er', '2e', '3e'];
+  const topColors = { 1: '#f5c842', 2: '#b0b8c8', 3: '#a0704a' };
+  const topBg     = { 1: '#1a140a', 2: '#111118', 3: '#0f100a' };
+
+  async function drawColumn(entries, x, valueLabel) {
+    if (!entries.length) {
+      ctx.fillStyle = '#5a5a7a';
+      ctx.font = '14px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.fillText('Aucune donnée', x + COL_W / 2, HEAD_H + 40);
+      ctx.textAlign = 'left';
+      return;
+    }
+    for (let i = 0; i < Math.min(entries.length, ROWS); i++) {
+      const e   = entries[i];
+      const pos = i + 1;
+      const y   = HEAD_H + i * (ROW_H + GAP);
+
+      roundRect(ctx, x, y, COL_W, ROW_H, 9);
+      ctx.fillStyle = topBg[pos] || '#0e0e1c';
+      ctx.fill();
+      roundRect(ctx, x, y, COL_W, ROW_H, 9);
+      ctx.strokeStyle = topColors[pos] || '#1e1e45';
+      ctx.lineWidth = pos <= 3 ? 1.5 : 1;
+      ctx.stroke();
+
+      const rankColor = topColors[pos] || '#5a5a7a';
+
+      ctx.fillStyle = rankColor;
+      ctx.font = 'bold 13px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.fillText('#' + pos, x + 20, y + ROW_H / 2 + 4);
+      ctx.textAlign = 'left';
+
+      if (pos <= 3) {
+        ctx.fillStyle = rankColor;
+        ctx.font = 'bold 11px ' + FONT;
+        ctx.textAlign = 'center';
+        ctx.fillText(medals[pos - 1], x + 20, y + ROW_H / 2 - 10);
+        ctx.textAlign = 'left';
+      }
+
+      const avCX = x + 44 + AV_R;
+      const avCY = y + ROW_H / 2;
+      await drawAvatar(ctx, e.avatarURL, avCX, avCY, AV_R, topColors[pos] || '#1e1e45');
+
+      const TX       = avCX + AV_R + 12;
+      const nameMaxW = COL_W - (TX - x) - 12;
+
+      ctx.fillStyle = '#e8e8f5';
+      ctx.font = 'bold 15px ' + FONT;
+      ctx.fillText(truncate(ctx, e.username, nameMaxW), TX, y + 22);
+
+      ctx.fillStyle = '#5a5a7a';
+      ctx.font = '11px ' + FONT;
+      ctx.fillText('Rang : ' + sanitize(String(e.rank ?? '—')), TX, y + 39);
+      ctx.fillText('Niveau : ' + e.level, TX, y + 54);
+
+      ctx.fillStyle = '#f5c842';
+      ctx.font = '11px ' + FONT;
+      ctx.fillText(valueLabel(e), TX, y + 69);
+    }
+  }
+
+  await drawColumn(topExp,   PAD,      e => 'XP : ' + fmt(e.exp));
+  await drawColumn(topCoins, MID + 10, e => 'Coins : ' + fmt(e.coins));
+
+  ctx.fillStyle = '#35354d';
+  ctx.font = '11px ' + FONT;
+  ctx.textAlign = 'center';
+  ctx.fillText('Team Vortax  -  2024-2026', MID, H - 10);
+  ctx.textAlign = 'left';
+
+  return canvas.toBuffer('image/png');
+}
+
+// ════════════════════════════════════════════════════════════
 // 4. BAL
 // ════════════════════════════════════════════════════════════
 async function generateBal(member, userData) {
@@ -942,5 +1066,6 @@ async function generateQuestCompleteCard(member, quest) {
 module.exports = {
   generateProfile, generateQuests, generateLeaderboard, generateBal,
   generateLevelUpCard, generateRankUpCard, generateQuestCompleteCard,
+  generateSeasonEndCard,
   statusColor,
 };
