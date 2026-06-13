@@ -1726,6 +1726,12 @@ module.exports = {
 
       function errEmbed(desc) { return { embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} ${desc}`)] }; }
 
+      // Mode maintenance (catégorie persos) — boutique, équipement et techniques
+      if (name === 'shop' || name === 'acheter' || name === 'equiper' || ATTACK_MAP[name]) {
+        const { isActive, maintenanceReply } = require('../levels/maintenance');
+        if (isActive('persos')) return msg.reply(maintenanceReply('persos'));
+      }
+
       // =persos — liste
       if (name === 'persos') {
         return msg.reply({ embeds: [buildListEmbed()] });

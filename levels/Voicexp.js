@@ -1,5 +1,6 @@
 'use strict';
 const { addExp, addCoins } = require('./levels');
+const M = require('./maintenance');
 
 const VOCAL_DEFAULTS = { MIN_EXP: 60, MAX_EXP: 100, MIN_COINS: 1500, MAX_COINS: 3000 };
 
@@ -43,11 +44,13 @@ function startVoicexp(client) {
 
         const { updateQuestProgress } = require('./quests');
 
+        const expOk    = !M.isActive('exp');
+        const coinsOk  = !M.isActive('economie');
         for (const member of actifs) {
           const baseExp   = Math.floor(Math.random() * (expMax   - expMin   + 1) + expMin);
           const baseCoins = Math.floor(Math.random() * (coinsMax - coinsMin + 1) + coinsMin);
-          await addExp(member, client, baseExp).catch(() => {});
-          addCoins(member.id, baseCoins);
+          if (expOk)   await addExp(member, client, baseExp).catch(() => {});
+          if (coinsOk) addCoins(member.id, baseCoins);
           await updateQuestProgress(guild, member.id, 'vocal_min', 1).catch(() => {});
         }
       }

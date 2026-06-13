@@ -4,7 +4,7 @@
 //  prefix.js — Commandes économie & utilitaires en =cmd
 // ════════════════════════════════════════════════════════════
 
-const { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const { getUser, saveUser }                = require('../levels/db');
 const { fmt }                              = require('../levels/levels');
 const { updateQuestProgress }              = require('../levels/quests');
@@ -298,7 +298,7 @@ async function cmdAide(msg) {
       { name: '🎵 Musique (vocal)', value: 'Parle au bot en étant en vocal :\n« vtxbot rejoins le vocal » — Le bot rejoint ton salon\n« vtxbot mets *titre*» — Joue/ajoute une musique\n« vtxbot pause / reprends / skip / stop » — Contrôle la lecture\n« vtxbot quitte le vocal » — Déconnexion' },
       ...(isStaff ? [{ name: '🎫 Tickets (staff)', value: '`-delete` — Transcript + supprimer\n`vtxbot [action]` — IA modération' }] : []),
       ...(isStaff ? [{ name: '🎰 Modération Casino (staff)', value: '`=bancasino @membre <perm|durée> [raison]` — Bannir du casino (ex : `7j`, `12h`, `30min`)\n`=debancasino @membre` — Débannir du casino' }] : []),
-      ...(isAdmin ? [{ name: '🛡️ Admin', value: '`/adminexpajouter` `/adminexpretirer` `/adminmoneyajouter` `/adminmoneyretirer`\n`/adminpersos add @m <perso>` — Donner un perso\n`/adminpersos remove @m <perso>` — Retirer un perso\n`/adminpersos list @m` — Lister les persos\n`/adminpersos resetcd @m [perso]` — Reset cooldowns\n`=admindonnerperso @m <perso>` · `=adminretirerperso @m <perso>` · `=adminlisterpersos @m`\n`=testsaison` — Aperçu de l\'annonce de fin de saison (sans reset)' }] : []),
+      ...(isAdmin ? [{ name: '🛡️ Admin', value: '`/adminexpajouter` `/adminexpretirer` `/adminmoneyajouter` `/adminmoneyretirer`\n`/adminpersos add @m <perso>` — Donner un perso\n`/adminpersos remove @m <perso>` — Retirer un perso\n`/adminpersos list @m` — Lister les persos\n`/adminpersos resetcd @m [perso]` — Reset cooldowns\n`=admindonnerperso @m <perso>` · `=adminretirerperso @m <perso>` · `=adminlisterpersos @m`\n`=testsaison` — Aperçu de l\'annonce de fin de saison (sans reset)\n`=maintenance` — Activer la maintenance pour une ou plusieurs catégories (EXP, économie, casino, persos, staff)\n`=finmaintenance` — Désactiver toute la maintenance' }] : []),
     )
     .setFooter({ text: 'Boosts : /boutique · Inventaire : /inventaire · Quêtes : =quetes' });
   msg.reply({ embeds: [embed] });
@@ -419,6 +419,67 @@ async function cmdTestSaison(msg) {
 }
 
 // ════════════════════════════════════════════════════════════
+//  =maintenance / =finmaintenance — Mode maintenance (admin only)
+// ════════════════════════════════════════════════════════════
+function buildMaintenanceEmbed(active) {
+  const { CATEGORIES } = require('../levels/maintenance');
+  const lines = Object.entries(CATEGORIES).map(([key, c]) => {
+    const status = active.includes(key) ? '🔴 En maintenance' : '🟢 Actif';
+    return `${c.emoji} **${c.label}** — ${status}\n> ${c.desc}`;
+  });
+  return new EmbedBuilder().setColor(0x7c5cfc)
+    .setTitle('🚧 Mode maintenance')
+    .setDescription(lines.join('\n\n'))
+    .setFooter({ text: 'Sélectionne les catégories à mettre en maintenance ci-dessous · =finmaintenance pour tout réactiver' });
+}
+
+function buildMaintenanceRow(active) {
+  const { CATEGORIES } = require('../levels/maintenance');
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('maintenance_select')
+      .setPlaceholder('Catégories à mettre en maintenance...')
+      .setMinValues(0)
+      .setMaxValues(Object.keys(CATEGORIES).length)
+      .addOptions(Object.entries(CATEGORIES).map(([key, c]) => ({
+        label: c.label,
+        value: key,
+        emoji: c.emoji,
+        default: active.includes(key),
+      })))
+  );
+}
+
+// ── =maintenance ─────────────────────────────────────────────
+async function cmdMaintenance(msg) {
+  if (!msg.member.permissions.has('Administrator'))
+    return msg.reply(re(0xef4444, `${PERDU} Réservé aux administrateurs.`));
+
+  const { getActive, setActive } = require('../levels/maintenance');
+  let active = getActive();
+  const reply = await msg.reply({ embeds: [buildMaintenanceEmbed(active)], components: [buildMaintenanceRow(active)] });
+
+  const collector = reply.createMessageComponentCollector({ time: 5 * 60_000 });
+  collector.on('collect', async sel => {
+    if (sel.user.id !== msg.author.id)
+      return sel.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`${PERDU} Seul l'auteur de la commande peut modifier ceci.`)], ephemeral: true });
+    active = sel.values;
+    setActive(active);
+    await sel.update({ embeds: [buildMaintenanceEmbed(active)], components: [buildMaintenanceRow(active)] });
+  });
+  collector.on('end', () => reply.edit({ components: [] }).catch(() => {}));
+}
+
+// ── =finmaintenance ──────────────────────────────────────────
+async function cmdFinMaintenance(msg) {
+  if (!msg.member.permissions.has('Administrator'))
+    return msg.reply(re(0xef4444, `${PERDU} Réservé aux administrateurs.`));
+  const { clear } = require('../levels/maintenance');
+  clear();
+  msg.reply(re(0x22c55e, `${CHECK} Maintenance désactivée pour toutes les catégories.`));
+}
+
+// ════════════════════════════════════════════════════════════
 //  ROUTING
 // ════════════════════════════════════════════════════════════
 const CMDS = {
@@ -427,6 +488,14 @@ const CMDS = {
   quetes: cmdQuetes, aide: cmdAide, createroles: cmdCreateRoles,
   bancasino: cmdBanCasino, debancasino: cmdDebanCasino,
   testsaison: cmdTestSaison,
+  maintenance: cmdMaintenance, finmaintenance: cmdFinMaintenance,
+};
+
+// Catégorie de maintenance bloquant chaque commande (=maintenance/=finmaintenance
+// ne sont jamais bloqués eux-mêmes)
+const MAINT_CAT = {
+  dep: 'economie', with: 'economie', donner: 'economie', rob: 'economie', work: 'economie',
+  bancasino: 'staff', debancasino: 'staff', createroles: 'staff', testsaison: 'staff',
 };
 
 module.exports = {
@@ -442,8 +511,13 @@ module.exports = {
       const cfg = await getConfig();
       if ((cfg.disabled_commands || []).includes(name))
         return msg.reply(re(0xef4444, `${PERDU} La commande \`=${name}\` est désactivée.`));
+      const maintCat = MAINT_CAT[name];
+      if (maintCat) {
+        const { isActive, maintenanceReply } = require('../levels/maintenance');
+        if (isActive(maintCat)) return msg.reply(maintenanceReply(maintCat));
+      }
       try { await handler(msg, args); } catch(e) { console.error('[Prefix]', e.message); }
     });
-    console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide =bancasino =debancasino =testsaison');
+    console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide =bancasino =debancasino =testsaison =maintenance =finmaintenance');
   },
 };

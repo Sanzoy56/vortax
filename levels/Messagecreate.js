@@ -5,6 +5,7 @@ const { getUser, saveUser } = require('./db');
 const { addExp, addCoins, resetDailyStatsIfNeeded } = require('./levels');
 const { updateQuestProgress, generateDailyQuests } = require('./quests');
 const B = require('./buffs');
+const M = require('./maintenance');
 
 const cooldowns = new Map();
 const casinoBanReminders = new Map();
@@ -85,10 +86,14 @@ module.exports = {
     const expMax  = prog.msg_exp_max   ?? EXP.MAX_PER_MSG;
     const baseExp = Math.floor(Math.random() * (expMax - expMin + 1)) + expMin;
     const member  = message.member ?? await message.guild.members.fetch(userId).catch(() => null);
-    if (member) await addExp(member, client, baseExp);
+    if (member && !M.isActive('exp')) {
+      await addExp(member, client, baseExp);
+      // Quête EXP (XP gagné aujourd'hui)
+      await updateQuestProgress(guild, userId, 'exp', baseExp);
+    }
 
-    // Quête EXP (XP gagné aujourd'hui)
-    await updateQuestProgress(guild, userId, 'exp', baseExp);
+    // Mode maintenance (catégorie économie) : pas de gains de coins
+    if (M.isActive('economie')) return;
 
     // ── Coins : territoire / bluemax interceptent les gains ─
     const coinsMin  = prog.msg_coins_min ?? COINS.MIN_PER_MSG;

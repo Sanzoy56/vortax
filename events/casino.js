@@ -447,6 +447,9 @@ module.exports = {
       const cfg = await getConfig();
       if ((cfg.disabled_commands || []).includes(name))
         return msg.reply({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`❌ La commande \`=${name}\` est désactivée.`)] });
+      // Mode maintenance (catégorie casino)
+      const { isActive, maintenanceReply } = require('../levels/maintenance');
+      if (isActive('casino')) return msg.reply(maintenanceReply('casino'));
       // Casino ban (Violet / Death Note / Tableflip)
       const { isCasinoBanned, fmtT } = require('../levels/buffs');
       const cu = getUser(msg.author.id);
