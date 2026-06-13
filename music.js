@@ -19,6 +19,11 @@ function createQueue(guild, voiceChannel, textChannel) {
     guildId: guild.id,
     adapterCreator: guild.voiceAdapterCreator,
     debug: true,
+    // Le handshake DAVE (chiffrement de bout en bout) provoque une boucle de
+    // reconnexion infinie (ready -> signalling -> connecting...) sur ce réseau
+    // (échange MLS qui n'aboutit jamais, socket IP discovery fermé). On le
+    // désactive : le bot n'a pas besoin du chiffrement E2EE pour jouer de la musique.
+    daveEncryption: false,
   });
   connection.on('debug', msg => console.log('[Musique][debug]', msg));
   const player = createAudioPlayer();
