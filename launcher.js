@@ -47,8 +47,13 @@ function checkForUpdates() {
     const local  = git('rev-parse HEAD');
     const remote = git('rev-parse @{u}');
     if (local !== remote) {
-      console.log('[Launcher] Nouvelle version détectée sur GitHub — git pull + redémarrage...');
+      console.log('[Launcher] Nouvelle version détectée sur GitHub — git pull + npm install + redémarrage...');
       git('pull');
+      try {
+        execSync('npm install', { cwd: REPO_DIR, encoding: 'utf8', stdio: 'inherit' });
+      } catch (e) {
+        console.error('[Launcher] Erreur npm install :', e.message);
+      }
       restartBot();
     }
   } catch (e) {

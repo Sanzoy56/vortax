@@ -134,20 +134,41 @@ async function search(query) {
   return results[0] ?? null;
 }
 
-// ── Ajoute une musique à la file (et la lance si rien ne joue) ──
-async function playRequest(guild, voiceChannel, textChannel, query) {
-  const result = await search(query);
-  if (!result) return null;
+// ── Récupère les infos (titre/durée) d'une URL directe via yt-dlp ──
+async function getUrlInfo(url) {
+  try {
+    const info = await ytdlp(url, { dumpSingleJson: true, noWarnings: true, quiet: true, noPlaylist: true });
+    return { url, title: info.title || url, durationRaw: info.duration_string || '' };
+  } catch {
+    return null;
+  }
+}
 
+// ── Ajoute une chanson déjà résolue à la file (et lance si rien ne joue) ──
+async function enqueue(guild, voiceChannel, textChannel, song) {
   let queue = queues.get(guild.id);
   if (!queue) queue = createQueue(guild, voiceChannel, textChannel);
   else queue.textChannel = textChannel;
 
-  queue.songs.push({ url: result.url, title: result.title, duration: result.durationRaw });
+  queue.songs.push(song);
 
   if (!queue.playing) await playNext(guild.id);
 
-  return { title: result.title, duration: result.durationRaw, position: queue.songs.length };
+  return { title: song.title, duration: song.duration, position: queue.songs.length };
+}
+
+// ── Ajoute une musique à la file via une recherche (et la lance si rien ne joue) ──
+async function playRequest(guild, voiceChannel, textChannel, query) {
+  const result = await search(query);
+  if (!result) return null;
+  return enqueue(guild, voiceChannel, textChannel, { url: result.url, title: result.title, duration: result.durationRaw });
+}
+
+// ── Ajoute une musique à la file depuis une URL directe (fallback si la recherche échoue) ──
+async function playUrl(guild, voiceChannel, textChannel, url) {
+  const info = await getUrlInfo(url);
+  if (!info) return null;
+  return enqueue(guild, voiceChannel, textChannel, { url: info.url, title: info.title, duration: info.durationRaw });
 }
 
 function stop(guildId) {
@@ -181,4 +202,4 @@ function resume(guildId) {
   return queue.player.unpause();
 }
 
-module.exports = { join, playRequest, stop, skip, pause, resume, getQueue };
+module.exports = { join, playRequest, playUrl, stop, skip, pause, resume, getQueue };

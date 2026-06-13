@@ -27,6 +27,7 @@ const MOD_ROLES = {
 const conversationHistory = new Map();
 const blockedUsers        = new Set();
 const pendingActions      = new Map();
+const pendingMusicLink    = new Map(); // userId -> { expires } : en attente d'un lien après une recherche infructueuse
 const MAX_HISTORY         = 10;
 
 function storePending(id, data) {
@@ -670,6 +671,31 @@ module.exports = (client) => {
       }
     }
 
+    // ── Lien envoyé suite à une recherche infructueuse ──────────────────────
+    {
+      const pending = pendingMusicLink.get(message.author.id);
+      if (pending) {
+        pendingMusicLink.delete(message.author.id);
+        const urlMatch = userInput.match(/https?:\/\/\S+/i);
+        if (Date.now() < pending.expires && urlMatch) {
+          const music = require('./music');
+          const voiceChannel = message.member?.voice?.channel;
+          if (!voiceChannel) return message.reply(`Tu n'es même pas en vocal. Difficile de t'imposer de la musique dans le vide.`);
+          const perms = voiceChannel.permissionsFor(client.user);
+          if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ou de parler dans ce salon vocal.`);
+          try {
+            const result = await music.playUrl(message.guild, voiceChannel, message.channel, urlMatch[0]);
+            if (!result) return message.reply(`Même ce lien est inutilisable. J'abandonne, et toi aussi tu devrais.`);
+            if (result.position > 1) return message.reply(`**${result.title}** ajouté à la file (position ${result.position}). Patience, sujet.`);
+            return message.reply(`Lecture de **${result.title}**. Essaie d'apprécier.`);
+          } catch (e) {
+            console.error('[Musique] playUrl:', e.message);
+            return message.reply(`Une erreur est survenue pendant la lecture. Comme c'est étonnant.`);
+          }
+        }
+      }
+    }
+
     // ── Détection musique ─────────────────────────────────────────────────
     const musicAction = detectMusic(userInput);
     if (musicAction) {
@@ -682,8 +708,16 @@ module.exports = (client) => {
         const perms = voiceChannel.permissionsFor(client.user);
         if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ou de parler dans ce salon vocal.`);
         try {
-          const result = await music.playRequest(message.guild, voiceChannel, message.channel, musicAction.query);
-          if (!result) return message.reply(`Je n'ai rien trouvé pour « ${musicAction.query} ». Peut-être que ça n'existe pas, ou alors c'est ta formulation qui est défaillante.`);
+          const isUrl = /^https?:\/\/\S+$/i.test(musicAction.query);
+          const result = isUrl
+            ? await music.playUrl(message.guild, voiceChannel, message.channel, musicAction.query)
+            : await music.playRequest(message.guild, voiceChannel, message.channel, musicAction.query);
+
+          if (!result) {
+            if (isUrl) return message.reply(`Même ce lien est inutilisable. Bravo.`);
+            pendingMusicLink.set(message.author.id, { expires: Date.now() + 3 * 60 * 1000 });
+            return message.reply(`Je n'ai rien trouvé pour « ${musicAction.query} ». Envoie-moi un lien directement, si toutefois tu sais ce qu'est une URL.`);
+          }
           if (result.position > 1) return message.reply(`**${result.title}** ajouté à la file (position ${result.position}). Patience, sujet.`);
           return message.reply(`Lecture de **${result.title}**. Essaie d'apprécier.`);
         } catch (e) {
