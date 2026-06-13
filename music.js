@@ -64,6 +64,18 @@ function createQueue(guild, voiceChannel, textChannel) {
     else scheduleDisconnect(guild.id);
   });
 
+  player.on('stateChange', (oldState, newState) => {
+    console.log(`[Musique] Player: ${oldState.status} -> ${newState.status}`);
+  });
+
+  connection.on('stateChange', (oldState, newState) => {
+    console.log(`[Musique] Connexion: ${oldState.status} -> ${newState.status}`);
+  });
+
+  connection.on('error', err => {
+    console.error('[Musique] Erreur connexion:', err.message);
+  });
+
   connection.on(VoiceConnectionStatus.Disconnected, () => {
     clearIdleTimeout(queue);
     queues.delete(guild.id);
@@ -87,17 +99,21 @@ async function playNext(guildId) {
   killCurrent(queue);
 
   try {
+    console.log(`[Musique] Lecture de ${song.url}`);
     const subprocess = ytdlp.exec(song.url, {
       format: 'bestaudio',
       output: '-',
       quiet: true,
       noWarnings: true,
-    }, { stdio: ['ignore', 'pipe', 'ignore'] });
+    }, { stdio: ['ignore', 'pipe', 'pipe'] });
     subprocess.catch(() => {}); // évite les rejets non gérés (kill volontaire)
+    subprocess.stderr.on('data', d => console.error('[Musique] yt-dlp stderr:', d.toString().trim()));
+    subprocess.stdout.on('error', e => console.error('[Musique] yt-dlp stdout erreur:', e.message));
 
     const transcoder = new prism.FFmpeg({
       args: ['-analyzeduration', '0', '-loglevel', '0', '-f', 's16le', '-ar', '48000', '-ac', '2'],
     });
+    transcoder.on('error', e => console.error('[Musique] ffmpeg erreur:', e.message));
 
     queue.currentProcess    = subprocess;
     queue.currentTranscoder = transcoder;

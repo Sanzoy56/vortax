@@ -1,6 +1,28 @@
 'use strict';
 require('dotenv').config();
 
+// ── Auto-install des dépendances manquantes ─────────────────────────────
+// Sur l'hébergement, le launcher fait un "git pull" + redémarrage sans
+// forcément lancer "npm install" entre les deux. Si un package du
+// package.json n'est pas dans node_modules, on l'installe ici avant de
+// continuer (sinon le require() plus bas plante).
+{
+  const fs   = require('fs');
+  const path = require('path');
+  const { dependencies } = require('./package.json');
+  const missing = Object.keys(dependencies).some(
+    dep => !fs.existsSync(path.join(__dirname, 'node_modules', dep))
+  );
+  if (missing) {
+    console.log('[Bootstrap] Dépendances manquantes détectées — npm install...');
+    try {
+      require('child_process').execSync('npm install', { cwd: __dirname, stdio: 'inherit' });
+    } catch (e) {
+      console.error('[Bootstrap] npm install a échoué :', e.message);
+    }
+  }
+}
+
 const {
   Client,
   GatewayIntentBits,
