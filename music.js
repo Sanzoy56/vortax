@@ -60,6 +60,19 @@ function createQueue(guild, voiceChannel, textChannel) {
     console.error('[Musique] Erreur connexion:', err.message);
   });
 
+  // ── Filet de sécurité : connexion bloquée sur "signalling"/"connecting" ──
+  // Si Discord ne répond jamais (souci réseau ponctuel), on retente un rejoin
+  // après 15s plutôt que de rester bloqué indéfiniment sans le moindre son.
+  entersState(connection, VoiceConnectionStatus.Ready, 15_000).catch(() => {
+    if (queues.get(guild.id) !== queue) return; // déjà remplacée/détruite
+    console.log('[Musique] Connexion bloquée après 15s, rejoin forcé.');
+    try {
+      connection.rejoin({ channelId: voiceChannel.id, selfDeaf: false, selfMute: false });
+    } catch (e) {
+      console.error('[Musique] Erreur rejoin:', e.message);
+    }
+  });
+
   connection.on(VoiceConnectionStatus.Disconnected, async () => {
     try {
       // Une déconnexion peut être temporaire (reconnexion auto en cours)
