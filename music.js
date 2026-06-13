@@ -96,10 +96,15 @@ async function playNext(guildId) {
   try {
     console.log(`[Musique] Lecture de ${song.url}`);
     const subprocess = ytdlp.exec(song.url, {
-      format: 'bestaudio',
+      format: 'bestaudio/best',
       output: '-',
       quiet: true,
       noWarnings: true,
+      // Contourne le "Sign in to confirm you're not a bot" que YouTube
+      // renvoie parfois sur certaines IP (serveurs perso, etc.). "android"
+      // seul limite les formats disponibles (plus de bestaudio), donc on
+      // combine avec "web" pour avoir la liste complète des formats.
+      extractorArgs: 'youtube:player_client=android,web',
     }, { stdio: ['ignore', 'pipe', 'pipe'] });
     subprocess.catch(() => {}); // évite les rejets non gérés (kill volontaire)
     queue.currentSongFailed = false;
@@ -153,7 +158,7 @@ async function search(query) {
 // ── Récupère les infos (titre/durée) d'une URL directe via yt-dlp ──
 async function getUrlInfo(url) {
   try {
-    const info = await ytdlp(url, { dumpSingleJson: true, noWarnings: true, quiet: true, noPlaylist: true });
+    const info = await ytdlp(url, { dumpSingleJson: true, noWarnings: true, quiet: true, noPlaylist: true, extractorArgs: 'youtube:player_client=android,web' });
     return { url, title: info.title || url, durationRaw: info.duration_string || '' };
   } catch {
     return null;
