@@ -370,7 +370,10 @@ function detectMusic(text) {
   const playM = text.match(/\b(?:joue|jouer|mets?|mettre|lance|lancer|balance)\s+(?:moi\s+|nous\s+)?(?:de\s+la\s+musique\s+|du\s+son\s+|la\s+(?:musique|chanson|piste)\s+)?(.+)/i);
   if (playM) {
     const q = playM[1].replace(/[,?!.\s]+$/, '').trim();
-    if (q) return { type: 'play', query: q };
+    // Évite les faux positifs ("mets à jour mon profil", etc.) : il faut un
+    // mot lié à la musique ou un lien pour considérer ça comme une demande de lecture.
+    const hasMusicCue = /\b(?:musique|son|chanson|piste|morceau|titre|playlist)\b/.test(n) || /https?:\/\//i.test(text);
+    if (q && hasMusicCue) return { type: 'play', query: q };
   }
 
   return null;

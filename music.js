@@ -51,7 +51,11 @@ function createQueue(guild, voiceChannel, textChannel) {
 
   player.on(AudioPlayerStatus.Idle, () => {
     queue.playing = false;
-    queue.songs.shift();
+    const finished = queue.songs.shift();
+    if (queue.currentSongFailed && finished) {
+      queue.textChannel?.send(`**${finished.title}** est introuvable ou indisponible. Je passe à la suite — comme toujours, sans le moindre effort.`).catch(() => {});
+    }
+    queue.currentSongFailed = false;
     if (queue.songs.length > 0) {
       playNext(guild.id);
     } else {
@@ -120,7 +124,12 @@ async function playNext(guildId) {
       noWarnings: true,
     }, { stdio: ['ignore', 'pipe', 'pipe'] });
     subprocess.catch(() => {}); // évite les rejets non gérés (kill volontaire)
-    subprocess.stderr.on('data', d => console.error('[Musique] yt-dlp stderr:', d.toString().trim()));
+    queue.currentSongFailed = false;
+    subprocess.stderr.on('data', d => {
+      const text = d.toString().trim();
+      console.error('[Musique] yt-dlp stderr:', text);
+      if (/ERROR/i.test(text)) queue.currentSongFailed = true;
+    });
     subprocess.stdout.on('error', e => console.error('[Musique] yt-dlp stdout erreur:', e.message));
 
     const transcoder = new prism.FFmpeg({
@@ -204,11 +213,10 @@ function stop(guildId) {
   const queue = queues.get(guildId);
   if (!queue) return false;
   queue.songs = [];
-  clearIdleTimeout(queue);
   killCurrent(queue);
   queue.player.stop();
-  queue.connection.destroy();
-  queues.delete(guildId);
+  queue.playing = false;
+  scheduleDisconnect(guildId); // déconnexion auto après 5min d'inactivité si rien ne reprend
   return true;
 }
 
