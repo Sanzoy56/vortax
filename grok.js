@@ -367,16 +367,53 @@ function detectMusic(text) {
   if (/\b(?:rejoins?|viens|connecte(?:-?toi)?|rentre)\b/.test(n) && /\b(?:vocal|voc)\b/.test(n))
     return { type: 'join' };
 
-  const playM = text.match(/\b(?:joue|jouer|mets?|mettre|lance|lancer|balance)\s+(?:moi\s+|nous\s+)?(?:de\s+la\s+musique\s+|du\s+son\s+|la\s+(?:musique|chanson|piste)\s+)?(.+)/i);
+  const playM = text.match(/\b(joue|jouer|mets?|mettre|lance|lancer|balance)\s+(?:moi\s+|nous\s+)?(?:de\s+la\s+musique\s+|du\s+son\s+|la\s+(?:musique|chanson|piste)\s+)?(.+)/i);
   if (playM) {
-    const q = playM[1].replace(/[,?!.\s]+$/, '').trim();
-    // Évite les faux positifs ("mets à jour mon profil", etc.) : il faut un
-    // mot lié à la musique ou un lien pour considérer ça comme une demande de lecture.
+    const verb = playM[1].toLowerCase();
+    const q = playM[2].replace(/[,?!.\s]+$/, '').trim();
+    // "mets"/"mettre" sont très ambigus en français ("mets à jour", "mets en place"...) :
+    // on exige un mot lié à la musique ou un lien pour ces verbes-là. Les autres
+    // (joue, jouer, lance, lancer, balance) ne servent qu'à demander de la musique.
     const hasMusicCue = /\b(?:musique|son|chanson|piste|morceau|titre|playlist)\b/.test(n) || /https?:\/\//i.test(text);
-    if (q && hasMusicCue) return { type: 'play', query: q };
+    const verbIsAmbiguous = /^mets?$|^mettre$/.test(verb);
+    if (q && (hasMusicCue || !verbIsAmbiguous)) return { type: 'play', query: q };
   }
 
   return null;
+}
+
+// ── Filet de secours IA : détecte une demande de musique formulée sans verbe
+// explicite ("vtxbot mais Mili mili de inoxtag") que la regex ci-dessus ne
+// peut pas couvrir. N'est appelé que si detectMusic() n'a rien trouvé.
+async function detectMusicAI(text) {
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROK_API_KEY}` },
+      body: JSON.stringify({
+        model: 'grok-3-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Tu analyses un message envoyé à un bot Discord pour déterminer si l'utilisateur demande de jouer une musique précise (titre, artiste ou lien), même sans verbe explicite (ex: "mais Mili mili de inoxtag" = demande de jouer ce titre). Ignore les mots de liaison ("mais", "bah", "et", "donc"...). Réponds UNIQUEMENT avec un JSON strict : {"play": true, "query": "titre et artiste"} si c'est une demande de musique, sinon {"play": false}.`,
+          },
+          { role: 'user', content: text },
+        ],
+        max_tokens: 60,
+        temperature: 0,
+        response_format: { type: 'json_object' },
+      }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const raw  = data.choices?.[0]?.message?.content;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed?.play && parsed.query) return { type: 'play', query: String(parsed.query).trim() };
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // ── Renvoie le salon vocal occupé par le bot si différent de celui demandé ──
@@ -708,7 +745,7 @@ module.exports = (client) => {
     }
 
     // ── Détection musique ─────────────────────────────────────────────────
-    const musicAction = detectMusic(userInput);
+    const musicAction = detectMusic(userInput) ?? await detectMusicAI(userInput);
     if (musicAction) {
       const music = require('./music');
       const guildId = message.guild.id;
@@ -837,5 +874,26 @@ module.exports = (client) => {
       console.error('Erreur VTX-BOT Grok:', error);
       message.reply(`Une anomalie s'est produite dans mes circuits.`);
     }
+  });
+
+  // ── Salon vocal du bot supprimé → nettoyer la file (évite "déjà occupé" sur un salon mort) ──
+  client.on(Events.ChannelDelete, (channel) => {
+    if (channel.type !== ChannelType.GuildVoice) return;
+    const music = require('./music');
+    const queue = music.getQueue(channel.guild.id);
+    if (queue && queue.voiceChannel.id === channel.id) music.leave(channel.guild.id);
+  });
+
+  // ── Plus personne dans le salon vocal du bot → il quitte ──────────────────
+  client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+    if (!oldState.channelId || oldState.channelId === newState.channelId) return;
+    const music = require('./music');
+    const guildId = oldState.guild.id;
+    const queue = music.getQueue(guildId);
+    if (!queue || queue.voiceChannel.id !== oldState.channelId) return;
+    const channel = oldState.channel;
+    if (!channel) return;
+    const humans = channel.members.filter((m) => !m.user.bot);
+    if (humans.size === 0) music.leave(guildId);
   });
 };

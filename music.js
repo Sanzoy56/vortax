@@ -208,7 +208,7 @@ function leave(guildId) {
   queue.songs = [];
   killCurrent(queue);
   queue.player.stop();
-  queue.connection.destroy();
+  try { queue.connection.destroy(); } catch {}
   queues.delete(guildId);
   return true;
 }

@@ -104,12 +104,16 @@ async function onVoiceStateUpdate(oldState, newState) {
   const guild = newState.guild || oldState.guild;
 
   // ── Quitter un salon temporaire → supprimer si vide (AVANT le check config) ──
+  // "Vide" = plus aucun humain (le bot musique peut être resté connecté seul).
   if (oldState.channelId && tempChannels.has(oldState.channelId)) {
     const ch = oldState.channel;
-    if (ch && ch.members.size === 0) {
-      await ch.delete().catch(() => {});
-      tempChannels.delete(oldState.channelId);
-      return;
+    if (ch) {
+      const humans = ch.members.filter((m) => !m.user.bot);
+      if (humans.size === 0) {
+        await ch.delete().catch(() => {});
+        tempChannels.delete(oldState.channelId);
+        return;
+      }
     }
   }
 
