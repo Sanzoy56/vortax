@@ -1,7 +1,7 @@
 'use strict';
 const {
   joinVoiceChannel, createAudioPlayer, createAudioResource,
-  AudioPlayerStatus, VoiceConnectionStatus, StreamType,
+  AudioPlayerStatus, VoiceConnectionStatus, StreamType, entersState,
 } = require('@discordjs/voice');
 const play  = require('play-dl');
 const ytdlp = require('yt-dlp-exec');
@@ -76,9 +76,20 @@ function createQueue(guild, voiceChannel, textChannel) {
     console.error('[Musique] Erreur connexion:', err.message);
   });
 
-  connection.on(VoiceConnectionStatus.Disconnected, () => {
-    clearIdleTimeout(queue);
-    queues.delete(guild.id);
+  connection.on(VoiceConnectionStatus.Disconnected, async () => {
+    try {
+      // Une déconnexion peut être temporaire (reconnexion auto en cours)
+      await Promise.race([
+        entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+        entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+      ]);
+    } catch {
+      console.log('[Musique] Déconnexion définitive du vocal.');
+      clearIdleTimeout(queue);
+      killCurrent(queue);
+      connection.destroy();
+      queues.delete(guild.id);
+    }
   });
 
   queues.set(guild.id, queue);
