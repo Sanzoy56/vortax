@@ -27,7 +27,7 @@ function createQueue(guild, voiceChannel, textChannel) {
   const queue = {
     connection, player, voiceChannel, textChannel,
     songs: [], playing: false,
-    currentProcess: null, currentTranscoder: null,
+    currentProcess: null, currentTranscoder: null, playToken: 0,
   };
 
   player.on(AudioPlayerStatus.Idle, () => {
@@ -90,6 +90,7 @@ async function playNext(guildId) {
   const song = queue.songs[0];
 
   killCurrent(queue);
+  const token = ++queue.playToken; // ignore les events des process tués/précédents
 
   try {
     console.log(`[Musique] Lecture de ${song.url}`);
@@ -102,6 +103,7 @@ async function playNext(guildId) {
     subprocess.catch(() => {}); // évite les rejets non gérés (kill volontaire)
     queue.currentSongFailed = false;
     subprocess.stderr.on('data', d => {
+      if (token !== queue.playToken) return; // process obsolète, on ignore
       const text = d.toString().trim();
       console.error('[Musique] yt-dlp stderr:', text);
       if (/ERROR/i.test(text)) queue.currentSongFailed = true;
