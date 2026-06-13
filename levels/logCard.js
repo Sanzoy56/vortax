@@ -83,9 +83,18 @@ async function drawAvatar(ctx, avatarURL, cx, cy, r, ringColor) {
   ctx.restore();
 }
 
+// Emojis, pictogrammes et autres symboles non couverts par Noto Sans :
+// node-canvas les affiche comme des cases avec leur code hexadécimal,
+// donc on les retire avant de dessiner.
+const EMOJI_REGEX = /[\u{1F000}-\u{1FFFF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{20E3}]/gu;
+
+function stripEmoji(text) {
+  return String(text ?? '').replace(EMOJI_REGEX, '');
+}
+
 function sanitize(text) {
   if (text === undefined || text === null) return '???';
-  const cleaned = String(text).replace(/\s+/g, ' ').trim();
+  const cleaned = stripEmoji(text).replace(/\s+/g, ' ').trim();
   return cleaned || '???';
 }
 
@@ -104,7 +113,7 @@ function truncate(ctx, text, maxWidth) {
 // à la ligne déjà présents. Limite à `maxLines` (avec "…" sur la dernière).
 function wrapText(ctx, text, maxWidth, maxLines) {
   const lines = [];
-  const paragraphs = String(text ?? '').trim().split('\n').map(p => p.replace(/[^\S\n]+/g, ' ').trim());
+  const paragraphs = stripEmoji(text).trim().split('\n').map(p => p.replace(/[^\S\n]+/g, ' ').trim());
   for (const para of paragraphs) {
     const words = para.split(' ');
     let current = '';

@@ -40,15 +40,20 @@ module.exports = (client) => {
 
         const now = new Date();
         let createdBy = 'Inconnu';
+        let executeur = null;
         try {
             const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleCreate });
             const log = fetchedLogs.entries.first();
-            if (log && Date.now() - log.createdTimestamp < 5000) createdBy = `${log.executor.username} (${log.executor.id})`;
+            if (log && Date.now() - log.createdTimestamp < 5000) {
+                executeur = log.executor;
+                createdBy = `${executeur.username} (${executeur.id})`;
+            }
         } catch {}
 
         await sendLogCard(logChannel, {
             title: 'Rôle créé',
             accent: '#22c55e',
+            avatarURL: executeur?.displayAvatarURL({ dynamic: true }),
             rows: [
                 { label: 'Rôle', value: `${role.name} (${role.id})` },
                 { label: 'Couleur', value: role.hexColor },
@@ -69,15 +74,20 @@ module.exports = (client) => {
 
         const now = new Date();
         let deletedBy = 'Inconnu';
+        let executeur = null;
         try {
             const fetchedLogs = await role.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleDelete });
             const log = fetchedLogs.entries.first();
-            if (log && Date.now() - log.createdTimestamp < 5000) deletedBy = `${log.executor.username} (${log.executor.id})`;
+            if (log && Date.now() - log.createdTimestamp < 5000) {
+                executeur = log.executor;
+                deletedBy = `${executeur.username} (${executeur.id})`;
+            }
         } catch {}
 
         await sendLogCard(logChannel, {
             title: 'Rôle supprimé',
             accent: '#ef4444',
+            avatarURL: executeur?.displayAvatarURL({ dynamic: true }),
             rows: [
                 { label: 'Rôle', value: `${role.name} (${role.id})` },
                 { label: 'Couleur', value: role.hexColor },
@@ -97,10 +107,14 @@ module.exports = (client) => {
 
         const now = new Date();
         let updatedBy = 'Inconnu';
+        let executeur = null;
         try {
             const fetchedLogs = await newRole.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleUpdate });
             const log = fetchedLogs.entries.first();
-            if (log && Date.now() - log.createdTimestamp < 5000) updatedBy = `${log.executor.username} (${log.executor.id})`;
+            if (log && Date.now() - log.createdTimestamp < 5000) {
+                executeur = log.executor;
+                updatedBy = `${executeur.username} (${executeur.id})`;
+            }
         } catch {}
 
         const changes = [];
@@ -119,6 +133,7 @@ module.exports = (client) => {
         await sendLogCard(logChannel, {
             title: 'Rôle modifié',
             accent: '#3b82f6',
+            avatarURL: executeur?.displayAvatarURL({ dynamic: true }),
             rows: [
                 { label: 'Rôle', value: `${newRole.name} (${newRole.id})` },
                 { label: 'Modifié par', value: updatedBy },
