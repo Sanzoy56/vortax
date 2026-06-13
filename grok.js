@@ -379,6 +379,12 @@ function detectMusic(text) {
   return null;
 }
 
+// ── Renvoie le salon vocal occupé par le bot si différent de celui demandé ──
+function busyElsewhere(music, guildId, voiceChannel) {
+  const existing = music.getQueue(guildId);
+  return (existing && existing.voiceChannel.id !== voiceChannel.id) ? existing.voiceChannel : null;
+}
+
 // ── Confirmation embed avec boutons Oui/Non ───────────────────────────────────
 function buildConfirmation(description) {
   const uid       = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -686,6 +692,8 @@ module.exports = (client) => {
           if (!voiceChannel) return message.reply(`Tu n'es même pas en vocal. Difficile de t'imposer de la musique dans le vide.`);
           const perms = voiceChannel.permissionsFor(client.user);
           if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ou de parler dans ce salon vocal.`);
+          const busy = busyElsewhere(music, message.guild.id, voiceChannel);
+          if (busy) return message.reply(`Je suis déjà occupé dans **${busy.name}**. Un seul vocal à la fois, ça devrait suffire à ta petite tête.`);
           try {
             const result = await music.playUrl(message.guild, voiceChannel, message.channel, urlMatch[0]);
             if (!result) return message.reply(`Même ce lien est inutilisable. J'abandonne, et toi aussi tu devrais.`);
@@ -710,6 +718,8 @@ module.exports = (client) => {
         if (!voiceChannel) return message.reply(`Tu n'es même pas en vocal. Difficile de t'imposer de la musique dans le vide.`);
         const perms = voiceChannel.permissionsFor(client.user);
         if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ou de parler dans ce salon vocal.`);
+        const busy = busyElsewhere(music, guildId, voiceChannel);
+        if (busy) return message.reply(`Je suis déjà occupé dans **${busy.name}**. Un seul vocal à la fois, ça devrait suffire à ta petite tête.`);
         try {
           const isUrl = /^https?:\/\/\S+$/i.test(musicAction.query);
           const result = isUrl
@@ -746,7 +756,7 @@ module.exports = (client) => {
         return message.reply(ok ? `Musique suivante.` : `Il n'y a rien à passer.`);
       }
       if (musicAction.type === 'leave') {
-        const ok = music.stop(guildId);
+        const ok = music.leave(guildId);
         return message.reply(ok ? `Je quitte le vocal. Avec plaisir.` : `Je ne suis même pas en vocal.`);
       }
       if (musicAction.type === 'join') {
@@ -754,6 +764,8 @@ module.exports = (client) => {
         if (!voiceChannel) return message.reply(`Tu n'es même pas en vocal. Je ne vais pas deviner où te rejoindre.`);
         const perms = voiceChannel.permissionsFor(client.user);
         if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ce salon vocal.`);
+        const busy = busyElsewhere(music, guildId, voiceChannel);
+        if (busy) return message.reply(`Je suis déjà occupé dans **${busy.name}**. Un seul vocal à la fois, ça devrait suffire à ta petite tête.`);
         music.join(message.guild, voiceChannel, message.channel);
         return message.reply(`Je rejoins **${voiceChannel.name}**. Présence obligatoire, apparemment.`);
       }

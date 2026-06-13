@@ -7,29 +7,10 @@ const play  = require('play-dl');
 const ytdlp = require('yt-dlp-exec');
 const prism = require('prism-media');
 
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // déconnexion après 5min sans musique
-
-const queues = new Map(); // guildId -> { connection, player, voiceChannel, textChannel, songs, playing, idleTimeout }
+const queues = new Map(); // guildId -> { connection, player, voiceChannel, textChannel, songs, playing }
 
 function getQueue(guildId) {
   return queues.get(guildId);
-}
-
-function clearIdleTimeout(queue) {
-  if (queue.idleTimeout) { clearTimeout(queue.idleTimeout); queue.idleTimeout = null; }
-}
-
-function scheduleDisconnect(guildId) {
-  const queue = queues.get(guildId);
-  if (!queue) return;
-  clearIdleTimeout(queue);
-  queue.idleTimeout = setTimeout(() => {
-    const q = queues.get(guildId);
-    if (q && !q.playing && q.songs.length === 0) {
-      q.connection.destroy();
-      queues.delete(guildId);
-    }
-  }, IDLE_TIMEOUT_MS);
 }
 
 function createQueue(guild, voiceChannel, textChannel) {
@@ -45,7 +26,7 @@ function createQueue(guild, voiceChannel, textChannel) {
 
   const queue = {
     connection, player, voiceChannel, textChannel,
-    songs: [], playing: false, idleTimeout: null,
+    songs: [], playing: false,
     currentProcess: null, currentTranscoder: null,
   };
 
@@ -56,18 +37,14 @@ function createQueue(guild, voiceChannel, textChannel) {
       queue.textChannel?.send(`**${finished.title}** est introuvable ou indisponible. Je passe à la suite — comme toujours, sans le moindre effort.`).catch(() => {});
     }
     queue.currentSongFailed = false;
-    if (queue.songs.length > 0) {
-      playNext(guild.id);
-    } else {
-      scheduleDisconnect(guild.id);
-    }
+    if (queue.songs.length > 0) playNext(guild.id);
   });
 
   player.on('error', err => {
     console.error('[Musique] Erreur lecteur:', err.message);
+    queue.playing = false;
     queue.songs.shift();
     if (queue.songs.length > 0) playNext(guild.id);
-    else scheduleDisconnect(guild.id);
   });
 
   player.on('stateChange', (oldState, newState) => {
@@ -91,7 +68,6 @@ function createQueue(guild, voiceChannel, textChannel) {
       ]);
     } catch {
       console.log('[Musique] Déconnexion définitive du vocal.');
-      clearIdleTimeout(queue);
       killCurrent(queue);
       connection.destroy();
       queues.delete(guild.id);
@@ -143,14 +119,13 @@ async function playNext(guildId) {
     const pcmStream = subprocess.stdout.pipe(transcoder);
     const resource  = createAudioResource(pcmStream, { inputType: StreamType.Raw });
 
-    clearIdleTimeout(queue);
     queue.playing = true;
     queue.player.play(resource);
   } catch (e) {
     console.error('[Musique] Erreur lecture:', e.message);
+    queue.playing = false;
     queue.songs.shift();
     if (queue.songs.length > 0) playNext(guildId);
-    else scheduleDisconnect(guildId);
   }
 }
 
@@ -216,7 +191,18 @@ function stop(guildId) {
   killCurrent(queue);
   queue.player.stop();
   queue.playing = false;
-  scheduleDisconnect(guildId); // déconnexion auto après 5min d'inactivité si rien ne reprend
+  return true;
+}
+
+// ── Quitte le salon vocal et détruit la file ──
+function leave(guildId) {
+  const queue = queues.get(guildId);
+  if (!queue) return false;
+  queue.songs = [];
+  killCurrent(queue);
+  queue.player.stop();
+  queue.connection.destroy();
+  queues.delete(guildId);
   return true;
 }
 
@@ -239,4 +225,4 @@ function resume(guildId) {
   return queue.player.unpause();
 }
 
-module.exports = { join, playRequest, playUrl, stop, skip, pause, resume, getQueue };
+module.exports = { join, playRequest, playUrl, stop, leave, skip, pause, resume, getQueue };
