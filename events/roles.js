@@ -1,5 +1,6 @@
-const { Events, EmbedBuilder, AuditLogEvent } = require('discord.js');
+const { Events, AuditLogEvent } = require('discord.js');
 const { getConfig } = require('../config')
+const { sendLogCard } = require('../levels/logCard')
 
 const permissionNames = {
     AddReactions: 'Ajouter des réactions', Administrator: 'Administrateur',
@@ -27,6 +28,9 @@ const permissionNames = {
 const formatPerms = (perms) =>
     perms.toArray().map(p => permissionNames[p] || p).join(', ') || 'Aucune';
 
+const formatDate = (date) =>
+    date.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
 module.exports = (client) => {
 
     client.on(Events.GuildRoleCreate, async (role) => {
@@ -42,23 +46,20 @@ module.exports = (client) => {
             if (log && Date.now() - log.createdTimestamp < 5000) createdBy = `${log.executor.username} (${log.executor.id})`;
         } catch {}
 
-        const permsText = formatPerms(role.permissions).slice(0, 800);
-        const embed = new EmbedBuilder()
-            .setTitle('✅ Rôle Créé')
-            .setColor(0x36393F)
-            .addFields({ name: '\u200b', value: [
-                `🎭 **Rôle :** <@&${role.id}> (${role.id})`,
-                `🎨 **Couleur :** ${role.hexColor}`,
-                `📌 **Affiché séparément :** ${role.hoist ? 'Oui' : 'Non'}`,
-                `🔔 **Mentionnable :** ${role.mentionable ? 'Oui' : 'Non'}`,
-                `🔒 **Permissions :** ${permsText}`,
-                `👤 **Créé par :** ${createdBy}`,
-                `📅 **Date :** ${now.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
-            ].join('\n') })
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: role.guild.iconURL() })
-            .setTimestamp(now);
-
-        await logChannel.send({ embeds: [embed] });
+        await sendLogCard(logChannel, {
+            title: 'Rôle créé',
+            accent: '#22c55e',
+            rows: [
+                { label: 'Rôle', value: `${role.name} (${role.id})` },
+                { label: 'Couleur', value: role.hexColor },
+                { label: 'Affiché séparément', value: role.hoist ? 'Oui' : 'Non' },
+                { label: 'Mentionnable', value: role.mentionable ? 'Oui' : 'Non' },
+                { label: 'Créé par', value: createdBy },
+                { label: 'Date', value: formatDate(now) },
+            ],
+            longText: { label: 'Permissions', value: formatPerms(role.permissions) },
+            footerExtra: `ID: ${role.id}`,
+        });
     });
 
     client.on(Events.GuildRoleDelete, async (role) => {
@@ -74,22 +75,19 @@ module.exports = (client) => {
             if (log && Date.now() - log.createdTimestamp < 5000) deletedBy = `${log.executor.username} (${log.executor.id})`;
         } catch {}
 
-        const permsText = formatPerms(role.permissions).slice(0, 800);
-        const embed = new EmbedBuilder()
-            .setTitle('❌ Rôle Supprimé')
-            .setColor(0x36393F)
-            .addFields({ name: '\u200b', value: [
-                `🎭 **Rôle :** ${role.name} (${role.id})`,
-                `🎨 **Couleur :** ${role.hexColor}`,
-                `📌 **Affiché séparément :** ${role.hoist ? 'Oui' : 'Non'}`,
-                `🔒 **Permissions :** ${permsText}`,
-                `👤 **Supprimé par :** ${deletedBy}`,
-                `📅 **Date :** ${now.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
-            ].join('\n') })
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: role.guild.iconURL() })
-            .setTimestamp(now);
-
-        await logChannel.send({ embeds: [embed] });
+        await sendLogCard(logChannel, {
+            title: 'Rôle supprimé',
+            accent: '#ef4444',
+            rows: [
+                { label: 'Rôle', value: `${role.name} (${role.id})` },
+                { label: 'Couleur', value: role.hexColor },
+                { label: 'Affiché séparément', value: role.hoist ? 'Oui' : 'Non' },
+                { label: 'Supprimé par', value: deletedBy },
+                { label: 'Date', value: formatDate(now) },
+            ],
+            longText: { label: 'Permissions', value: formatPerms(role.permissions) },
+            footerExtra: `ID: ${role.id}`,
+        });
     });
 
     client.on(Events.GuildRoleUpdate, async (oldRole, newRole) => {
@@ -106,30 +104,29 @@ module.exports = (client) => {
         } catch {}
 
         const changes = [];
-        if (oldRole.name !== newRole.name) changes.push(`📝 **Nom :** ${oldRole.name} → ${newRole.name}`);
-        if (oldRole.hexColor !== newRole.hexColor) changes.push(`🎨 **Couleur :** ${oldRole.hexColor} → ${newRole.hexColor}`);
-        if (oldRole.hoist !== newRole.hoist) changes.push(`📌 **Affiché séparément :** ${oldRole.hoist ? 'Oui' : 'Non'} → ${newRole.hoist ? 'Oui' : 'Non'}`);
-        if (oldRole.mentionable !== newRole.mentionable) changes.push(`🔔 **Mentionnable :** ${oldRole.mentionable ? 'Oui' : 'Non'} → ${newRole.mentionable ? 'Oui' : 'Non'}`);
+        if (oldRole.name !== newRole.name) changes.push(`Nom : ${oldRole.name} → ${newRole.name}`);
+        if (oldRole.hexColor !== newRole.hexColor) changes.push(`Couleur : ${oldRole.hexColor} → ${newRole.hexColor}`);
+        if (oldRole.hoist !== newRole.hoist) changes.push(`Affiché séparément : ${oldRole.hoist ? 'Oui' : 'Non'} → ${newRole.hoist ? 'Oui' : 'Non'}`);
+        if (oldRole.mentionable !== newRole.mentionable) changes.push(`Mentionnable : ${oldRole.mentionable ? 'Oui' : 'Non'} → ${newRole.mentionable ? 'Oui' : 'Non'}`);
 
         const addedPerms   = newRole.permissions.toArray().filter(p => !oldRole.permissions.has(p));
         const removedPerms = oldRole.permissions.toArray().filter(p => !newRole.permissions.has(p));
-        for (const perm of addedPerms)   changes.push(`✅ **Permission ajoutée :** ${permissionNames[perm] || perm}`);
-        for (const perm of removedPerms) changes.push(`❌ **Permission retirée :** ${permissionNames[perm] || perm}`);
+        for (const perm of addedPerms)   changes.push(`Permission ajoutée : ${permissionNames[perm] || perm}`);
+        for (const perm of removedPerms) changes.push(`Permission retirée : ${permissionNames[perm] || perm}`);
 
         if (changes.length === 0) return;
 
-        const changesText = changes.join('\n').slice(0, 1024);
-        const embed = new EmbedBuilder()
-            .setTitle('✏️ Rôle Modifié')
-            .setColor(0x36393F)
-            .addFields(
-                { name: '\u200b', value: [`🎭 **Rôle :** <@&${newRole.id}> (${newRole.id})`, `👤 **Modifié par :** ${updatedBy}`, `📅 **Date :** ${now.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`].join('\n') },
-                { name: '🔄 Modifications :', value: changesText }
-            )
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: newRole.guild.iconURL() })
-            .setTimestamp(now);
-
-        await logChannel.send({ embeds: [embed] });
+        await sendLogCard(logChannel, {
+            title: 'Rôle modifié',
+            accent: '#3b82f6',
+            rows: [
+                { label: 'Rôle', value: `${newRole.name} (${newRole.id})` },
+                { label: 'Modifié par', value: updatedBy },
+                { label: 'Date', value: formatDate(now) },
+            ],
+            longText: { label: 'Modifications', value: changes.join('\n') },
+            footerExtra: `ID: ${newRole.id}`,
+        });
     });
 
     client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
@@ -152,43 +149,35 @@ module.exports = (client) => {
         } catch {}
 
         if (addedRoles.size > 0) {
-            const rolesInfo = addedRoles.map(r => [
-                `🎭 **Rôle ajouté :** <@&${r.id}>`,
-                `📌 **Affiché séparément :** ${r.hoist ? 'Oui' : 'Non'}`,
-            ].join('\n')).join('\n\n').slice(0, 1024);
-            if (rolesInfo.trim()) {
-                const embed = new EmbedBuilder()
-                    .setTitle('➕ Rôle Ajouté à un Membre')
-                    .setColor(0x36393F)
-                    .setThumbnail(newMember.user.displayAvatarURL())
-                    .addFields(
-                        { name: '\u200b', value: [`🧑 **Membre :** <@${newMember.id}> (${newMember.id})`, `👤 **Par :** ${updatedBy}`, `📅 **Date :** ${now.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`].join('\n') },
-                        { name: '🎭 Détails du rôle :', value: rolesInfo }
-                    )
-                    .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: newMember.guild.iconURL() })
-                    .setTimestamp(now);
-                await logChannel.send({ embeds: [embed] });
-            }
+            const rolesInfo = addedRoles.map(r => `${r.name} (séparé : ${r.hoist ? 'Oui' : 'Non'})`).join('\n');
+            await sendLogCard(logChannel, {
+                title: 'Rôle ajouté à un membre',
+                accent: '#22c55e',
+                avatarURL: newMember.user.displayAvatarURL(),
+                rows: [
+                    { label: 'Membre', value: `${newMember.user.tag} (${newMember.id})` },
+                    { label: 'Par', value: updatedBy },
+                    { label: 'Date', value: formatDate(now) },
+                ],
+                longText: { label: 'Rôles ajoutés', value: rolesInfo },
+                footerExtra: `ID: ${newMember.id}`,
+            });
         }
 
         if (removedRoles.size > 0) {
-            const rolesInfo = removedRoles.map(r => [
-                `🎭 **Rôle retiré :** <@&${r.id}>`,
-                `📌 **Affiché séparément :** ${r.hoist ? 'Oui' : 'Non'}`,
-            ].join('\n')).join('\n\n').slice(0, 1024);
-            if (rolesInfo.trim()) {
-                const embed = new EmbedBuilder()
-                    .setTitle('➖ Rôle Retiré à un Membre')
-                    .setColor(0x36393F)
-                    .setThumbnail(newMember.user.displayAvatarURL())
-                    .addFields(
-                        { name: '\u200b', value: [`🧑 **Membre :** <@${newMember.id}> (${newMember.id})`, `👤 **Par :** ${updatedBy}`, `📅 **Date :** ${now.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`].join('\n') },
-                        { name: '🎭 Détails du rôle :', value: rolesInfo }
-                    )
-                    .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: newMember.guild.iconURL() })
-                    .setTimestamp(now);
-                await logChannel.send({ embeds: [embed] });
-            }
+            const rolesInfo = removedRoles.map(r => `${r.name} (séparé : ${r.hoist ? 'Oui' : 'Non'})`).join('\n');
+            await sendLogCard(logChannel, {
+                title: 'Rôle retiré à un membre',
+                accent: '#ef4444',
+                avatarURL: newMember.user.displayAvatarURL(),
+                rows: [
+                    { label: 'Membre', value: `${newMember.user.tag} (${newMember.id})` },
+                    { label: 'Par', value: updatedBy },
+                    { label: 'Date', value: formatDate(now) },
+                ],
+                longText: { label: 'Rôles retirés', value: rolesInfo },
+                footerExtra: `ID: ${newMember.id}`,
+            });
         }
     });
 };

@@ -1,5 +1,6 @@
-const { EmbedBuilder, AuditLogEvent } = require('discord.js');
+const { AuditLogEvent } = require('discord.js');
 const { getConfig } = require('../config')
+const { sendLogCard } = require('../levels/logCard')
 
 module.exports = (client) => {
 
@@ -13,25 +14,21 @@ module.exports = (client) => {
         const executeur = entry?.executor;
         const raison    = entry?.reason ?? 'Aucune raison fournie';
 
-        const embed = new EmbedBuilder()
-            .setTitle('🔨 Membre banni')
-            .setColor(0x36393F)
-            .setAuthor({ name: user.username, iconURL: user.displayAvatarURL() })
-            .setThumbnail(user.displayAvatarURL())
-            .setDescription(
-                `👥 **Sanctionné :** <@${user.id}> (\`${user.username}\`)\n` +
-                `🛡️ **Sanctionné par :** <@${executeur?.id}> (\`${executeur?.username ?? 'Inconnu'}\`)\n` +
-                `🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n` +
-                `🏷️ **ID :** \`${user.id}\``
-            )
-            .addFields({ name: '📋 Motif', value: `\`\`\`${raison}\`\`\`` })
-            .setTimestamp()
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: guild.iconURL() ?? null });
-
         const config = await getConfig()
         const logSalon = guild.channels.cache.get(config.log_moderation);
         if (!logSalon) return console.error('❌ [BAN] Salon introuvable ! ID:', config.logs?.moderation);
-        await logSalon.send({ embeds: [embed] });
+        await sendLogCard(logSalon, {
+            title: 'Membre banni',
+            accent: '#ef4444',
+            avatarURL: user.displayAvatarURL(),
+            rows: [
+                { label: 'Sanctionné', value: `${user.tag ?? user.username} (${user.id})` },
+                { label: 'Sanctionné par', value: executeur ? `${executeur.tag ?? executeur.username}` : 'Inconnu' },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+            ],
+            longText: { label: 'Motif', value: raison },
+            footerExtra: `ID: ${user.id}`,
+        });
     });
 
     // ========== UNBAN ==========
@@ -43,24 +40,20 @@ module.exports = (client) => {
         const entry     = auditLogs?.entries.first();
         const executeur = entry?.executor;
 
-        const embed = new EmbedBuilder()
-            .setTitle('🔓 Membre débanni')
-            .setColor(0x36393F)
-            .setAuthor({ name: user.username, iconURL: user.displayAvatarURL() })
-            .setThumbnail(user.displayAvatarURL())
-            .setDescription(
-                `👥 **Débanni :** <@${user.id}> (\`${user.username}\`)\n` +
-                `🛡️ **Débanni par :** <@${executeur?.id}> (\`${executeur?.username ?? 'Inconnu'}\`)\n` +
-                `🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n` +
-                `🏷️ **ID :** \`${user.id}\``
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: guild.iconURL() ?? null });
-
         const config = await getConfig()
         const logSalon = guild.channels.cache.get(config.log_moderation);
         if (!logSalon) return console.error('❌ [UNBAN] Salon introuvable ! ID:', config.logs?.moderation);
-        await logSalon.send({ embeds: [embed] });
+        await sendLogCard(logSalon, {
+            title: 'Membre débanni',
+            accent: '#22c55e',
+            avatarURL: user.displayAvatarURL(),
+            rows: [
+                { label: 'Débanni', value: `${user.tag ?? user.username} (${user.id})` },
+                { label: 'Débanni par', value: executeur ? `${executeur.tag ?? executeur.username}` : 'Inconnu' },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+            ],
+            footerExtra: `ID: ${user.id}`,
+        });
     });
 
     // ========== KICK ==========
@@ -74,25 +67,21 @@ module.exports = (client) => {
         const executeur = entry.executor;
         const raison    = entry.reason ?? 'Aucune raison fournie';
 
-        const embed = new EmbedBuilder()
-            .setTitle('👢 Membre kické')
-            .setColor(0x36393F)
-            .setAuthor({ name: member.user.username, iconURL: member.user.displayAvatarURL() })
-            .setThumbnail(member.user.displayAvatarURL())
-            .setDescription(
-                `👥 **Sanctionné :** <@${member.id}> (\`${member.user.username}\`)\n` +
-                `🛡️ **Sanctionné par :** <@${executeur?.id}> (\`${executeur?.username ?? 'Inconnu'}\`)\n` +
-                `🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n` +
-                `🏷️ **ID :** \`${member.id}\``
-            )
-            .addFields({ name: '📋 Motif', value: `\`\`\`${raison}\`\`\`` })
-            .setTimestamp()
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: member.guild.iconURL() ?? null });
-
         const config = await getConfig()
-        const logSalon = member.guild.channels.cache.get(config.log_moderation); 
+        const logSalon = member.guild.channels.cache.get(config.log_moderation);
         if (!logSalon) return console.error('❌ [KICK] Salon introuvable ! ID:', config.logs?.moderation);
-        await logSalon.send({ embeds: [embed] });
+        await sendLogCard(logSalon, {
+            title: 'Membre kické',
+            accent: '#ef4444',
+            avatarURL: member.user.displayAvatarURL(),
+            rows: [
+                { label: 'Sanctionné', value: `${member.user.tag ?? member.user.username} (${member.id})` },
+                { label: 'Sanctionné par', value: executeur ? `${executeur.tag ?? executeur.username}` : 'Inconnu' },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+            ],
+            longText: { label: 'Motif', value: raison },
+            footerExtra: `ID: ${member.id}`,
+        });
     });
 
     // ========== TIMEOUT ==========
@@ -113,42 +102,32 @@ module.exports = (client) => {
             const executeur = entry?.executor;
             const raison    = entry?.reason ?? 'Aucune raison fournie';
 
-            await logSalon.send({
-                embeds: [new EmbedBuilder()
-                    .setTitle('🔇 Membre mis en timeout')
-                    .setColor(0x36393F)
-                    .setAuthor({ name: newMember.user.username, iconURL: newMember.user.displayAvatarURL() })
-                    .setThumbnail(newMember.user.displayAvatarURL())
-                    .setDescription(
-                        `👥 **Sanctionné :** <@${newMember.id}> (\`${newMember.user.username}\`)\n` +
-                        `🛡️ **Sanctionné par :** ${executeur ? `<@${executeur.id}> (\`${executeur.username}\`)` : '`Inconnu`'}\n` +
-                        `⏱️ **Fin du timeout :** <t:${Math.floor(isTimedOut.getTime() / 1000)}:F>\n` +
-                        `🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n` +
-                        `🏷️ **ID :** \`${newMember.id}\``
-                    )
-                    .addFields({ name: '📋 Motif', value: `\`\`\`${raison}\`\`\`` })
-                    .setTimestamp()
-                    .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: guild.iconURL() ?? null })
-                ]
+            await sendLogCard(logSalon, {
+                title: 'Membre mis en timeout',
+                accent: '#ef4444',
+                avatarURL: newMember.user.displayAvatarURL(),
+                rows: [
+                    { label: 'Sanctionné', value: `${newMember.user.tag ?? newMember.user.username} (${newMember.id})` },
+                    { label: 'Sanctionné par', value: executeur ? `${executeur.tag ?? executeur.username}` : 'Inconnu' },
+                    { label: 'Fin du timeout', value: isTimedOut.toLocaleString('fr-FR') },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                ],
+                longText: { label: 'Motif', value: raison },
+                footerExtra: `ID: ${newMember.id}`,
             }).catch(err => console.error('❌ [TIMEOUT] Erreur envoi:', err.message));
         }
 
         // Timeout retiré
         if (wasTimedOut && !isTimedOut) {
-            await logSalon.send({
-                embeds: [new EmbedBuilder()
-                    .setTitle('🔊 Timeout retiré')
-                    .setColor(0x36393F)
-                    .setAuthor({ name: newMember.user.username, iconURL: newMember.user.displayAvatarURL() })
-                    .setThumbnail(newMember.user.displayAvatarURL())
-                    .setDescription(
-                        `👥 **Membre :** <@${newMember.id}> (\`${newMember.user.username}\`)\n` +
-                        `🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n` +
-                        `🏷️ **ID :** \`${newMember.id}\``
-                    )
-                    .setTimestamp()
-                    .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: guild.iconURL() ?? null })
-                ]
+            await sendLogCard(logSalon, {
+                title: 'Timeout retiré',
+                accent: '#22c55e',
+                avatarURL: newMember.user.displayAvatarURL(),
+                rows: [
+                    { label: 'Membre', value: `${newMember.user.tag ?? newMember.user.username} (${newMember.id})` },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                ],
+                footerExtra: `ID: ${newMember.id}`,
             }).catch(err => console.error('❌ [TIMEOUT RETIRÉ] Erreur envoi:', err.message));
         }
     });

@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const { roles: permRoles } = require('../config.json');
 const { getConfig } = require('../config')
+const { sendLogCard } = require('../levels/logCard')
 
 // ========== WARNS JSON ==========
 const warnsPath = path.join(__dirname, '../warns.json');
@@ -156,19 +157,22 @@ module.exports = (client) => {
         const target = await interaction.guild.members.fetch(panelData.targetId).catch(() => null);
         const config = await getConfig();
         const logChannel = interaction.guild.channels.cache.get(config.log_moderation);
-        const footer = { text: 'Team Vortax © 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) };
 
         if (action === 'unmute') {
             if (!target) return interaction.editReply({ content: '❌ Membre introuvable.' });
             await target.timeout(null);
             await interaction.editReply({ content: `✅ **${target.user.tag}** n'est plus en timeout.` });
-            if (logChannel) await logChannel.send({ embeds: [new EmbedBuilder()
-                .setTitle('🔊 Timeout Retiré').setColor(0x36393F)
-                .setAuthor({ name: target.user.tag, iconURL: target.user.displayAvatarURL({ dynamic: true }) })
-                .setThumbnail(target.user.displayAvatarURL({ dynamic: true }))
-                .setDescription(`👥 **Membre :** <@${target.id}> (\`${target.user.tag}\`)\n🛡️ **Par :** <@${interaction.user.id}> (\`${interaction.user.tag}\`)\n🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n🏷️ **ID :** \`${target.id}\``)
-                .setTimestamp().setFooter(footer)
-            ]});
+            if (logChannel) await sendLogCard(logChannel, {
+                title: 'Timeout retiré',
+                accent: '#22c55e',
+                avatarURL: target.user.displayAvatarURL({ dynamic: true }),
+                rows: [
+                    { label: 'Membre', value: `${target.user.tag} (${target.id})` },
+                    { label: 'Par', value: `${interaction.user.tag}` },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                ],
+                footerExtra: `ID: ${target.id}`,
+            });
         }
 
         if (action === 'unban') {
@@ -193,7 +197,6 @@ module.exports = (client) => {
         const target     = await interaction.guild.members.fetch(targetId).catch(() => null);
         const config     = await getConfig();
         const logChannel = interaction.guild.channels.cache.get(config.log_moderation);
-        const footer     = { text: 'Team Vortax © 2024 - 2026', iconURL: interaction.guild.iconURL({ dynamic: true }) };
 
         // ========== BAN ==========
         if (action === 'ban') {
@@ -237,13 +240,18 @@ module.exports = (client) => {
                 .addFields({ name: '📋 Raison', value: `\`\`\`${raison}\`\`\`` }).setTimestamp()
             );
             await interaction.editReply({ content: `✅ **${target?.user.tag || targetId}** a reçu un warn. Raison : ${raison}` });
-            if (logChannel) await logChannel.send({ embeds: [new EmbedBuilder()
-                .setTitle('⚠️ Membre Warn').setColor(0x36393F)
-                .setAuthor({ name: target?.user.tag || targetId, iconURL: target?.user.displayAvatarURL({ dynamic: true }) })
-                .setThumbnail(target?.user.displayAvatarURL({ dynamic: true }))
-                .setDescription(`👥 **Sanctionné :** <@${targetId}> (\`${target?.user.tag || targetId}\`)\n🛡️ **Par :** <@${interaction.user.id}> (\`${interaction.user.tag}\`)\n🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n🏷️ **ID :** \`${targetId}\``)
-                .addFields({ name: '📋 Motif', value: `\`\`\`${raison}\`\`\`` }).setTimestamp().setFooter(footer)
-            ]});
+            if (logChannel) await sendLogCard(logChannel, {
+                title: 'Membre warn',
+                accent: '#ef4444',
+                avatarURL: target?.user.displayAvatarURL({ dynamic: true }),
+                rows: [
+                    { label: 'Sanctionné', value: `${target?.user.tag || targetId} (${targetId})` },
+                    { label: 'Par', value: `${interaction.user.tag}` },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                ],
+                longText: { label: 'Motif', value: raison },
+                footerExtra: `ID: ${targetId}`,
+            });
         }
 
         // ========== UNWARN ==========
@@ -252,12 +260,18 @@ module.exports = (client) => {
             const warns  = getWarns();
             if (warns[targetId]?.length > 0) { warns[targetId].pop(); saveWarns(warns); }
             await interaction.editReply({ content: `✅ Dernier warn de **${target?.user.tag || targetId}** retiré. Raison : ${raison}` });
-            if (logChannel) await logChannel.send({ embeds: [new EmbedBuilder()
-                .setTitle('🗑️ Warn Retiré').setColor(0x36393F)
-                .setAuthor({ name: target?.user.tag || targetId, iconURL: target?.user.displayAvatarURL({ dynamic: true }) })
-                .setDescription(`👥 **Membre :** <@${targetId}> (\`${target?.user.tag || targetId}\`)\n🛡️ **Par :** <@${interaction.user.id}> (\`${interaction.user.tag}\`)\n🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n🏷️ **ID :** \`${targetId}\``)
-                .addFields({ name: '📋 Motif', value: `\`\`\`${raison}\`\`\`` }).setTimestamp().setFooter(footer)
-            ]});
+            if (logChannel) await sendLogCard(logChannel, {
+                title: 'Warn retiré',
+                accent: '#22c55e',
+                avatarURL: target?.user.displayAvatarURL({ dynamic: true }),
+                rows: [
+                    { label: 'Membre', value: `${target?.user.tag || targetId} (${targetId})` },
+                    { label: 'Par', value: `${interaction.user.tag}` },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                ],
+                longText: { label: 'Motif', value: raison },
+                footerExtra: `ID: ${targetId}`,
+            });
         }
 
         // ========== MUTE ==========
@@ -284,13 +298,19 @@ module.exports = (client) => {
             );
             await target.timeout(dureeMs, raison);
             await interaction.editReply({ content: `✅ **${target.user.tag}** a été mis en timeout pour **${dureeStr}**. Raison : ${raison}` });
-            if (logChannel) await logChannel.send({ embeds: [new EmbedBuilder()
-                .setTitle('🔇 Membre Timeout').setColor(0x36393F)
-                .setAuthor({ name: target.user.tag, iconURL: target.user.displayAvatarURL({ dynamic: true }) })
-                .setThumbnail(target.user.displayAvatarURL({ dynamic: true }))
-                .setDescription(`👥 **Sanctionné :** <@${target.id}> (\`${target.user.tag}\`)\n🛡️ **Par :** <@${interaction.user.id}> (\`${interaction.user.tag}\`)\n⏳ **Durée :** ${dureeStr}\n🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n🏷️ **ID :** \`${target.id}\``)
-                .addFields({ name: '📋 Motif', value: `\`\`\`${raison}\`\`\`` }).setTimestamp().setFooter(footer)
-            ]});
+            if (logChannel) await sendLogCard(logChannel, {
+                title: 'Membre mis en timeout',
+                accent: '#ef4444',
+                avatarURL: target.user.displayAvatarURL({ dynamic: true }),
+                rows: [
+                    { label: 'Sanctionné', value: `${target.user.tag} (${target.id})` },
+                    { label: 'Par', value: `${interaction.user.tag}` },
+                    { label: 'Durée', value: dureeStr },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                ],
+                longText: { label: 'Motif', value: raison },
+                footerExtra: `ID: ${target.id}`,
+            });
         }
     });
 };

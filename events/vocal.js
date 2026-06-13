@@ -1,5 +1,6 @@
-const { Events, EmbedBuilder } = require('discord.js');
+const { Events } = require('discord.js');
 const { getConfig } = require('../config')
+const { sendLogCard } = require('../levels/logCard')
 
 module.exports = (client) => {
 
@@ -12,6 +13,8 @@ module.exports = (client) => {
 
         const member = newState.member;
         const now = new Date();
+        const guild = newState.guild;
+        const channelName = (id) => guild.channels.cache.get(id)?.name ?? id;
 
         const formatDate = (date) =>
             date.toLocaleString('fr-FR', {
@@ -23,148 +26,60 @@ module.exports = (client) => {
                 minute: '2-digit',
             });
 
-        const footer = {
-            text: `Team Vortax © 2024 - 2026`,
-            iconURL: newState.guild.iconURL({ dynamic: true }),
-        };
+        const card = (title, rows) => sendLogCard(logChannel, {
+            title,
+            accent: '#a855f7',
+            avatarURL: member.user.displayAvatarURL({ dynamic: true, size: 128 }),
+            rows: [
+                { label: 'Membre', value: `${member.user.tag} (${member.id})` },
+                ...rows,
+                { label: 'Date', value: formatDate(now) },
+            ],
+            footerExtra: `ID: ${member.id}`,
+        });
 
         // ========== REJOINT UN SALON VOCAL ==========
         if (!oldState.channelId && newState.channelId) {
-            const embed = new EmbedBuilder()
-                .setTitle('🔊 Salon Vocal Rejoint')
-                .setColor(0x2b2d31)
-                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 128 }))
-                .addFields({
-                    name: '\u200b',
-                    value: [
-                        `🧑 **Membre :** <@${member.id}> (${member.id})`,
-                        `🔊 **Salon rejoint :** <#${newState.channelId}> (${newState.channelId})`,
-                        `📅 **Date :** ${formatDate(now)}`,
-                    ].join('\n'),
-                })
-                .setFooter(footer)
-                .setTimestamp(now);
-
-            await logChannel.send({ embeds: [embed] });
+            await card('Salon vocal rejoint', [
+                { label: 'Salon rejoint', value: `#${channelName(newState.channelId)}` },
+            ]);
 
         // ========== QUITTE UN SALON VOCAL ==========
         } else if (oldState.channelId && !newState.channelId) {
-            const embed = new EmbedBuilder()
-                .setTitle('🔇 Salon Vocal Quitté')
-                .setColor(0x2b2d31)
-                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 128 }))
-                .addFields({
-                    name: '\u200b',
-                    value: [
-                        `🧑 **Membre :** <@${member.id}> (${member.id})`,
-                        `🔇 **Salon quitté :** <#${oldState.channelId}> (${oldState.channelId})`,
-                        `📅 **Date :** ${formatDate(now)}`,
-                    ].join('\n'),
-                })
-                .setFooter(footer)
-                .setTimestamp(now);
-
-            await logChannel.send({ embeds: [embed] });
+            await card('Salon vocal quitté', [
+                { label: 'Salon quitté', value: `#${channelName(oldState.channelId)}` },
+            ]);
 
         // ========== CHANGE DE SALON VOCAL ==========
         } else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
-            const embed = new EmbedBuilder()
-                .setTitle('🔀 Changement de Salon Vocal')
-                .setColor(0x2b2d31)
-                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 128 }))
-                .addFields({
-                    name: '\u200b',
-                    value: [
-                        `🧑 **Membre :** <@${member.id}> (${member.id})`,
-                        `🔇 **Ancien salon :** <#${oldState.channelId}> (${oldState.channelId})`,
-                        `🔊 **Nouveau salon :** <#${newState.channelId}> (${newState.channelId})`,
-                        `📅 **Date :** ${formatDate(now)}`,
-                    ].join('\n'),
-                })
-                .setFooter(footer)
-                .setTimestamp(now);
-
-            await logChannel.send({ embeds: [embed] });
+            await card('Changement de salon vocal', [
+                { label: 'Ancien salon', value: `#${channelName(oldState.channelId)}` },
+                { label: 'Nouveau salon', value: `#${channelName(newState.channelId)}` },
+            ]);
 
         // ========== MICRO COUPÉ / ACTIVÉ (soi-même) ==========
         } else if (oldState.selfMute !== newState.selfMute && newState.channelId) {
-            const title = newState.selfMute ? '🔇 Micro Coupé' : '🎤 Micro Activé';
-            const embed = new EmbedBuilder()
-                .setTitle(title)
-                .setColor(0x2b2d31)
-                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 128 }))
-                .addFields({
-                    name: '\u200b',
-                    value: [
-                        `🧑 **Membre :** <@${member.id}> (${member.id})`,
-                        `🔊 **Salon :** <#${newState.channelId}> (${newState.channelId})`,
-                        `📅 **Date :** ${formatDate(now)}`,
-                    ].join('\n'),
-                })
-                .setFooter(footer)
-                .setTimestamp(now);
-
-            await logChannel.send({ embeds: [embed] });
+            await card(newState.selfMute ? 'Micro coupé' : 'Micro activé', [
+                { label: 'Salon', value: `#${channelName(newState.channelId)}` },
+            ]);
 
         // ========== MICRO MUTE SUR LE SERVEUR (par un modo) ==========
         } else if (oldState.serverMute !== newState.serverMute && newState.channelId) {
-            const title = newState.serverMute ? '📵 Micro Mute sur le Serveur' : '🎤 Micro Mute Levé';
-            const embed = new EmbedBuilder()
-                .setTitle(title)
-                .setColor(0x2b2d31)
-                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 128 }))
-                .addFields({
-                    name: '\u200b',
-                    value: [
-                        `🧑 **Membre :** <@${member.id}> (${member.id})`,
-                        `🔊 **Salon :** <#${newState.channelId}> (${newState.channelId})`,
-                        `📅 **Date :** ${formatDate(now)}`,
-                    ].join('\n'),
-                })
-                .setFooter(footer)
-                .setTimestamp(now);
-
-            await logChannel.send({ embeds: [embed] });
+            await card(newState.serverMute ? 'Micro mute sur le serveur' : 'Micro mute levé', [
+                { label: 'Salon', value: `#${channelName(newState.channelId)}` },
+            ]);
 
         // ========== MUTE CASQUE (soi-même) ==========
         } else if (oldState.selfDeaf !== newState.selfDeaf && newState.channelId) {
-            const title = newState.selfDeaf ? '🎧 Mute Casque Activé' : '🎧 Mute Casque Désactivé';
-            const embed = new EmbedBuilder()
-                .setTitle(title)
-                .setColor(0x2b2d31)
-                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 128 }))
-                .addFields({
-                    name: '\u200b',
-                    value: [
-                        `🧑 **Membre :** <@${member.id}> (${member.id})`,
-                        `🔊 **Salon :** <#${newState.channelId}> (${newState.channelId})`,
-                        `📅 **Date :** ${formatDate(now)}`,
-                    ].join('\n'),
-                })
-                .setFooter(footer)
-                .setTimestamp(now);
-
-            await logChannel.send({ embeds: [embed] });
+            await card(newState.selfDeaf ? 'Mute casque activé' : 'Mute casque désactivé', [
+                { label: 'Salon', value: `#${channelName(newState.channelId)}` },
+            ]);
 
         // ========== MIS EN SOURDINE SUR LE SERVEUR (par un modo) ==========
         } else if (oldState.serverDeaf !== newState.serverDeaf && newState.channelId) {
-            const title = newState.serverDeaf ? '📵 Mis en Sourdine sur le Serveur' : '🔊 Sourdine Serveur Levée';
-            const embed = new EmbedBuilder()
-                .setTitle(title)
-                .setColor(0x2b2d31)
-                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 128 }))
-                .addFields({
-                    name: '\u200b',
-                    value: [
-                        `🧑 **Membre :** <@${member.id}> (${member.id})`,
-                        `🔊 **Salon :** <#${newState.channelId}> (${newState.channelId})`,
-                        `📅 **Date :** ${formatDate(now)}`,
-                    ].join('\n'),
-                })
-                .setFooter(footer)
-                .setTimestamp(now);
-
-            await logChannel.send({ embeds: [embed] });
+            await card(newState.serverDeaf ? 'Mis en sourdine sur le serveur' : 'Sourdine serveur levée', [
+                { label: 'Salon', value: `#${channelName(newState.channelId)}` },
+            ]);
         }
     });
 

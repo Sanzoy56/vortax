@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { sendLogCard } = require('../levels/logCard');
 
 async function getConfig() {
   try {
@@ -56,21 +57,19 @@ async function appliquerSanction(member, guild, message, sanction, raison, logSa
       await SANCTIONS[sanction]?.(member, guild)
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle('🛡️ Automod')
-      .setColor(0x36393F)
-      .setAuthor({ name: message.author.tag, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
-      .setDescription(
-        `👥 **Membre :** <@${message.author.id}>\n` +
-        `📋 **Raison :** ${raison}\n` +
-        `⚖️ **Sanction :** ${SANCTION_LABELS[sanction] || sanction}\n` +
-        `💬 **Salon :** <#${message.channel.id}>\n` +
-        `🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>`
-      )
-      .setTimestamp()
-      .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: guild.iconURL() ?? null })
-
-    if (logSalon) await logSalon.send({ embeds: [embed] })
+    if (logSalon) await sendLogCard(logSalon, {
+      title: 'Automod',
+      accent: '#f97316',
+      avatarURL: message.author.displayAvatarURL({ dynamic: true }),
+      rows: [
+        { label: 'Membre', value: `${message.author.tag} (${message.author.id})` },
+        { label: 'Sanction', value: SANCTION_LABELS[sanction] || sanction },
+        { label: 'Salon', value: `#${message.channel.name}` },
+        { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+      ],
+      longText: { label: 'Raison', value: raison },
+      footerExtra: `ID: ${message.author.id}`,
+    })
 
     const DM_CONFIGS = {
       timeout_1h:  { title: '🔇 Vous avez été mis en timeout', color: 0x5865F2, desc: `Vous avez été mis en timeout sur **${guild.name}**.`, dur: '1 heure',   ms: 60 * 60 * 1000 },

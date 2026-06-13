@@ -5,6 +5,7 @@
 // ════════════════════════════════════════════════════════════
 
 const { EmbedBuilder, PermissionFlagsBits, GuildVerificationLevel, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { sendLogCard } = require('../levels/logCard');
 
 const DASHBOARD_URL  = 'https://vtx-bot.alwaysdata.net';
 const PUSH_SECRET    = 'vtx-stats-secret-2024';
@@ -95,9 +96,9 @@ function isNewAccount(member) {
   return ageDays < CFG.NEW_ACCOUNT_DAYS;
 }
 
-async function sendAlert(guild, embed) {
+async function sendAlert(guild, opts) {
   const ch = await logChannel(guild);
-  if (ch) ch.send({ embeds: [embed] }).catch(() => {});
+  if (ch) sendLogCard(ch, opts).catch(() => {});
 }
 
 async function banMember(member, reason) {
@@ -128,9 +129,16 @@ async function onMemberAdd(member) {
     if (raidMode) {
       // En mode raid : auto-ban direct
       await banMember(member, CFG.BAN_REASON + ' (nouveau compte)');
-      await sendAlert(guild, new EmbedBuilder()
-        .setColor(0xef4444)
-        .setDescription(`🔨 **${member.user.tag}** auto-ban — compte créé il y a moins de **${CFG.NEW_ACCOUNT_DAYS}j** (mode raid actif)`));
+      await sendAlert(guild, {
+        title: 'Nouveau compte banni',
+        accent: '#ef4444',
+        avatarURL: member.user.displayAvatarURL(),
+        rows: [
+          { label: 'Membre', value: `${member.user.tag} (${member.id})` },
+          { label: 'Raison', value: `Compte créé il y a moins de ${CFG.NEW_ACCOUNT_DAYS}j (mode raid actif)` },
+        ],
+        footerExtra: `ID: ${member.id}`,
+      });
       return;
     }
   }
@@ -151,16 +159,15 @@ async function onMemberAdd(member) {
 
     try { await guild.setVerificationLevel(GuildVerificationLevel.VeryHigh); } catch {}
 
-    await sendAlert(guild, new EmbedBuilder()
-      .setColor(0xff0000)
-      .setTitle('🚨 RAID DÉTECTÉ — MODE LOCKDOWN ACTIVÉ')
-      .setDescription([
-        `**${window.length}** joins en moins de **${CFG.JOIN_WINDOW_MS/1000}s**`,
-        `Lockdown pour **${CFG.LOCKDOWN_MINUTES} minutes**`,
-        '',
-        `*${gladosLockdown()}*`,
-      ].join('\n'))
-      .setTimestamp());
+    await sendAlert(guild, {
+      title: 'Raid détecté — Lockdown activé',
+      accent: '#ff0000',
+      rows: [
+        { label: 'Joins détectés', value: `${window.length} en moins de ${CFG.JOIN_WINDOW_MS/1000}s` },
+        { label: 'Lockdown', value: `${CFG.LOCKDOWN_MINUTES} minutes` },
+      ],
+      longText: { label: 'Message', value: gladosLockdown() },
+    });
 
     // Ban tous les membres du flood
     for (const entry of window) {
@@ -172,9 +179,13 @@ async function onMemberAdd(member) {
     setTimeout(async () => {
       raidMode = false;
       try { await guild.setVerificationLevel(GuildVerificationLevel.Low); } catch {}
-      await sendAlert(guild, new EmbedBuilder()
-        .setColor(0x22c55e)
-        .setDescription(`✅ Mode raid désactivé — vérification revenue à la normale.`));
+      await sendAlert(guild, {
+        title: 'Mode raid désactivé',
+        accent: '#22c55e',
+        rows: [
+          { label: 'Statut', value: 'Vérification revenue à la normale' },
+        ],
+      });
     }, CFG.LOCKDOWN_MINUTES * 60_000);
   }
 }
@@ -221,17 +232,30 @@ async function checkAuditAndBan(guild, auditAction) {
     if (!member) {
       // Déjà parti — ban par ID directement
       await guild.bans.create(executor.id, { reason: '[Anti-Raid] Nuke détecté (audit log)' }).catch(() => {});
-      await sendAlert(guild, new EmbedBuilder()
-        .setColor(0xef4444)
-        .setDescription(`🔨 **${executor.tag}** banni (hors serveur) — nuke détecté via audit log`));
+      await sendAlert(guild, {
+        title: 'Membre banni (nuke détecté)',
+        accent: '#ef4444',
+        rows: [
+          { label: 'Membre', value: `${executor.tag} (${executor.id})` },
+          { label: 'Raison', value: 'Nuke détecté via audit log (hors serveur)' },
+        ],
+        footerExtra: `ID: ${executor.id}`,
+      });
       return;
     }
 
     const banned = await banMember(member, '[Anti-Raid] Nuke détecté (audit log)');
     if (banned) {
-      await sendAlert(guild, new EmbedBuilder()
-        .setColor(0xef4444)
-        .setDescription(`🔨 **${executor.tag}** banni — **${recent.length} suppressions en ${NUKE_CFG.WINDOW_MS/1000}s**${executor.bot ? ' *(bot/app)*' : ''}`));
+      await sendAlert(guild, {
+        title: 'Membre banni (nuke détecté)',
+        accent: '#ef4444',
+        avatarURL: executor.displayAvatarURL(),
+        rows: [
+          { label: 'Membre', value: `${executor.tag} (${executor.id})` },
+          { label: 'Suppressions', value: `${recent.length} en ${NUKE_CFG.WINDOW_MS/1000}s${executor.bot ? ' (bot/app)' : ''}` },
+        ],
+        footerExtra: `ID: ${executor.id}`,
+      });
       const fc = funChannel(guild);
       if (fc) fc.send(gladosRaid(executor.tag)).catch(() => {});
       pushRaidLog('ban', { userId: executor.id, tag: executor.tag, isBot: executor.bot, reason: 'Nuke détecté' });
@@ -261,9 +285,16 @@ async function onMessageSpam(message) {
     if (!member) return;
     const banned = await banMember(member, '[Anti-Raid] Spam détecté');
     if (banned) {
-      await sendAlert(message.guild, new EmbedBuilder()
-        .setColor(0xef4444)
-        .setDescription(`🔨 **${message.author.tag}** banni — **${times.length} messages en ${SPAM_CFG.MSG_WINDOW_MS/1000}s**${isBot ? ' *(bot/app)*' : ''}`));
+      await sendAlert(message.guild, {
+        title: 'Membre banni (spam détecté)',
+        accent: '#ef4444',
+        avatarURL: message.author.displayAvatarURL(),
+        rows: [
+          { label: 'Membre', value: `${message.author.tag} (${message.author.id})` },
+          { label: 'Messages', value: `${times.length} en ${SPAM_CFG.MSG_WINDOW_MS/1000}s${isBot ? ' (bot/app)' : ''}` },
+        ],
+        footerExtra: `ID: ${message.author.id}`,
+      });
       const fc = funChannel(message.guild);
       if (fc) fc.send(gladosRaid(message.author.tag)).catch(() => {});
     }

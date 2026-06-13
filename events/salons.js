@@ -1,14 +1,15 @@
-const { EmbedBuilder, AuditLogEvent, ChannelType } = require('discord.js');
+const { AuditLogEvent, ChannelType } = require('discord.js');
 const { getConfig } = require('../config')
+const { sendLogCard } = require('../levels/logCard')
 
 const getType = (type) => {
     const types = {
-        [ChannelType.GuildText]: '💬 Texte',
-        [ChannelType.GuildVoice]: '🔊 Vocal',
-        [ChannelType.GuildCategory]: '📁 Catégorie',
-        [ChannelType.GuildAnnouncement]: '📢 Annonce',
-        [ChannelType.GuildStageVoice]: '🎙️ Stage',
-        [ChannelType.GuildForum]: '💬 Forum',
+        [ChannelType.GuildText]: 'Texte',
+        [ChannelType.GuildVoice]: 'Vocal',
+        [ChannelType.GuildCategory]: 'Catégorie',
+        [ChannelType.GuildAnnouncement]: 'Annonce',
+        [ChannelType.GuildStageVoice]: 'Stage',
+        [ChannelType.GuildForum]: 'Forum',
     };
     return types[type] ?? 'Inconnu';
 };
@@ -16,9 +17,9 @@ const getType = (type) => {
 const getPermissions = (channel) => {
     const perms = new Set();
     channel.permissionOverwrites.cache.forEach(overwrite => {
-        overwrite.allow.toArray().forEach(perm => perms.add(`✅ ${perm}`));
+        overwrite.allow.toArray().forEach(perm => perms.add(perm));
     });
-    return perms.size > 0 ? [...perms].join('\n') : '✅ Public';
+    return perms.size > 0 ? [...perms].join(', ') : 'Public';
 };
 
 module.exports = (client) => {
@@ -31,25 +32,23 @@ module.exports = (client) => {
         const entry     = logs?.entries.first();
         const executeur = entry?.executor;
 
-        const embed = new EmbedBuilder()
-            .setTitle(`✅ Salon ${getType(channel.type)} créé`)
-            .setColor(0x36393F)
-            .setAuthor({ name: executeur?.username ?? 'Inconnu', iconURL: executeur?.displayAvatarURL() ?? null })
-            .setDescription(
-                `👥 **Auteur de la création :** <@${executeur?.id}> (\`${executeur?.username ?? 'Inconnu'}\`)\n` +
-                `🗓️ **Date de création :** <t:${Math.floor(Date.now() / 1000)}:F>\n` +
-                `🏷️ **ID du salon :** \`${channel.id}\`\n` +
-                `🔔 **Salon :** <#${channel.id}>\n` +
-                `📂 **Catégorie :** ${channel.parent ? `<#${channel.parent.id}>` : 'Aucune'}\n` +
-                `🔐 **Permissions :**\n${getPermissions(channel)}`
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: channel.guild.iconURL() ?? null });
-
         const config = await getConfig()
         const logSalon = channel.guild.channels.cache.get(config.log_salons);
         if (!logSalon) return;
-        await logSalon.send({ embeds: [embed] });
+
+        await sendLogCard(logSalon, {
+            title: `Salon ${getType(channel.type)} créé`,
+            accent: '#22c55e',
+            avatarURL: executeur?.displayAvatarURL(),
+            rows: [
+                { label: 'Auteur', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Salon', value: `#${channel.name}` },
+                { label: 'Catégorie', value: channel.parent?.name ?? 'Aucune' },
+            ],
+            longText: { label: 'Permissions', value: getPermissions(channel) },
+            footerExtra: `ID: ${channel.id}`,
+        });
     });
 
     // ========== SALON SUPPRIMÉ ==========
@@ -60,23 +59,22 @@ module.exports = (client) => {
         const entry     = logs?.entries.first();
         const executeur = entry?.executor;
 
-        const embed = new EmbedBuilder()
-            .setTitle(`🛑 Salon ${getType(channel.type)} supprimé`)
-            .setColor(0x36393F)
-            .setAuthor({ name: executeur?.username ?? 'Inconnu', iconURL: executeur?.displayAvatarURL() ?? null })
-            .setDescription(
-                `👥 **Auteur de la suppression :** <@${executeur?.id}> (\`${executeur?.username ?? 'Inconnu'}\`)\n` +
-                `🗓️ **Date de suppression :** <t:${Math.floor(Date.now() / 1000)}:F>\n` +
-                `🏷️ **ID du salon :** \`${channel.id}\`\n` +
-                `📂 **Catégorie :** \`${channel.parent?.name ?? 'Aucune'}\``
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: channel.guild.iconURL() ?? null });
-
         const config = await getConfig()
         const logSalon = channel.guild.channels.cache.get(config.log_salons);
         if (!logSalon) return;
-        await logSalon.send({ embeds: [embed] });
+
+        await sendLogCard(logSalon, {
+            title: `Salon ${getType(channel.type)} supprimé`,
+            accent: '#ef4444',
+            avatarURL: executeur?.displayAvatarURL(),
+            rows: [
+                { label: 'Auteur', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Salon', value: `#${channel.name}` },
+                { label: 'Catégorie', value: channel.parent?.name ?? 'Aucune' },
+            ],
+            footerExtra: `ID: ${channel.id}`,
+        });
     });
 
     // ========== SALON MODIFIÉ ==========
@@ -90,36 +88,34 @@ module.exports = (client) => {
 
         const changements = [];
         if (oldChannel.name !== newChannel.name)
-            changements.push(`📝 **Nom :** \`${oldChannel.name}\` → \`${newChannel.name}\``);
+            changements.push(`Nom : ${oldChannel.name} → ${newChannel.name}`);
         if (oldChannel.topic !== newChannel.topic)
-            changements.push(`📝 **Sujet :** \`${oldChannel.topic ?? 'Aucun'}\` → \`${newChannel.topic ?? 'Aucun'}\``);
+            changements.push(`Sujet : ${oldChannel.topic ?? 'Aucun'} → ${newChannel.topic ?? 'Aucun'}`);
         if (oldChannel.nsfw !== newChannel.nsfw)
-            changements.push(`🔞 **NSFW :** \`${oldChannel.nsfw}\` → \`${newChannel.nsfw}\``);
+            changements.push(`NSFW : ${oldChannel.nsfw} → ${newChannel.nsfw}`);
         if (oldChannel.rateLimitPerUser !== newChannel.rateLimitPerUser)
-            changements.push(`⏱️ **Slowmode :** \`${oldChannel.rateLimitPerUser}s\` → \`${newChannel.rateLimitPerUser}s\``);
+            changements.push(`Slowmode : ${oldChannel.rateLimitPerUser}s → ${newChannel.rateLimitPerUser}s`);
         if (oldChannel.parent?.id !== newChannel.parent?.id)
-            changements.push(`📂 **Catégorie :** \`${oldChannel.parent?.name ?? 'Aucune'}\` → \`${newChannel.parent?.name ?? 'Aucune'}\``);
+            changements.push(`Catégorie : ${oldChannel.parent?.name ?? 'Aucune'} → ${newChannel.parent?.name ?? 'Aucune'}`);
 
         if (changements.length === 0) return;
-
-        const embed = new EmbedBuilder()
-            .setTitle(`✏️ Salon ${getType(newChannel.type)} modifié`)
-            .setColor(0x36393F)
-            .setAuthor({ name: executeur?.username ?? 'Inconnu', iconURL: executeur?.displayAvatarURL() ?? null })
-            .setDescription(
-                `👥 **Modifié par :** <@${executeur?.id}> (\`${executeur?.username ?? 'Inconnu'}\`)\n` +
-                `🗓️ **Date :** <t:${Math.floor(Date.now() / 1000)}:F>\n` +
-                `🏷️ **ID du salon :** \`${newChannel.id}\`\n` +
-                `🔔 **Salon :** <#${newChannel.id}>\n` +
-                `📂 **Catégorie :** ${newChannel.parent ? `<#${newChannel.parent.id}>` : 'Aucune'}\n\n` +
-                `**Changements :**\n${changements.join('\n')}`
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: newChannel.guild.iconURL() ?? null });
 
         const config = await getConfig()
         const logSalon = newChannel.guild.channels.cache.get(config.log_salons);
         if (!logSalon) return;
-        await logSalon.send({ embeds: [embed] });
+
+        await sendLogCard(logSalon, {
+            title: `Salon ${getType(newChannel.type)} modifié`,
+            accent: '#3b82f6',
+            avatarURL: executeur?.displayAvatarURL(),
+            rows: [
+                { label: 'Modifié par', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Salon', value: `#${newChannel.name}` },
+                { label: 'Catégorie', value: newChannel.parent?.name ?? 'Aucune' },
+            ],
+            longText: { label: 'Changements', value: changements.join('\n') },
+            footerExtra: `ID: ${newChannel.id}`,
+        });
     });
 };

@@ -1,5 +1,6 @@
-const { Events, EmbedBuilder, AuditLogEvent } = require('discord.js');
+const { Events, AuditLogEvent } = require('discord.js');
 const { getConfig } = require('../config')
+const { sendLogCard } = require('../levels/logCard')
 
 // Cache local : stocke les messages récents pour les retrouver en cas de suppression
 // même s'ils ne sont plus dans le cache Discord.js (redémarrage, eviction)
@@ -48,28 +49,23 @@ module.exports = (client) => {
                 year: 'numeric', hour: '2-digit', minute: '2-digit',
             });
 
-        const embed = new EmbedBuilder()
-            .setTitle('📋 Message Modifié')
-            .setColor(0x2b2d31)
-            .setThumbnail(newMessage.author.displayAvatarURL({ dynamic: true, size: 128 }))
-            .addFields(
-                {
-                    name: '\u200b',
-                    value: [
-                        `🧑 **Auteur :** <@${newMessage.author.id}> (${newMessage.author.id})`,
-                        `💬 **Salon :** <#${newMessage.channelId}> (${newMessage.channelId})`,
-                        `📅 **Date de création du message :** ${formatDate(createdAt)}`,
-                        `🕐 **Heure de modification :** ${formatDate(editedAt)}`,
-                        `⏳ **Durée avant modification :** ${delaySeconds} seconde(s)`,
-                    ].join('\n'),
-                },
-                { name: '🖊️ Ancien message :', value: `\`\`\`\n${oldMessage.content.slice(0, 1000) || '(vide)'}\n\`\`\`` },
-                { name: '🔄 Nouveau message :', value: `\`\`\`\n${newMessage.content.slice(0, 1000) || '(vide)'}\n\`\`\`` },
-            )
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: newMessage.guild.iconURL({ dynamic: true }) })
-            .setTimestamp(editedAt);
-
-        await logChannel.send({ embeds: [embed] });
+        await sendLogCard(logChannel, {
+            title: 'Message modifié',
+            accent: '#3b82f6',
+            avatarURL: newMessage.author.displayAvatarURL({ dynamic: true, size: 128 }),
+            rows: [
+                { label: 'Auteur', value: `${newMessage.author.tag} (${newMessage.author.id})` },
+                { label: 'Salon', value: `#${newMessage.channel?.name ?? newMessage.channelId}` },
+                { label: 'Créé le', value: formatDate(createdAt) },
+                { label: 'Modifié le', value: formatDate(editedAt) },
+                { label: 'Délai', value: `${delaySeconds} seconde(s)` },
+            ],
+            longText: {
+                label: 'Modification',
+                value: `Avant : ${oldMessage.content.slice(0, 300) || '(vide)'}\nAprès : ${newMessage.content.slice(0, 300) || '(vide)'}`,
+            },
+            footerExtra: `ID: ${newMessage.author.id}`,
+        });
     });
 
     // ========== MESSAGE SUPPRIMÉ ==========
@@ -85,7 +81,6 @@ module.exports = (client) => {
             const logChannel = message.guild?.channels.cache.get(config.log_messages);
             if (!logChannel) return;
 
-            const deletedAt = new Date();
             let deletedBy = 'Inconnu';
             try {
                 const fetchedLogs = await message.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MessageDelete });
@@ -95,22 +90,16 @@ module.exports = (client) => {
                 }
             } catch {}
 
-            const embed = new EmbedBuilder()
-                .setTitle('🗑️ Message Supprimé')
-                .setColor(0x2b2d31)
-                .addFields({
-                    name: '\u200b',
-                    value: [
-                        `💬 **Salon :** <#${message.channelId}> (${message.channelId})`,
-                        `🕐 **Heure de suppression :** ${new Date().toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
-                        `🔧 **Supprimé par :** ${deletedBy}`,
-                        `⚠️ **Contenu :** Message non mis en cache (trop ancien ou hors cache)`,
-                    ].join('\n'),
-                })
-                .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: message.guild.iconURL({ dynamic: true }) })
-                .setTimestamp();
-
-            return logChannel.send({ embeds: [embed] });
+            return sendLogCard(logChannel, {
+                title: 'Message supprimé',
+                accent: '#ef4444',
+                rows: [
+                    { label: 'Salon', value: `#${message.channel?.name ?? message.channelId}` },
+                    { label: 'Heure de suppression', value: new Date().toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+                    { label: 'Supprimé par', value: deletedBy },
+                ],
+                longText: { label: 'Contenu', value: 'Message non mis en cache (trop ancien ou hors cache)' },
+            });
         }
 
         const config = await getConfig()
@@ -130,7 +119,7 @@ module.exports = (client) => {
         const createdAt    = message.createdAt       ?? cached?.createdAt;
 
         const auteurDisplay = authorId
-            ? `<@${authorId}> (${authorId})${message.author?.bot ? ' 🤖' : ''}`
+            ? `${authorTag ?? authorId} (${authorId})${message.author?.bot ? ' [bot]' : ''}`
             : 'Inconnu';
 
         let deletedBy = 'Inconnu';
@@ -149,27 +138,19 @@ module.exports = (client) => {
             || (message.attachments?.size || cached?.attachments ? '(fichier)' : '')
             || '(vide)';
 
-        const embed = new EmbedBuilder()
-            .setTitle('🗑️ Message Supprimé')
-            .setColor(0x2b2d31)
-            .addFields(
-                {
-                    name: '\u200b',
-                    value: [
-                        `🧑 **Auteur :** ${auteurDisplay}`,
-                        `💬 **Salon :** <#${message.channelId}> (${message.channelId})`,
-                        `📅 **Date de création du message :** ${createdAt ? formatDate(createdAt) : 'Inconnue'}`,
-                        `🕐 **Heure de suppression :** ${formatDate(new Date())}`,
-                        `🔧 **Supprimé par :** ${deletedBy}`,
-                    ].join('\n'),
-                },
-                { name: '🗒️ Contenu du message :', value: `\`\`\`\n${contenu}\n\`\`\`` },
-            )
-            .setFooter({ text: 'Team Vortax © 2024 - 2026', iconURL: message.guild.iconURL({ dynamic: true }) })
-            .setTimestamp();
-
-        if (authorAvatar) embed.setThumbnail(authorAvatar);
-
-        await logChannel.send({ embeds: [embed] });
+        await sendLogCard(logChannel, {
+            title: 'Message supprimé',
+            accent: '#ef4444',
+            avatarURL: authorAvatar,
+            rows: [
+                { label: 'Auteur', value: auteurDisplay },
+                { label: 'Salon', value: `#${message.channel?.name ?? message.channelId}` },
+                { label: 'Créé le', value: createdAt ? formatDate(createdAt) : 'Inconnue' },
+                { label: 'Supprimé le', value: formatDate(new Date()) },
+                { label: 'Supprimé par', value: deletedBy },
+            ],
+            longText: { label: 'Contenu', value: contenu },
+            footerExtra: authorId ? `ID: ${authorId}` : undefined,
+        });
     });
 };

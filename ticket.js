@@ -3,6 +3,7 @@ const config = require('./config.json');
 const token = require('./token.json');
 
 const { getConfig } = require('./config')
+const { sendLogCard } = require('./levels/logCard')
 const discordTranscripts = require('discord-html-transcripts');
 
 // ========== HISTORIQUE IA ==========
@@ -63,17 +64,11 @@ const askGrok = async (history, ticketType) => {
 };
 
 // ========== HELPER LOG ACTION TICKET ==========
-const logTicket = async (guild, emoji, titre, couleur, fields) => {
+const logTicket = async (guild, title, accent, rows, longText) => {
   const cfg   = await getConfig();
   const salon = guild.channels.cache.get(cfg.log_tickets);
   if (!salon) return;
-  const embed = new EmbedBuilder()
-    .setTitle(`${emoji} ${titre}`)
-    .setColor(couleur)
-    .addFields(fields)
-    .setFooter({ text: 'Team Vortax — Tickets' })
-    .setTimestamp();
-  await salon.send({ embeds: [embed] }).catch(console.error);
+  await sendLogCard(salon, { title, accent, rows, longText, footerExtra: 'Tickets' }).catch(console.error);
 };
 
 module.exports = (client) => {
@@ -162,33 +157,30 @@ Il y a 3 catégories de tickets mis à votre disposition :
 
         const logsChannel = msgChannel.guild.channels.cache.get(cfg.log_transcripts);
         if (logsChannel) {
-          const logEmbed = new EmbedBuilder()
-            .setTitle('📄 Transcript de ticket')
-            .setColor(0x5865f2)
-            .addFields(
-              { name: '🎫 Ticket',       value: `\`${msgChannel.name}\``, inline: true },
-              { name: '🗑️ Supprimé par', value: `${message.member}`,      inline: true },
-              { name: '📅 Date',         value: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }), inline: true },
-            )
-            .setFooter({ text: 'Team Vortax — Système de tickets' })
-            .setTimestamp();
+          const fileMsg = await logsChannel.send({ files: [fichier] });
+          const fileUrl = fileMsg.attachments.first()?.url ?? null;
+          const components = fileUrl ? [new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setLabel('Voir le transcript').setStyle(ButtonStyle.Link).setURL(fileUrl)
+          )] : [];
 
-          const logMsg  = await logsChannel.send({ embeds: [logEmbed], files: [fichier] });
-          const fileUrl = logMsg.attachments.first()?.url ?? null;
-          if (fileUrl) {
-            const btnRow = new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setLabel('📄 Voir le transcript').setEmoji('🔗').setStyle(ButtonStyle.Link).setURL(fileUrl)
-            );
-            await logMsg.edit({ embeds: [logEmbed], components: [btnRow] });
-          }
+          await sendLogCard(logsChannel, {
+            title: 'Transcript de ticket',
+            accent: '#5865f2',
+            rows: [
+              { label: 'Ticket', value: msgChannel.name },
+              { label: 'Supprimé par', value: `${message.member.user.tag}` },
+              { label: 'Date', value: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+            ],
+            components,
+          }).catch(() => {});
         }
       } catch (err) {
         console.error('[Transcript] Erreur :', err);
       }
 
-      await logTicket(message.guild, '🗑️', 'Ticket supprimé', 0x992d22, [
-        { name: '🎫 Ticket',       value: `\`${msgChannel.name}\``, inline: true },
-        { name: '👤 Supprimé par', value: `${message.member}`,      inline: true },
+      await logTicket(message.guild, 'Ticket supprimé', '#ef4444', [
+        { label: 'Ticket', value: msgChannel.name },
+        { label: 'Supprimé par', value: `${message.member.user.tag}` },
       ]);
       pushTicket({ event: 'close', channelId: msgChannel.id, channelName: msgChannel.name, closedById: message.author.id, closedByName: message.author.username });
 
@@ -344,12 +336,11 @@ Il y a 3 catégories de tickets mis à votre disposition :
           await salon.send({ content: `${member} <@&${staffRoleId}>`, embeds: [ticketEmbed] });
           await interaction.editReply({ content: `✅ Ton ticket a été créé : ${salon}` });
 
-          await logTicket(guild, '📬', 'Ticket ouvert', 0x2ecc71, [
-            { name: '🎫 Ticket',     value: `\`${nomSalon}\``, inline: true },
-            { name: '👤 Ouvert par', value: `${member}`,        inline: true },
-            { name: '📂 Type',       value: typeTicket,          inline: true },
-            { name: '📝 Raison',     value: raison.length > 200 ? raison.slice(0, 200) + '...' : raison, inline: false },
-          ]);
+          await logTicket(guild, 'Ticket ouvert', '#22c55e', [
+            { label: 'Ticket', value: nomSalon },
+            { label: 'Ouvert par', value: `${member.user.tag}` },
+            { label: 'Type', value: typeTicket.replace(/^\S+\s/, '') },
+          ], { label: 'Raison', value: raison });
           pushTicket({ event: 'open', channelId: salon.id, channelName: nomSalon, creatorId: member.id, creatorName: member.user.username, type: typeTicket, reason: raison });
         } catch(e) {
           console.error('[Ticket] Erreur création :', e.message);
@@ -418,11 +409,10 @@ Il y a 3 catégories de tickets mis à votre disposition :
           await salon.send({ content: `⚠️ L'IA rencontre un problème. <@&${staffRoleId}> merci d'intervenir.` });
         }
 
-        await logTicket(guild, '🤖', 'Ticket IA ouvert', 0x5865f2, [
-          { name: '🎫 Ticket',     value: `\`${nomSalon}\``, inline: true },
-          { name: '👤 Ouvert par', value: `${member}`,        inline: true },
-          { name: '📝 Question',   value: raison.length > 200 ? raison.slice(0, 200) + '...' : raison, inline: false },
-        ]);
+        await logTicket(guild, 'Ticket IA ouvert', '#5865f2', [
+          { label: 'Ticket', value: nomSalon },
+          { label: 'Ouvert par', value: `${member.user.tag}` },
+        ], { label: 'Question', value: raison });
       }
     }
   });
