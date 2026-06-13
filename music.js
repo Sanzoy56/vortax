@@ -18,14 +18,10 @@ function createQueue(guild, voiceChannel, textChannel) {
     channelId: voiceChannel.id,
     guildId: guild.id,
     adapterCreator: guild.voiceAdapterCreator,
-    debug: true,
-    // Le handshake DAVE (chiffrement de bout en bout) provoque une boucle de
-    // reconnexion infinie (ready -> signalling -> connecting...) sur ce réseau
-    // (échange MLS qui n'aboutit jamais, socket IP discovery fermé). On le
-    // désactive : le bot n'a pas besoin du chiffrement E2EE pour jouer de la musique.
-    daveEncryption: false,
+    // NB: daveEncryption: false a été testé mais Discord ferme alors la
+    // connexion avec le code 4017 "E2EE/DAVE protocol required" — le
+    // protocole DAVE est obligatoire sur ce serveur, donc on le laisse activé.
   });
-  connection.on('debug', msg => console.log('[Musique][debug]', msg));
   const player = createAudioPlayer();
   connection.subscribe(player);
 
@@ -53,7 +49,7 @@ function createQueue(guild, voiceChannel, textChannel) {
   });
 
   player.on('stateChange', (oldState, newState) => {
-    console.log(`[Musique] Player: ${oldState.status} -> ${newState.status}`);
+    console.log(`[Musique] Player: ${oldState.status} -> ${newState.status} (connexion: ${connection.state.status})`);
   });
 
   connection.on('stateChange', (oldState, newState) => {

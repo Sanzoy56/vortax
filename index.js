@@ -1,6 +1,14 @@
 'use strict';
 require('dotenv').config();
 
+// ── Préférer IPv4 pour les résolutions DNS ──────────────────────────────
+// Sur certains réseaux (Freebox/IPv6 mal routé), la connexion WebSocket
+// vocale vers *.discord.media s'établit (Hello reçu) puis se ferme
+// immédiatement sans raison — symptôme classique d'une route IPv6 cassée.
+// Node 18+ utilise l'ordre "verbatim" du DNS (peut renvoyer l'IPv6 en
+// premier) ; on force IPv4 pour éviter ce problème.
+require('dns').setDefaultResultOrder('ipv4first');
+
 // ── Auto-install des dépendances manquantes ─────────────────────────────
 // Sur l'hébergement, le launcher fait un "git pull" + redémarrage sans
 // forcément lancer "npm install" entre les deux. Si un package du
