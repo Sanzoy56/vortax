@@ -37,7 +37,9 @@ function createQueue(guild, voiceChannel, textChannel) {
     channelId: voiceChannel.id,
     guildId: guild.id,
     adapterCreator: guild.voiceAdapterCreator,
+    debug: true,
   });
+  connection.on('debug', msg => console.log('[Musique][debug]', msg));
   const player = createAudioPlayer();
   connection.subscribe(player);
 

@@ -256,6 +256,22 @@ client.on('interactionCreate', async (interaction) => {
 // Ready
 // ───────────────────────────────────────────────────
 
+// ── Debug temporaire : suivi des reconnexions de shard ──────────────────
+// Permet de corréler une coupure de la connexion vocale avec une coupure
+// du shard Discord (cause possible du "signalling -> destroyed").
+client.on('shardDisconnect', (event, shardId) => {
+  console.log(`[Debug] Shard ${shardId} déconnecté (code ${event?.code})`);
+});
+client.on('shardReconnecting', shardId => {
+  console.log(`[Debug] Shard ${shardId} reconnexion...`);
+});
+client.on('shardResume', shardId => {
+  console.log(`[Debug] Shard ${shardId} résumé.`);
+});
+client.on('shardError', (error, shardId) => {
+  console.log(`[Debug] Shard ${shardId} erreur :`, error.message);
+});
+
 client.once('clientReady', () => {
   console.log(`✅ Connecté en tant que ${client.user.tag} — démarré le ${new Date().toLocaleString('fr-FR')}`);
 
