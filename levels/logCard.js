@@ -1,8 +1,9 @@
 'use strict';
 // Rendu générique "carte de log" (image canvas) pour remplacer les embeds
-// classiques des salons de logs (modération, antiraid, vocal, rôles, etc.).
-// Reprend l'esthétique des cartes de niveau (fond sombre, ligne dégradée or,
-// avatar circulaire) définie dans levels/canvas.js.
+// classiques des salons de logs (modération, antiraid, automod, joinleave,
+// messages, rôles, vocal, salons, tickets, panel...).
+// Reprend l'esthétique des cartes de niveau (fond sombre, halo coloré,
+// avatar à double anneau, ligne dégradée or) définie dans levels/canvas.js.
 const { createCanvas, loadImage, registerFont } = require('canvas');
 const path = require('path');
 const { AttachmentBuilder } = require('discord.js');
@@ -21,9 +22,10 @@ try {
 }
 
 const FONT = "'Noto Sans', sans-serif";
-const W = 720;
-const PAD = 24;
-const ACCENT_W = 6;
+const W = 760;
+const PAD = 26;
+const ACCENT_BAR_W = 5;
+const LABEL_W = 152;
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
@@ -54,6 +56,13 @@ function drawGoldLine(ctx, x, y, w) {
 }
 
 async function drawAvatar(ctx, avatarURL, cx, cy, r, ringColor) {
+  // Double anneau (halo + anneau plein), comme les cartes de niveau
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 8, 0, Math.PI * 2);
+  ctx.strokeStyle = ringColor + '40';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
   ctx.beginPath();
   ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
   ctx.strokeStyle = ringColor;
@@ -95,7 +104,7 @@ function truncate(ctx, text, maxWidth) {
 // à la ligne déjà présents. Limite à `maxLines` (avec "…" sur la dernière).
 function wrapText(ctx, text, maxWidth, maxLines) {
   const lines = [];
-  const paragraphs = sanitize(text).split('\n');
+  const paragraphs = String(text ?? '').trim().split('\n').map(p => p.replace(/[^\S\n]+/g, ' ').trim());
   for (const para of paragraphs) {
     const words = para.split(' ');
     let current = '';
@@ -137,11 +146,14 @@ function wrapText(ctx, text, maxWidth, maxLines) {
  * @returns {Promise<Buffer>}
  */
 async function renderLogCard({ title, accent = '#6b7280', avatarURL, rows = [], longText, footerExtra }) {
-  const HEADER_H = 90;
-  const ROW_H = 32;
-  const FOOTER_H = 50;
-  const LONGTEXT_LINE_H = 22;
+  const HEADER_H = 92;
+  const ROW_H = 34;
+  const FOOTER_H = 54;
+  const LONGTEXT_LINE_H = 21;
   const LONGTEXT_MAX_LINES = 6;
+
+  const contentX = PAD + ACCENT_BAR_W + 16;
+  const contentW = W - contentX - PAD;
 
   // Pré-calcul du nombre de lignes du bloc longText (canvas temporaire pour mesurer)
   let longTextLines = [];
@@ -149,12 +161,13 @@ async function renderLogCard({ title, accent = '#6b7280', avatarURL, rows = [], 
   if (longText?.value) {
     const measureCanvas = createCanvas(W, 10);
     const mctx = measureCanvas.getContext('2d');
-    mctx.font = `14px ${FONT}`;
-    longTextLines = wrapText(mctx, longText.value, W - PAD * 2 - ACCENT_W - 16, LONGTEXT_MAX_LINES);
-    longTextH = 28 + longTextLines.length * LONGTEXT_LINE_H + 12;
+    mctx.font = `13px ${FONT}`;
+    longTextLines = wrapText(mctx, longText.value, contentW - 32, LONGTEXT_MAX_LINES);
+    longTextH = 18 + 24 + longTextLines.length * LONGTEXT_LINE_H + 18 + 14;
   }
 
-  const H = HEADER_H + rows.length * ROW_H + longTextH + FOOTER_H + PAD;
+  const rowsH = rows.length * ROW_H;
+  const H = HEADER_H + rowsH + longTextH + FOOTER_H;
 
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
@@ -162,80 +175,143 @@ async function renderLogCard({ title, accent = '#6b7280', avatarURL, rows = [], 
   // Fond
   ctx.fillStyle = '#08080f';
   ctx.fillRect(0, 0, W, H);
-  roundRect(ctx, 0, 0, W, H, 14);
-  ctx.fillStyle = '#0e0e1c';
+  roundRect(ctx, 0, 0, W, H, 16);
+  ctx.fillStyle = '#0d0d20';
   ctx.fill();
-  roundRect(ctx, 0.5, 0.5, W - 1, H - 1, 14);
-  ctx.strokeStyle = '#1e1e45';
+
+  // Halo dégradé à la couleur d'accent (zone d'en-tête)
+  const glow = ctx.createLinearGradient(0, 0, W, 0);
+  glow.addColorStop(0, accent + '26');
+  glow.addColorStop(0.55, accent + '08');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  roundRect(ctx, 0, 0, W, H, 16);
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, HEADER_H + 30);
+  ctx.restore();
+
+  // Bordure
+  roundRect(ctx, 0.5, 0.5, W - 1, H - 1, 16);
+  ctx.strokeStyle = accent + '33';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Barre d'accent
-  roundRect(ctx, 0, 0, ACCENT_W + 8, H, 14);
-  ctx.save();
-  ctx.clip();
+  // Barre d'accent verticale
+  roundRect(ctx, 0, 0, ACCENT_BAR_W, H, ACCENT_BAR_W / 2);
   ctx.fillStyle = accent;
-  ctx.fillRect(0, 0, ACCENT_W, H);
-  ctx.restore();
+  ctx.fill();
 
-  const contentX = PAD + ACCENT_W;
-
-  // En-tête
+  // ===== En-tête =====
   let titleX = contentX;
+  const AV_R = 30;
+  const AV_CY = PAD + AV_R + 2;
   if (avatarURL) {
-    await drawAvatar(ctx, avatarURL, contentX + 28, PAD + 28, 28, accent);
-    titleX = contentX + 70;
+    await drawAvatar(ctx, avatarURL, contentX + AV_R, AV_CY, AV_R, accent);
+    titleX = contentX + AV_R * 2 + 22;
   }
-  ctx.fillStyle = '#e8e8f5';
-  ctx.font = `bold 22px ${FONT}`;
+
+  // Petite étiquette de marque, en haut à droite
+  ctx.font = `bold 11px ${FONT}`;
+  ctx.fillStyle = '#3a3a5a';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('VORTAX • LOGS', W - PAD, PAD - 2);
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = accent;
+  ctx.font = `bold 23px ${FONT}`;
   ctx.textBaseline = 'middle';
-  ctx.fillText(truncate(ctx, title, W - titleX - PAD), titleX, PAD + 28);
+  const titleMaxW = (W - PAD) - titleX;
+  ctx.fillText(truncate(ctx, title, titleMaxW), titleX, AV_CY - 2);
 
-  drawGoldLine(ctx, contentX, HEADER_H - 8, W - contentX - PAD);
+  ctx.textBaseline = 'alphabetic';
 
-  // Lignes d'info
-  let y = HEADER_H + ROW_H / 2;
-  for (const row of rows) {
-    ctx.font = `13px ${FONT}`;
-    ctx.fillStyle = '#8a8aa8';
-    ctx.fillText(sanitize(row.label), contentX, y);
-    const labelW = ctx.measureText(sanitize(row.label)).width;
+  drawGoldLine(ctx, contentX, HEADER_H - 6, contentW);
 
-    ctx.font = `14px ${FONT}`;
-    ctx.fillStyle = '#e8e8f5';
-    const valueX = contentX + labelW + 10;
-    ctx.fillText(truncate(ctx, row.value, W - valueX - PAD), valueX, y);
-
-    y += ROW_H;
-  }
-
-  // Bloc de texte long
-  if (longTextLines.length > 0) {
-    ctx.font = `13px ${FONT}`;
-    ctx.fillStyle = '#8a8aa8';
-    ctx.fillText(sanitize(longText.label), contentX, y);
-    y += 22;
-
-    ctx.font = `14px ${FONT}`;
-    ctx.fillStyle = '#c9c9dc';
-    for (const line of longTextLines) {
-      ctx.fillText(line, contentX, y);
-      y += LONGTEXT_LINE_H;
+  // ===== Lignes d'info (table zébrée) =====
+  let y = HEADER_H;
+  rows.forEach((row, i) => {
+    if (i % 2 === 1) {
+      roundRect(ctx, contentX - 10, y + 2, contentW + 10, ROW_H - 4, 8);
+      ctx.fillStyle = '#ffffff06';
+      ctx.fill();
     }
-    y += 12;
+
+    const rowY = y + ROW_H / 2;
+
+    ctx.font = `12px ${FONT}`;
+    ctx.fillStyle = '#7a7a9a';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(truncate(ctx, sanitize(row.label), LABEL_W - 12), contentX, rowY);
+
+    ctx.font = `14px ${FONT}`;
+    ctx.fillStyle = '#f0f0fa';
+    const valueX = contentX + LABEL_W;
+    ctx.fillText(truncate(ctx, row.value, contentW - LABEL_W), valueX, rowY);
+
+    ctx.textBaseline = 'alphabetic';
+    y += ROW_H;
+  });
+
+  // ===== Bloc de texte long =====
+  if (longTextLines.length > 0) {
+    const boxY = y + 8;
+    const boxH = longTextH - 8;
+    roundRect(ctx, contentX - 10, boxY, contentW + 10, boxH, 10);
+    ctx.fillStyle = '#08080f';
+    ctx.fill();
+    roundRect(ctx, contentX - 10, boxY, contentW + 10, boxH, 10);
+    ctx.strokeStyle = accent + '22';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.font = `bold 11px ${FONT}`;
+    ctx.fillStyle = accent;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sanitize(longText.label).toUpperCase(), contentX + 6, boxY + 18);
+
+    ctx.font = `13px ${FONT}`;
+    ctx.fillStyle = '#c9c9dc';
+    let ly = boxY + 18 + 24;
+    for (const line of longTextLines) {
+      ctx.fillText(line, contentX + 6, ly);
+      ly += LONGTEXT_LINE_H;
+    }
+    ctx.textBaseline = 'alphabetic';
+
+    y = boxY + boxH;
   }
 
-  // Pied de page
-  drawGoldLine(ctx, contentX, H - FOOTER_H + 6, W - contentX - PAD);
+  // ===== Pied de page =====
+  const footerY = H - FOOTER_H;
+  drawGoldLine(ctx, contentX, footerY + 8, contentW);
+
   ctx.font = `11px ${FONT}`;
-  ctx.fillStyle = '#5a5a7a';
-  const footerLeft = footerExtra ? `Team Vortax © 2024 - 2026  •  ${sanitize(footerExtra)}` : 'Team Vortax © 2024 - 2026';
-  ctx.fillText(footerLeft, contentX, H - FOOTER_H / 2 + 6);
+  ctx.fillStyle = '#4a4a6a';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Team Vortax © 2024 - 2026', contentX, footerY + FOOTER_H / 2 + 6);
+
+  if (footerExtra) {
+    const label = sanitize(footerExtra);
+    ctx.font = `bold 11px ${FONT}`;
+    const pillW = ctx.measureText(label).width + 20;
+    const pillX = contentX + ctx.measureText('Team Vortax © 2024 - 2026').width + 14;
+    const pillY = footerY + FOOTER_H / 2 - 4;
+    roundRect(ctx, pillX, pillY - 5, pillW, 18, 9);
+    ctx.fillStyle = accent + '1f';
+    ctx.fill();
+    ctx.fillStyle = accent;
+    ctx.fillText(label, pillX + 10, pillY + 5);
+  }
 
   const dateStr = new Date().toLocaleString('fr-FR');
+  ctx.font = `11px ${FONT}`;
+  ctx.fillStyle = '#4a4a6a';
   ctx.textAlign = 'right';
-  ctx.fillText(dateStr, W - PAD, H - FOOTER_H / 2 + 6);
+  ctx.fillText(dateStr, W - PAD, footerY + FOOTER_H / 2 + 6);
   ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
 
   return canvas.toBuffer('image/png');
 }
