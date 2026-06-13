@@ -721,13 +721,16 @@ module.exports = (client) => {
         const busy = busyElsewhere(music, guildId, voiceChannel);
         if (busy) return message.reply(`Je suis déjà occupé dans **${busy.name}**. Un seul vocal à la fois, ça devrait suffire à ta petite tête.`);
         try {
-          const isUrl = /^https?:\/\/\S+$/i.test(musicAction.query);
-          const result = isUrl
-            ? await music.playUrl(message.guild, voiceChannel, message.channel, musicAction.query)
+          // Si un lien est présent dans la demande (même mêlé à du texte), on le
+          // privilégie plutôt que de lancer une recherche texte qui risque de
+          // tomber sur une tout autre musique.
+          const urlMatch = musicAction.query.match(/https?:\/\/\S+/i);
+          const result = urlMatch
+            ? await music.playUrl(message.guild, voiceChannel, message.channel, urlMatch[0])
             : await music.playRequest(message.guild, voiceChannel, message.channel, musicAction.query);
 
           if (!result) {
-            if (isUrl) return message.reply(`Même ce lien est inutilisable. Bravo.`);
+            if (urlMatch) return message.reply(`Même ce lien est inutilisable. Bravo.`);
             pendingMusicLink.set(message.author.id, { expires: Date.now() + 3 * 60 * 1000 });
             return message.reply(`Je n'ai rien trouvé pour « ${musicAction.query} ». Envoie-moi un lien directement, si toutefois tu sais ce qu'est une URL.`);
           }
