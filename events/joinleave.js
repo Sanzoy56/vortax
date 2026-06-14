@@ -17,9 +17,9 @@ module.exports = (client) => {
             avatarURL: member.user.displayAvatarURL(),
             rows: [
                 { label: 'Membre', value: `${member.user.username} (${member.id})` },
-                { label: 'Compte créé le', value: new Date(member.user.createdTimestamp).toLocaleString('fr-FR') },
+                { label: 'Compte créé le', value: new Date(member.user.createdTimestamp).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 { label: 'Âge du compte', value: `${ageCompte} jours` },
-                { label: 'Arrivée le', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Arrivée le', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 { label: 'Membres', value: `${member.guild.memberCount}` },
             ],
             footerExtra: `ID: ${member.id}`,
@@ -44,7 +44,7 @@ module.exports = (client) => {
             avatarURL: member.user.displayAvatarURL(),
             rows: [
                 { label: 'Membre', value: `${member.user.username} (${member.id})` },
-                { label: 'Arrivé le', value: new Date(member.joinedTimestamp).toLocaleString('fr-FR') },
+                { label: 'Arrivé le', value: new Date(member.joinedTimestamp).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 { label: 'Durée sur le serveur', value: `${duree} jours` },
                 { label: 'Membres', value: `${member.guild.memberCount}` },
             ],

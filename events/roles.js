@@ -29,7 +29,7 @@ const formatPerms = (perms) =>
     perms.toArray().map(p => permissionNames[p] || p).join(', ') || 'Aucune';
 
 const formatDate = (date) =>
-    date.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    date.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 
 module.exports = (client) => {
 

@@ -42,7 +42,7 @@ module.exports = (client) => {
             avatarURL: executeur?.displayAvatarURL(),
             rows: [
                 { label: 'Auteur', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
-                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 { label: 'Salon', value: `#${channel.name}` },
                 { label: 'Catégorie', value: channel.parent?.name ?? 'Aucune' },
             ],
@@ -69,7 +69,7 @@ module.exports = (client) => {
             avatarURL: executeur?.displayAvatarURL(),
             rows: [
                 { label: 'Auteur', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
-                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 { label: 'Salon', value: `#${channel.name}` },
                 { label: 'Catégorie', value: channel.parent?.name ?? 'Aucune' },
             ],
@@ -110,7 +110,7 @@ module.exports = (client) => {
             avatarURL: executeur?.displayAvatarURL(),
             rows: [
                 { label: 'Modifié par', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
-                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 { label: 'Salon', value: `#${newChannel.name}` },
                 { label: 'Catégorie', value: newChannel.parent?.name ?? 'Aucune' },
             ],

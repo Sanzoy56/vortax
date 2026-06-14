@@ -125,7 +125,7 @@ async function sendEmergencyAlert(guild, deleted) {
   if (!ch) return;
 
   const backup  = loadBackup();
-  const backupInfo = backup ? `Sauvegarde du **${new Date(backup.savedAt).toLocaleDateString('fr-FR')}** — ${backup.channels.length} salons` : '❌ Aucune sauvegarde disponible';
+  const backupInfo = backup ? `Sauvegarde du **${new Date(backup.savedAt).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}** — ${backup.channels.length} salons` : '❌ Aucune sauvegarde disponible';
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('restore_yes').setLabel('✅ Restaurer les salons').setStyle(ButtonStyle.Success).setDisabled(!backup),
@@ -197,7 +197,7 @@ async function cmdRestore(msg) {
   );
   const m = await msg.reply({
     embeds: [new EmbedBuilder().setColor(0xf59e0b)
-      .setDescription(`⚠️ Restaurer **${backup.channels.length}** salons depuis la sauvegarde du **${new Date(backup.savedAt).toLocaleDateString('fr-FR')}** ?`)],
+      .setDescription(`⚠️ Restaurer **${backup.channels.length}** salons depuis la sauvegarde du **${new Date(backup.savedAt).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}** ?`)],
     components: [row],
   });
   const collector = m.createMessageComponentCollector({ time: 30_000 });

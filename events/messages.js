@@ -47,6 +47,7 @@ module.exports = (client) => {
             date.toLocaleString('fr-FR', {
                 weekday: 'long', day: '2-digit', month: 'long',
                 year: 'numeric', hour: '2-digit', minute: '2-digit',
+                timeZone: 'Europe/Paris',
             });
 
         await sendLogCard(logChannel, {
@@ -95,7 +96,7 @@ module.exports = (client) => {
                 accent: '#ef4444',
                 rows: [
                     { label: 'Salon', value: `#${message.channel?.name ?? message.channelId}` },
-                    { label: 'Heure de suppression', value: new Date().toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+                    { label: 'Heure de suppression', value: new Date().toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) },
                     { label: 'Supprimé par', value: deletedBy },
                 ],
                 longText: { label: 'Contenu', value: 'Message non mis en cache (trop ancien ou hors cache)' },
@@ -110,6 +111,7 @@ module.exports = (client) => {
             date.toLocaleString('fr-FR', {
                 weekday: 'long', day: '2-digit', month: 'long',
                 year: 'numeric', hour: '2-digit', minute: '2-digit',
+                timeZone: 'Europe/Paris',
             });
 
         // Priorité : données Discord.js > cache local

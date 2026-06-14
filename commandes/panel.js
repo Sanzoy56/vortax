@@ -106,8 +106,8 @@ module.exports = (client) => {
             .setThumbnail(target.user.displayAvatarURL({ dynamic: true, size: 128 }))
             .addFields({ name: '\u200b', value: [
                 `👤 **Membre :** <@${target.id}>`,
-                `📅 **Compte créé :** ${target.user.createdAt.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
-                `📥 **Rejoint le serveur :** ${target.joinedAt.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+                `📅 **Compte créé :** ${target.user.createdAt.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}`,
+                `📥 **Rejoint le serveur :** ${target.joinedAt.toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}`,
                 `🎭 **Rôles :** ${rolesListe}`,
                 `⚠️ **Warns :** ${userWarns.length}`,
             ].join('\n') })
@@ -169,7 +169,7 @@ module.exports = (client) => {
                 rows: [
                     { label: 'Membre', value: `${target.user.tag} (${target.id})` },
                     { label: 'Par', value: `${interaction.user.tag}` },
-                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 ],
                 footerExtra: `ID: ${target.id}`,
             });
@@ -247,7 +247,7 @@ module.exports = (client) => {
                 rows: [
                     { label: 'Sanctionné', value: `${target?.user.tag || targetId} (${targetId})` },
                     { label: 'Par', value: `${interaction.user.tag}` },
-                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 ],
                 longText: { label: 'Motif', value: raison },
                 footerExtra: `ID: ${targetId}`,
@@ -267,7 +267,7 @@ module.exports = (client) => {
                 rows: [
                     { label: 'Membre', value: `${target?.user.tag || targetId} (${targetId})` },
                     { label: 'Par', value: `${interaction.user.tag}` },
-                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 ],
                 longText: { label: 'Motif', value: raison },
                 footerExtra: `ID: ${targetId}`,
@@ -306,7 +306,7 @@ module.exports = (client) => {
                     { label: 'Sanctionné', value: `${target.user.tag} (${target.id})` },
                     { label: 'Par', value: `${interaction.user.tag}` },
                     { label: 'Durée', value: dureeStr },
-                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 ],
                 longText: { label: 'Motif', value: raison },
                 footerExtra: `ID: ${target.id}`,

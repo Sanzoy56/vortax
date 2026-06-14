@@ -169,7 +169,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
             rows: [
               { label: 'Ticket', value: msgChannel.name },
               { label: 'Supprimé par', value: `${message.member.user.tag}` },
-              { label: 'Date', value: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+              { label: 'Date', value: new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) },
             ],
             components,
           }).catch(() => {});
@@ -326,7 +326,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
           });
 
           const now       = new Date();
-          const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
           const ticketEmbed = new EmbedBuilder()
             .setTitle(typeTicket)
             .setDescription(`Salut ${member} ! Un <@&${staffRoleId}> va te répondre dans les minutes qui suivent !\nUtilise \`-delete\` pour supprimer le ticket (un transcript sera sauvegardé automatiquement).\n\n**Raison**\n\`\`\`${raison}\`\`\``)
@@ -364,7 +364,7 @@ Il y a 3 catégories de tickets mis à votre disposition :
         });
 
         const now       = new Date();
-        const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const dateHeure = now.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 
         const accueilEmbed = new EmbedBuilder()
           .setTitle('🤖 Assistance IA — Team Vortax')

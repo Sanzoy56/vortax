@@ -68,7 +68,7 @@ module.exports = (client) => {
         .setColor(0xff0000)
         .setAuthor({ name: data.author.tag, iconURL: data.author.displayAvatarURL({ dynamic: true }) })
         .setDescription(data.content)
-        .setFooter({ text: `Envoyé le ${data.createdAt.toLocaleString('fr-FR')}` });
+        .setFooter({ text: `Envoyé le ${data.createdAt.toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}` });
 
       if (data.attachment) embed.setImage(data.attachment);
       await interaction.reply({ embeds: [embed] });
@@ -87,7 +87,7 @@ module.exports = (client) => {
           { name: 'Avant', value: data.oldContent },
           { name: 'Après', value: `${data.newContent}\n[Voir le message](${data.url})` }
         )
-        .setFooter({ text: `Envoyé le ${data.createdAt.toLocaleString('fr-FR')}` });
+        .setFooter({ text: `Envoyé le ${data.createdAt.toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}` });
 
       await interaction.reply({ embeds: [embed] });
     }
@@ -148,7 +148,7 @@ module.exports = (client) => {
         .setColor(0xff0000)
         .setAuthor({ name: data.author.tag, iconURL: data.author.displayAvatarURL({ dynamic: true }) })
         .setDescription(data.content)
-        .setFooter({ text: `Envoyé le ${data.createdAt.toLocaleString('fr-FR')}` });
+        .setFooter({ text: `Envoyé le ${data.createdAt.toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}` });
 
       if (data.attachment) embed.setImage(data.attachment);
       await interaction.reply({ embeds: [embed] });
@@ -167,7 +167,7 @@ module.exports = (client) => {
           { name: 'Avant', value: data.oldContent },
           { name: 'Après', value: `${data.newContent}\n[Voir le message](${data.url})` }
         )
-        .setFooter({ text: `Envoyé le ${data.createdAt.toLocaleString('fr-FR')}` });
+        .setFooter({ text: `Envoyé le ${data.createdAt.toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}` });
 
       await interaction.reply({ embeds: [embed] });
     }

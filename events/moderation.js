@@ -24,7 +24,7 @@ module.exports = (client) => {
             rows: [
                 { label: 'Sanctionné', value: `${user.tag ?? user.username} (${user.id})` },
                 { label: 'Sanctionné par', value: executeur ? `${executeur.tag ?? executeur.username}` : 'Inconnu' },
-                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
             ],
             longText: { label: 'Motif', value: raison },
             footerExtra: `ID: ${user.id}`,
@@ -50,7 +50,7 @@ module.exports = (client) => {
             rows: [
                 { label: 'Débanni', value: `${user.tag ?? user.username} (${user.id})` },
                 { label: 'Débanni par', value: executeur ? `${executeur.tag ?? executeur.username}` : 'Inconnu' },
-                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
             ],
             footerExtra: `ID: ${user.id}`,
         });
@@ -77,7 +77,7 @@ module.exports = (client) => {
             rows: [
                 { label: 'Sanctionné', value: `${member.user.tag ?? member.user.username} (${member.id})` },
                 { label: 'Sanctionné par', value: executeur ? `${executeur.tag ?? executeur.username}` : 'Inconnu' },
-                { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
             ],
             longText: { label: 'Motif', value: raison },
             footerExtra: `ID: ${member.id}`,
@@ -109,8 +109,8 @@ module.exports = (client) => {
                 rows: [
                     { label: 'Sanctionné', value: `${newMember.user.tag ?? newMember.user.username} (${newMember.id})` },
                     { label: 'Sanctionné par', value: executeur ? `${executeur.tag ?? executeur.username}` : 'Inconnu' },
-                    { label: 'Fin du timeout', value: isTimedOut.toLocaleString('fr-FR') },
-                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                    { label: 'Fin du timeout', value: isTimedOut.toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 ],
                 longText: { label: 'Motif', value: raison },
                 footerExtra: `ID: ${newMember.id}`,
@@ -125,7 +125,7 @@ module.exports = (client) => {
                 avatarURL: newMember.user.displayAvatarURL(),
                 rows: [
                     { label: 'Membre', value: `${newMember.user.tag ?? newMember.user.username} (${newMember.id})` },
-                    { label: 'Date', value: new Date().toLocaleString('fr-FR') },
+                    { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 ],
                 footerExtra: `ID: ${newMember.id}`,
             }).catch(err => console.error('❌ [TIMEOUT RETIRÉ] Erreur envoi:', err.message));

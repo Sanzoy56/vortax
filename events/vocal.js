@@ -18,6 +18,7 @@ module.exports = (client) => {
 
         const formatDate = (date) =>
             date.toLocaleString('fr-FR', {
+                timeZone: 'Europe/Paris',
                 weekday: 'long',
                 day: '2-digit',
                 month: 'long',

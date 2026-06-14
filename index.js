@@ -283,7 +283,7 @@ client.on('shardError', (error, shardId) => {
 });
 
 client.once('clientReady', () => {
-  console.log(`✅ Connecté en tant que ${client.user.tag} — démarré le ${new Date().toLocaleString('fr-FR')}`);
+  console.log(`✅ Connecté en tant que ${client.user.tag} — démarré le ${new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}`);
 
   checkYoutube(client);
   setInterval(() => checkYoutube(client), CHECK_INTERVAL);

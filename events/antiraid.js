@@ -402,7 +402,7 @@ async function cmdNuke(msg) {
             'Des messages spam ont été détectés dans tous les salons.',
             '',
             backup
-              ? `📦 Sauvegarde dispo : **${backup.channels.length}** salons (${new Date(backup.savedAt).toLocaleDateString('fr-FR')})`
+              ? `📦 Sauvegarde dispo : **${backup.channels.length}** salons (${new Date(backup.savedAt).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })})`
               : '❌ Aucune sauvegarde disponible.',
             '',
             '⚠️ Voulez-vous **supprimer les salons actuels** et les **recréer depuis la sauvegarde** ?',
