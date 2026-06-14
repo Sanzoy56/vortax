@@ -35,8 +35,8 @@ body {
 #vtx-toggle-members { display: none; }
 
 #vtx-layout { flex: 1 1 auto; min-height: 0; display: flex; }
-#vtx-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-#vtx-chat .discord-messages, #vtx-chat discord-messages { min-height: 100%; }
+#vtx-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+#vtx-chat .discord-messages, #vtx-chat discord-messages { min-height: 100%; width: 100%; box-sizing: border-box; }
 
 #vtx-sidebar {
   flex: 0 0 280px; min-height: 0; display: flex; flex-direction: column;
@@ -145,13 +145,16 @@ const SCRIPT = `<script>(function(){
 
     document.getElementById('vtx-chat').appendChild(dm);
 
-    var msgEls = Array.prototype.slice.call(dm.querySelectorAll(':scope > discord-message, :scope > discord-system-message'));
-    var wrapper = document.createElement('div');
-    wrapper.id = 'vtx-msglist';
-    if(msgEls.length){
-      msgEls[0].parentNode.insertBefore(wrapper, msgEls[0]);
-      msgEls.forEach(function(el){ wrapper.appendChild(el); });
-    }
+    // IMPORTANT : <discord-message>/<discord-system-message> DOIVENT rester des
+    // enfants directs de <discord-messages> (le composant lève une erreur sinon
+    // et ne s'affiche plus du tout). On ne les déplace donc jamais dans un wrapper :
+    // le tri se fait via insertBefore juste avant le footer, en place.
+    var allChildren = Array.prototype.slice.call(dm.children);
+    var footer = allChildren[allChildren.length - 1];
+    var msgEls = allChildren.filter(function(el){
+      var tag = el.tagName.toLowerCase();
+      return tag === 'discord-message' || tag === 'discord-system-message';
+    });
 
     var profiles = (window.$discordMessage && window.$discordMessage.profiles) || {};
     var memberCounts = {};
@@ -202,7 +205,7 @@ const SCRIPT = `<script>(function(){
         if(av > bv) return order === 'asc' ? 1 : -1;
         return 0;
       });
-      sorted.forEach(function(el){ wrapper.appendChild(el); });
+      sorted.forEach(function(el){ dm.insertBefore(el, footer); });
     }
 
     function renderMembers(){
