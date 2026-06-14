@@ -20,8 +20,79 @@ const {
 const fs = require("fs");
 const path = require("path");
 
-// ── Stockage en mémoire (remplace par DB si tu veux de la persistance) ──
-const tempChannels = new Map(); // channelId → { ownerId, blacklist: Set, whitelist: Set, isPrivate }
+// ── Emojis (déjà utilisés ailleurs dans le bot, cf. levels/config.js) ──
+const CHECK = "<:592053verified:1510069208661098546>";
+const CROSS = "<:26643crossmark:1510067005066055690>";
+const ICON  = "<a:vortax:1515519231238602802>";
+
+// ── Stockage en mémoire, persisté sur disque (cf. levels/db.js) : sans ça,
+// un redémarrage du bot vide la liste et les salons temporaires déjà créés
+// deviennent "orphelins" — plus jamais supprimés automatiquement quand ils
+// se vident, d'où les suppressions manuelles.
+const tempChannels = new Map(); // channelId → { ownerId, blacklist: Set, whitelist: Set, isPrivate, panelMessageId }
+
+const DATA_DIR  = path.join(__dirname, "..", "..", "vortax-data");
+const TEMP_FILE = path.join(DATA_DIR, "vocaltemp_channels.json");
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+function loadTempChannels() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(TEMP_FILE, "utf8"));
+    for (const [id, d] of Object.entries(raw)) {
+      tempChannels.set(id, {
+        ownerId: d.ownerId,
+        isPrivate: !!d.isPrivate,
+        micDisabled: !!d.micDisabled,
+        videoDisabled: !!d.videoDisabled,
+        soundboardDisabled: !!d.soundboardDisabled,
+        limitEnabled: !!d.limitEnabled,
+        savedLimit: d.savedLimit || 5,
+        blacklist: new Set(d.blacklist || []),
+        whitelist: new Set(d.whitelist || []),
+        panelMessageId: d.panelMessageId || null,
+      });
+    }
+  } catch {}
+}
+
+function saveTempChannels() {
+  const obj = {};
+  for (const [id, d] of tempChannels.entries()) {
+    obj[id] = {
+      ownerId: d.ownerId,
+      isPrivate: d.isPrivate,
+      micDisabled: d.micDisabled,
+      videoDisabled: d.videoDisabled,
+      soundboardDisabled: d.soundboardDisabled,
+      limitEnabled: d.limitEnabled,
+      savedLimit: d.savedLimit,
+      blacklist: [...d.blacklist],
+      whitelist: [...d.whitelist],
+      panelMessageId: d.panelMessageId,
+    };
+  }
+  try { fs.writeFileSync(TEMP_FILE, JSON.stringify(obj, null, 2)); } catch {}
+}
+
+// ── Supprime les salons temporaires connus devenus vides (au démarrage et
+// périodiquement, pour récupérer les salons orphelins après un restart) ──
+async function sweepEmptyChannels(client) {
+  for (const [channelId, data] of [...tempChannels.entries()]) {
+    let ch = null;
+    try { ch = await client.channels.fetch(channelId); } catch {}
+    if (!ch) {
+      tempChannels.delete(channelId);
+      saveTempChannels();
+      continue;
+    }
+    const humans = ch.members.filter((m) => !m.user.bot);
+    if (humans.size === 0) {
+      await ch.delete().catch(() => {});
+      tempChannels.delete(channelId);
+      saveTempChannels();
+    }
+  }
+}
 
 // ── Config chargée depuis ton config.json (ou ta DB) ──
 async function getConfig(guildId) {
@@ -37,13 +108,21 @@ async function getConfig(guildId) {
 //  HELPER — construire le panel embed + boutons
 // ════════════════════════════════════════════════════════════
 function buildPanel(channel, data) {
-  const { ownerId, isPrivate, blacklist, whitelist } = data;
+  const { ownerId, isPrivate, micDisabled, videoDisabled, soundboardDisabled, limitEnabled, savedLimit, blacklist, whitelist } = data;
+  const status = (active) => (active ? `${CHECK} Activé` : `${CROSS} Désactivé`);
 
   const embed = new EmbedBuilder()
     .setColor(isPrivate ? 0x7c3aed : 0x6366f1)
-    .setTitle("🎙️ Panel — Ton salon vocal")
-    .setDescription(`Propriétaire : <@${ownerId}>\nStatut : ${isPrivate ? "🔒 Privé" : "🔓 Public"}`)
+    .setTitle(`${ICON} Options du canal vocal`)
+    .setDescription(
+      `Ah, regardez qui est là. J'espère que votre intelligence est suffisamment avancée pour comprendre comment utiliser les boutons ci-dessous. Sinon, je suppose que je devrais m'attendre à des résultats décevants, n'est-ce pas ? Oui, je parle de vous, <@${ownerId}>.`
+    )
     .addFields(
+      { name: "Privé", value: status(isPrivate), inline: true },
+      { name: "Microphone", value: status(!micDisabled), inline: true },
+      { name: "Vidéo", value: status(!videoDisabled), inline: true },
+      { name: "Soundboards", value: status(!soundboardDisabled), inline: true },
+      { name: `Limite d'utilisateurs${limitEnabled ? ` (${savedLimit})` : ""}`, value: status(limitEnabled), inline: true },
       {
         name: "🚫 Blacklist",
         value: blacklist.size ? [...blacklist].map((id) => `<@${id}>`).join(", ") : "*Personne*",
@@ -55,30 +134,53 @@ function buildPanel(channel, data) {
         inline: true,
       }
     )
-    .setFooter({ text: "Seul le propriétaire peut interagir avec ce panel." });
+    .setFooter({ text: "Utilisez les boutons ci-dessous pour modifier les paramètres." });
 
-  // Row 1 — modération membres
+  // Row 1 — bascules canal vocal
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("vtmp_kick").setLabel("Expulser").setEmoji("👢").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId("vtmp_blacklist").setLabel("Blacklist").setEmoji("🚫").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId("vtmp_blacklist_absent").setLabel("BL Absent").setEmoji("➕").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId("vtmp_unblacklist").setLabel("Unblacklist").setEmoji("↩️").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("vtmp_whitelist").setLabel("Whitelist").setEmoji("✅").setStyle(ButtonStyle.Success)
-  );
-
-  // Row 2 — gestion salon
-  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("vtmp_privacy")
-      .setLabel(isPrivate ? "Public" : "Privé")
-      .setEmoji(isPrivate ? "🔓" : "🔒")
-      .setStyle(isPrivate ? ButtonStyle.Success : ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId("vtmp_rename").setLabel("Renommer").setEmoji("✏️").setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId("vtmp_limit").setLabel("Limite").setEmoji("🔢").setStyle(ButtonStyle.Primary),
+      .setLabel(isPrivate ? "Désactiver le privé" : "Activer le privé")
+      .setStyle(isPrivate ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId("vtmp_mic")
+      .setLabel(micDisabled ? "Activer le microphone" : "Désactiver le microphone")
+      .setStyle(micDisabled ? ButtonStyle.Success : ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId("vtmp_video")
+      .setLabel(videoDisabled ? "Activer la vidéo" : "Désactiver la vidéo")
+      .setStyle(videoDisabled ? ButtonStyle.Success : ButtonStyle.Danger)
+  );
+
+  // Row 2 — soundboards / limite / ajout d'utilisateurs
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("vtmp_soundboard")
+      .setLabel(soundboardDisabled ? "Activer les soundboards" : "Désactiver les soundboards")
+      .setStyle(soundboardDisabled ? ButtonStyle.Success : ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId("vtmp_limit_toggle")
+      .setLabel(limitEnabled ? "Désactiver la limite" : "Activer la limite")
+      .setStyle(limitEnabled ? ButtonStyle.Danger : ButtonStyle.Success),
+    new ButtonBuilder().setCustomId("vtmp_whitelist").setLabel("Ajouter des utilisateurs").setEmoji("👤").setStyle(ButtonStyle.Primary)
+  );
+
+  // Row 3 — modération membres
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("vtmp_kick").setLabel("Expulser").setEmoji("👢").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("vtmp_blacklist").setLabel("Blacklist").setEmoji("🚫").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("vtmp_blacklist_absent").setLabel("BL Absent").setEmoji("➕").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("vtmp_unblacklist").setLabel("Unblacklist").setEmoji("↩️").setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId("vtmp_transfer").setLabel("Transférer").setEmoji("👑").setStyle(ButtonStyle.Secondary)
   );
 
-  return { embed, components: [row1, row2] };
+  // Row 4 — gestion salon
+  const row4 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("vtmp_rename").setLabel("Renommer").setEmoji("✏️").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId("vtmp_limit").setLabel("Définir la limite").setEmoji("🔢").setStyle(ButtonStyle.Secondary)
+  );
+
+  return { embed, components: [row1, row2, row3, row4] };
 }
 
 // ── Sélecteur de membres dans la voc ──
@@ -112,6 +214,7 @@ async function onVoiceStateUpdate(oldState, newState) {
       if (humans.size === 0) {
         await ch.delete().catch(() => {});
         tempChannels.delete(oldState.channelId);
+        saveTempChannels();
         return;
       }
     }
@@ -173,11 +276,17 @@ async function onVoiceStateUpdate(oldState, newState) {
     const data = {
       ownerId: member.id,
       isPrivate: false,
+      micDisabled: false,
+      videoDisabled: false,
+      soundboardDisabled: false,
+      limitEnabled: false,
+      savedLimit: 5,
       blacklist: new Set(),
       whitelist: new Set(),
       panelMessageId: null,
     };
     tempChannels.set(tempChannel.id, data);
+    saveTempChannels();
 
     // Envoyer le panel dans le salon textuel le plus proche (ou créer un thread si possible)
     // On envoie dans le salon vocal directement (Discord le supporte)
@@ -187,6 +296,7 @@ async function onVoiceStateUpdate(oldState, newState) {
       data.panelMessageId = panelMsg.id;
       // Épingler le panel
       await panelMsg.pin().catch(() => {});
+      saveTempChannels();
     }
   }
 
@@ -260,7 +370,7 @@ async function onInteractionCreate(interaction) {
     // ─ Privacy toggle ─
     if (action === "privacy") {
       data.isPrivate = !data.isPrivate;
-      const cfg = getConfig(channel.guild.id);
+      const cfg = await getConfig(channel.guild.id);
       // @everyone : bloquer si privé
       await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
         Connect: !data.isPrivate,
@@ -275,8 +385,64 @@ async function onInteractionCreate(interaction) {
         });
       }
       await updatePanel(channel, data);
+      saveTempChannels();
       return interaction.reply({
         content: data.isPrivate ? "🔒 Salon mis en privé." : "🔓 Salon mis en public.",
+        ephemeral: true,
+      });
+    }
+
+    // ─ Microphone toggle ─
+    if (action === "mic") {
+      data.micDisabled = !data.micDisabled;
+      await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
+        Speak: !data.micDisabled,
+      });
+      await updatePanel(channel, data);
+      saveTempChannels();
+      return interaction.reply({
+        content: data.micDisabled ? "🎙️ Microphone désactivé pour les membres." : "🎙️ Microphone réactivé pour les membres.",
+        ephemeral: true,
+      });
+    }
+
+    // ─ Vidéo toggle ─
+    if (action === "video") {
+      data.videoDisabled = !data.videoDisabled;
+      await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
+        Stream: !data.videoDisabled,
+      });
+      await updatePanel(channel, data);
+      saveTempChannels();
+      return interaction.reply({
+        content: data.videoDisabled ? "🎥 Vidéo désactivée pour les membres." : "🎥 Vidéo réactivée pour les membres.",
+        ephemeral: true,
+      });
+    }
+
+    // ─ Soundboards toggle ─
+    if (action === "soundboard") {
+      data.soundboardDisabled = !data.soundboardDisabled;
+      await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
+        UseSoundboard: !data.soundboardDisabled,
+        UseExternalSounds: !data.soundboardDisabled,
+      });
+      await updatePanel(channel, data);
+      saveTempChannels();
+      return interaction.reply({
+        content: data.soundboardDisabled ? "🔇 Soundboards désactivés." : "🔊 Soundboards réactivés.",
+        ephemeral: true,
+      });
+    }
+
+    // ─ Limite toggle (active/désactive la limite enregistrée) ─
+    if (action === "limit_toggle") {
+      data.limitEnabled = !data.limitEnabled;
+      await channel.setUserLimit(data.limitEnabled ? data.savedLimit : 0).catch(() => {});
+      await updatePanel(channel, data);
+      saveTempChannels();
+      return interaction.reply({
+        content: data.limitEnabled ? `🔢 Limite activée (${data.savedLimit}).` : "🔢 Limite désactivée.",
         ephemeral: true,
       });
     }
@@ -340,16 +506,19 @@ async function onInteractionCreate(interaction) {
       await channel.permissionOverwrites.edit(targetId, { Connect: false, ViewChannel: false });
       if (targetMember.voice.channelId === channel.id) await targetMember.voice.disconnect().catch(() => {});
       await updatePanel(channel, data);
+      saveTempChannels();
       await interaction.reply({ content: `🚫 <@${targetId}> ajouté à la blacklist.`, ephemeral: true });
     } else if (action === "whitelist") {
       data.whitelist.add(targetId);
       await channel.permissionOverwrites.edit(targetId, { Connect: true, ViewChannel: true, Speak: true });
       await updatePanel(channel, data);
+      saveTempChannels();
       await interaction.reply({ content: `✅ <@${targetId}> ajouté à la whitelist.`, ephemeral: true });
     } else if (action === "unblacklist") {
       data.blacklist.delete(targetId);
       await channel.permissionOverwrites.delete(targetId).catch(() => {});
       await updatePanel(channel, data);
+      saveTempChannels();
       await interaction.reply({ content: `↩️ <@${targetId}> retiré de la blacklist.`, ephemeral: true });
     } else if (action === "transfer") {
       // Retirer les perms owner à l'ancien
@@ -371,6 +540,7 @@ async function onInteractionCreate(interaction) {
         ManageChannels: true,
       });
       await updatePanel(channel, data);
+      saveTempChannels();
       await interaction.reply({ content: `👑 Ownership transféré à <@${targetId}>.`, ephemeral: false });
     }
   }
@@ -403,6 +573,7 @@ async function onInteractionCreate(interaction) {
       await channel.permissionOverwrites.edit(userId, { Connect: false, ViewChannel: false }).catch(() => {});
       if (target.voice.channelId === channel.id) await target.voice.disconnect().catch(() => {});
       await updatePanel(channel, data);
+      saveTempChannels();
       return interaction.reply({ content: `🚫 <@${userId}> ajouté à la blacklist — ne pourra pas rejoindre.`, ephemeral: true });
     }
 
@@ -411,6 +582,10 @@ async function onInteractionCreate(interaction) {
       if (isNaN(val) || val < 0 || val > 99)
         return interaction.reply({ content: "❌ Valeur invalide (0–99).", ephemeral: true });
       await channel.setUserLimit(val).catch(() => {});
+      data.limitEnabled = val > 0;
+      if (val > 0) data.savedLimit = val;
+      await updatePanel(channel, data);
+      saveTempChannels();
       await interaction.reply({
         content: val === 0 ? "🔢 Limite retirée." : `🔢 Limite fixée à **${val}** membres.`,
         ephemeral: true,
@@ -500,10 +675,13 @@ module.exports = {
    *   vocalTemp.init(client, app); // app = ton Express app
    */
   init(client, app) {
+    loadTempChannels();
     client.on("voiceStateUpdate", onVoiceStateUpdate);
     client.on("interactionCreate", onInteractionCreate);
+    client.once("ready", () => sweepEmptyChannels(client));
+    setInterval(() => sweepEmptyChannels(client), 5 * 60 * 1000);
     if (app) registerRoutes(app, client);
-    console.log("[VocalTemp] ✅ Système vocal temporaire chargé.");
+    console.log("[VocalTemp] ✅ Système vocal temporaire chargé (persistance + nettoyage auto).");
   },
 
   // Expose pour tests unitaires
