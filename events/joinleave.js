@@ -1,5 +1,5 @@
 const { getConfig } = require('../config')
-const { sendLogCard } = require('../levels/logCard')
+const { sendMemberCard } = require('../levels/logCard')
 
 module.exports = (client) => {
 
@@ -11,15 +11,14 @@ module.exports = (client) => {
 
         const ageCompte = Math.floor((Date.now() - member.user.createdTimestamp) / (1000 * 60 * 60 * 24));
 
-        await sendLogCard(logSalon, {
-            title: 'Membre rejoint',
+        await sendMemberCard(logSalon, {
+            title: 'Bienvenue sur le serveur !',
             accent: '#22c55e',
             avatarURL: member.user.displayAvatarURL(),
-            rows: [
-                { label: 'Membre', value: `${member.user.username} (${member.id})` },
-                { label: 'Compte créé le', value: new Date(member.user.createdTimestamp).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
-                { label: 'Âge du compte', value: `${ageCompte} jours` },
-                { label: 'Arrivée le', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
+            username: `${member.user.username} (${member.id})`,
+            stats: [
+                { label: 'Compte créé le', value: new Date(member.user.createdTimestamp).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' }) },
+                { label: 'Âge du compte', value: `${ageCompte} jour${ageCompte === 1 ? '' : 's'}` },
                 { label: 'Membres', value: `${member.guild.memberCount}` },
             ],
             footerExtra: `ID: ${member.id}`,
@@ -38,14 +37,14 @@ module.exports = (client) => {
             .map(r => r.name)
             .join(', ') || 'Aucun';
 
-        await sendLogCard(logSalon, {
-            title: 'Membre parti',
+        await sendMemberCard(logSalon, {
+            title: 'Un membre a quitté le serveur',
             accent: '#ef4444',
             avatarURL: member.user.displayAvatarURL(),
-            rows: [
-                { label: 'Membre', value: `${member.user.username} (${member.id})` },
-                { label: 'Arrivé le', value: new Date(member.joinedTimestamp).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
-                { label: 'Durée sur le serveur', value: `${duree} jours` },
+            username: `${member.user.username} (${member.id})`,
+            stats: [
+                { label: 'Arrivé le', value: new Date(member.joinedTimestamp).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' }) },
+                { label: 'Durée sur le serveur', value: `${duree} jour${duree === 1 ? '' : 's'}` },
                 { label: 'Membres', value: `${member.guild.memberCount}` },
             ],
             longText: { label: 'Rôles', value: roles },
