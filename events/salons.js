@@ -1,6 +1,6 @@
 const { AuditLogEvent, ChannelType } = require('discord.js');
 const { getConfig } = require('../config')
-const { sendLogCard } = require('../levels/logCard')
+const { sendLogCard, sanitize } = require('../levels/logCard')
 
 const getType = (type) => {
     const types = {
@@ -44,7 +44,7 @@ module.exports = (client) => {
                 { label: 'Auteur', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
                 { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 { label: 'Salon', value: channel.name },
-                { label: 'Catégorie', value: channel.parent?.name ?? 'Aucune' },
+                { label: 'Catégorie', value: sanitize(channel.parent?.name) || 'Aucune' },
             ],
             longText: { label: 'Permissions', value: getPermissions(channel) },
             footerExtra: `ID: ${channel.id}`,
@@ -71,7 +71,7 @@ module.exports = (client) => {
                 { label: 'Auteur', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
                 { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 { label: 'Salon', value: channel.name },
-                { label: 'Catégorie', value: channel.parent?.name ?? 'Aucune' },
+                { label: 'Catégorie', value: sanitize(channel.parent?.name) || 'Aucune' },
             ],
             footerExtra: `ID: ${channel.id}`,
         });
@@ -96,7 +96,7 @@ module.exports = (client) => {
         if (oldChannel.rateLimitPerUser !== newChannel.rateLimitPerUser)
             changements.push(`Slowmode : ${oldChannel.rateLimitPerUser}s → ${newChannel.rateLimitPerUser}s`);
         if (oldChannel.parent?.id !== newChannel.parent?.id)
-            changements.push(`Catégorie : ${oldChannel.parent?.name ?? 'Aucune'} → ${newChannel.parent?.name ?? 'Aucune'}`);
+            changements.push(`Catégorie : ${sanitize(oldChannel.parent?.name) || 'Aucune'} → ${sanitize(newChannel.parent?.name) || 'Aucune'}`);
 
         if (changements.length === 0) return;
 
@@ -112,7 +112,7 @@ module.exports = (client) => {
                 { label: 'Modifié par', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
                 { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
                 { label: 'Salon', value: newChannel.name },
-                { label: 'Catégorie', value: newChannel.parent?.name ?? 'Aucune' },
+                { label: 'Catégorie', value: sanitize(newChannel.parent?.name) || 'Aucune' },
             ],
             longText: { label: 'Changements', value: changements.join('\n') },
             footerExtra: `ID: ${newChannel.id}`,
