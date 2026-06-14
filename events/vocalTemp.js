@@ -121,9 +121,9 @@ function buildPanel(channel, data) {
       { name: "🔒 Privé", value: status(isPrivate), inline: true },
       { name: "🎙️ Microphone", value: status(!micDisabled), inline: true },
       { name: "🎥 Vidéo", value: status(!videoDisabled), inline: true },
-      { name: "🔊 Soundboards", value: status(!soundboardDisabled), inline: true },
-      { name: `👥 Limite d'utilisateurs${limitEnabled ? ` (${savedLimit})` : ""}`, value: status(limitEnabled), inline: true },
-      { name: "​", value: "​", inline: true },
+      { name: "🎶 Soundboards", value: status(!soundboardDisabled), inline: true },
+      { name: `🔢 Limite d'utilisateurs${limitEnabled ? ` (${savedLimit})` : ""}`, value: status(limitEnabled), inline: true },
+      { name: "👑 Propriétaire", value: `<@${ownerId}>`, inline: true },
       {
         name: "🚫 Blacklist",
         value: blacklist.size ? [...blacklist].map((id) => `<@${id}>`).join(", ") : "*Personne*",
