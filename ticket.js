@@ -1,11 +1,10 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle, AttachmentBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const config = require('./config.json');
 const token = require('./token.json');
 
 const { getConfig } = require('./config')
 const { sendLogCard } = require('./levels/logCard')
 const discordTranscripts = require('discord-html-transcripts');
-const JSZip = require('jszip');
 
 // ========== HISTORIQUE IA ==========
 const ticketHistories = new Map();
@@ -156,19 +155,25 @@ Il y a 3 catégories de tickets mis à votre disposition :
           footerText: 'Transcript généré par Team Vortax — {number} message{s}',
         });
 
-        // Zippé pour éviter l'aperçu moche que Discord affiche automatiquement
-        // pour les fichiers .html attachés.
-        const zip = new JSZip();
-        zip.file(fichier.name, fichier.attachment);
-        const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
-        const zipAttachment = new AttachmentBuilder(zipBuffer, { name: `transcript-${msgChannel.name}.zip` });
+        // Hébergé sur le panel pour éviter l'aperçu moche que Discord affiche
+        // automatiquement pour les fichiers .html attachés, et permettre
+        // d'ouvrir le transcript directement dans le navigateur.
+        let transcriptUrl = null;
+        try {
+          const res = await fetch(`${DASH_URL}/api/transcripts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/html', 'X-Stats-Secret': PUSH_SECRET },
+            body: fichier.attachment,
+          });
+          if (res.ok) transcriptUrl = (await res.json()).url ?? null;
+        } catch (e) {
+          console.error('[Transcript] Erreur upload :', e.message);
+        }
 
         const logsChannel = msgChannel.guild.channels.cache.get(cfg.log_transcripts);
         if (logsChannel) {
-          const fileMsg = await logsChannel.send({ files: [zipAttachment] });
-          const fileUrl = fileMsg.attachments.first()?.url ?? null;
-          const components = fileUrl ? [new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setLabel('Voir le transcript').setStyle(ButtonStyle.Link).setURL(fileUrl)
+          const components = transcriptUrl ? [new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setLabel('Voir le transcript').setStyle(ButtonStyle.Link).setURL(transcriptUrl)
           )] : [];
 
           await sendLogCard(logsChannel, {
