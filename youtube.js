@@ -1,20 +1,33 @@
 const Parser = require('rss-parser');
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
+const { getConfig } = require('./config');
 
 const parser = new Parser();
 
 const CHANNEL_ID_YTB = 'UCFjCHig5fVqCtjL0Z_cWwlQ';
 const RSS_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID_YTB}`;
-async function getConfig() {
-  try {
-    const res = await fetch('http://localhost:3001/config')
-    return await res.json()
-  } catch { return {} }
-}
 const ROLE_ID = '1379482124075401326';
 const CHECK_INTERVAL = 5 * 60 * 1000; // toutes les 5 minutes
 
-let derniereVideoId = null;
+// Persisté en dehors du repo (sinon perdu à chaque redémarrage du bot, ce qui
+// faisait considérer la dernière vidéo postée comme "déjà connue" et
+// l'annonce ne partait jamais dans le salon).
+const DATA_DIR = path.join(__dirname, "..", "vortax-data");
+const LAST_VIDEO_FILE = path.join(DATA_DIR, "youtube_last_video.json");
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+function loadLastVideoId() {
+  try { return JSON.parse(fs.readFileSync(LAST_VIDEO_FILE, "utf8")).id ?? null; }
+  catch { return null; }
+}
+
+function saveLastVideoId(id) {
+  try { fs.writeFileSync(LAST_VIDEO_FILE, JSON.stringify({ id })); } catch {}
+}
+
+let derniereVideoId = loadLastVideoId();
 
 async function checkYoutube(client) {
   try {
@@ -25,15 +38,17 @@ async function checkYoutube(client) {
 
     const videoId = derniere.id?.split(':').pop();
 
-    // Premier lancement, on stocke juste sans notifier
+    // Premier lancement (jamais de fichier de persistance), on stocke juste sans notifier
     if (derniereVideoId === null) {
       derniereVideoId = videoId;
+      saveLastVideoId(videoId);
       return;
     }
 
     if (videoId === derniereVideoId) return;
 
     derniereVideoId = videoId;
+    saveLastVideoId(videoId);
 
     const cfg = await getConfig()
     const salon = await client.channels.fetch(cfg.youtube);
