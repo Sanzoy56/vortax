@@ -43,7 +43,7 @@ module.exports = (client) => {
             rows: [
                 { label: 'Auteur', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
                 { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
-                { label: 'Salon', value: `#${channel.name}` },
+                { label: 'Salon', value: channel.name },
                 { label: 'Catégorie', value: channel.parent?.name ?? 'Aucune' },
             ],
             longText: { label: 'Permissions', value: getPermissions(channel) },
@@ -70,7 +70,7 @@ module.exports = (client) => {
             rows: [
                 { label: 'Auteur', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
                 { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
-                { label: 'Salon', value: `#${channel.name}` },
+                { label: 'Salon', value: channel.name },
                 { label: 'Catégorie', value: channel.parent?.name ?? 'Aucune' },
             ],
             footerExtra: `ID: ${channel.id}`,
@@ -111,7 +111,7 @@ module.exports = (client) => {
             rows: [
                 { label: 'Modifié par', value: executeur ? `${executeur.username} (${executeur.id})` : 'Inconnu' },
                 { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
-                { label: 'Salon', value: `#${newChannel.name}` },
+                { label: 'Salon', value: newChannel.name },
                 { label: 'Catégorie', value: newChannel.parent?.name ?? 'Aucune' },
             ],
             longText: { label: 'Changements', value: changements.join('\n') },

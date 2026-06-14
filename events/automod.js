@@ -64,7 +64,7 @@ async function appliquerSanction(member, guild, message, sanction, raison, logSa
       rows: [
         { label: 'Membre', value: `${message.author.tag} (${message.author.id})` },
         { label: 'Sanction', value: SANCTION_LABELS[sanction] || sanction },
-        { label: 'Salon', value: `#${message.channel.name}` },
+        { label: 'Salon', value: message.channel.name },
         { label: 'Date', value: new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' }) },
       ],
       longText: { label: 'Raison', value: raison },

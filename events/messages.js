@@ -56,7 +56,7 @@ module.exports = (client) => {
             avatarURL: newMessage.author.displayAvatarURL({ dynamic: true, size: 128 }),
             rows: [
                 { label: 'Auteur', value: `${newMessage.author.tag} (${newMessage.author.id})` },
-                { label: 'Salon', value: `#${newMessage.channel?.name ?? newMessage.channelId}` },
+                { label: 'Salon', value: newMessage.channel?.name ?? newMessage.channelId },
                 { label: 'Créé le', value: formatDate(createdAt) },
                 { label: 'Modifié le', value: formatDate(editedAt) },
                 { label: 'Délai', value: `${delaySeconds} seconde(s)` },
@@ -95,7 +95,7 @@ module.exports = (client) => {
                 title: 'Message supprimé',
                 accent: '#ef4444',
                 rows: [
-                    { label: 'Salon', value: `#${message.channel?.name ?? message.channelId}` },
+                    { label: 'Salon', value: message.channel?.name ?? message.channelId },
                     { label: 'Heure de suppression', value: new Date().toLocaleString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) },
                     { label: 'Supprimé par', value: deletedBy },
                 ],
@@ -146,7 +146,7 @@ module.exports = (client) => {
             avatarURL: authorAvatar,
             rows: [
                 { label: 'Auteur', value: auteurDisplay },
-                { label: 'Salon', value: `#${message.channel?.name ?? message.channelId}` },
+                { label: 'Salon', value: message.channel?.name ?? message.channelId },
                 { label: 'Créé le', value: createdAt ? formatDate(createdAt) : 'Inconnue' },
                 { label: 'Supprimé le', value: formatDate(new Date()) },
                 { label: 'Supprimé par', value: deletedBy },
