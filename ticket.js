@@ -4,6 +4,7 @@ const token = require('./token.json');
 
 const { getConfig } = require('./config')
 const { sendLogCard } = require('./levels/logCard')
+const { injectToolbar } = require('./levels/transcriptToolbar')
 const discordTranscripts = require('discord-html-transcripts');
 
 // ========== HISTORIQUE IA ==========
@@ -160,10 +161,11 @@ Il y a 3 catégories de tickets mis à votre disposition :
         // d'ouvrir le transcript directement dans le navigateur.
         let transcriptUrl = null;
         try {
+          const html = injectToolbar(fichier.attachment.toString('utf-8'));
           const res = await fetch(`${DASH_URL}/api/transcripts`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/html', 'X-Stats-Secret': PUSH_SECRET },
-            body: fichier.attachment,
+            body: html,
           });
           if (res.ok) transcriptUrl = (await res.json()).url ?? null;
         } catch (e) {
