@@ -71,6 +71,7 @@ const say   = require('./commandes/say.js');
 const clear = require('./commandes/clear.js');
 const clearSalon = require('./commandes/clear-salon.js');
 const grok  = require('./grok.js');
+const voiceAI = require('./events/voiceAI.js');
 
 // ── Youtube / giveaway ─────────────────────────────
 const { checkYoutube, CHECK_INTERVAL } = require('./youtube.js');
@@ -163,6 +164,7 @@ say(client);
 clear(client);
 clearSalon(client);
 grok(client);
+voiceAI(client);
 stats.init(client);
 vocalTemp.init(client);
 casino.init(client);

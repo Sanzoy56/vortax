@@ -18,6 +18,9 @@ function createQueue(guild, voiceChannel, textChannel) {
     channelId: voiceChannel.id,
     guildId: guild.id,
     adapterCreator: guild.voiceAdapterCreator,
+    // selfDeaf: false est nécessaire pour que connection.receiver reçoive
+    // l'audio des autres membres (utilisé par events/voiceAI.js).
+    selfDeaf: false,
     // NB: daveEncryption: false a été testé mais Discord ferme alors la
     // connexion avec le code 4017 "E2EE/DAVE protocol required" — le
     // protocole DAVE est obligatoire sur ce serveur, donc on le laisse activé.
