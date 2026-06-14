@@ -118,20 +118,21 @@ function buildPanel(channel, data) {
       `Ah, regardez qui est là. J'espère que votre intelligence est suffisamment avancée pour comprendre comment utiliser les boutons ci-dessous. Sinon, je suppose que je devrais m'attendre à des résultats décevants, n'est-ce pas ? Oui, je parle de vous, <@${ownerId}>.`
     )
     .addFields(
-      { name: "Privé", value: status(isPrivate), inline: true },
-      { name: "Microphone", value: status(!micDisabled), inline: true },
-      { name: "Vidéo", value: status(!videoDisabled), inline: true },
-      { name: "Soundboards", value: status(!soundboardDisabled), inline: true },
-      { name: `Limite d'utilisateurs${limitEnabled ? ` (${savedLimit})` : ""}`, value: status(limitEnabled), inline: true },
+      { name: "🔒 Privé", value: status(isPrivate), inline: true },
+      { name: "🎙️ Microphone", value: status(!micDisabled), inline: true },
+      { name: "🎥 Vidéo", value: status(!videoDisabled), inline: true },
+      { name: "🔊 Soundboards", value: status(!soundboardDisabled), inline: true },
+      { name: `👥 Limite d'utilisateurs${limitEnabled ? ` (${savedLimit})` : ""}`, value: status(limitEnabled), inline: true },
+      { name: "​", value: "​", inline: true },
       {
         name: "🚫 Blacklist",
         value: blacklist.size ? [...blacklist].map((id) => `<@${id}>`).join(", ") : "*Personne*",
-        inline: true,
+        inline: false,
       },
       {
         name: "✅ Whitelist",
         value: whitelist.size ? [...whitelist].map((id) => `<@${id}>`).join(", ") : "*Personne*",
-        inline: true,
+        inline: false,
       }
     )
     .setFooter({ text: "Utilisez les boutons ci-dessous pour modifier les paramètres." });
@@ -167,17 +168,17 @@ function buildPanel(channel, data) {
 
   // Row 3 — modération membres
   const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("vtmp_kick").setLabel("Expulser").setEmoji("👢").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("vtmp_blacklist").setLabel("Blacklist").setEmoji("🚫").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("vtmp_blacklist_absent").setLabel("BL Absent").setEmoji("➕").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("vtmp_unblacklist").setLabel("Unblacklist").setEmoji("↩️").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("vtmp_transfer").setLabel("Transférer").setEmoji("👑").setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId("vtmp_kick").setLabel("Expulser").setEmoji("👢").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("vtmp_blacklist").setLabel("Blacklist").setEmoji("🚫").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("vtmp_blacklist_absent").setLabel("BL Absent").setEmoji("➕").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId("vtmp_unblacklist").setLabel("Unblacklist").setEmoji("↩️").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId("vtmp_transfer").setLabel("Transférer").setEmoji("👑").setStyle(ButtonStyle.Primary)
   );
 
   // Row 4 — gestion salon
   const row4 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId("vtmp_rename").setLabel("Renommer").setEmoji("✏️").setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId("vtmp_limit").setLabel("Définir la limite").setEmoji("🔢").setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId("vtmp_rename").setLabel("Renommer").setEmoji("✏️").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId("vtmp_limit").setLabel("Définir la limite").setEmoji("🔢").setStyle(ButtonStyle.Primary)
   );
 
   return { embed, components: [row1, row2, row3, row4] };
