@@ -64,6 +64,7 @@ const prefix    = require('./events/prefix');
 const antiraid  = require('./events/antiraid');
 const backup    = require('./events/backup');
 const persos    = require('./events/persos');
+const statChannels = require('./events/statChannels');
 // ── Command handlers manuels ───────────────────────
 const panel = require('./commandes/panel.js');
 const say   = require('./commandes/say.js');
@@ -169,6 +170,7 @@ prefix.init(client);
 antiraid.init(client);
 backup.init(client);
 persos.init(client);
+statChannels.init(client);
 // ───────────────────────────────────────────────────
 // Levels : écoute des messages
 // ───────────────────────────────────────────────────
