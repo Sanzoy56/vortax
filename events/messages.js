@@ -28,7 +28,7 @@ module.exports = (client) => {
         }
     });
 
-    // ========== MESSAGE VOCAL ENVOYÉ ==========
+    // ========== MESSAGE VOCAL ENVOYÉ (log vidéo avec barre de progression) ==========
     client.on(Events.MessageCreate, async (message) => {
         if (!message.guild || message.author?.bot) return;
         if (!message.flags.has(MessageFlags.IsVoiceMessage)) return;
@@ -40,38 +40,22 @@ module.exports = (client) => {
         const attachment = message.attachments.first();
         if (!attachment) return;
 
-        const durationSecs = Math.round((attachment.duration || 0) / 1000);
-        const formatDate = (date) =>
-            date.toLocaleString('fr-FR', {
-                weekday: 'long', day: '2-digit', month: 'long',
-                year: 'numeric', hour: '2-digit', minute: '2-digit',
-                timeZone: 'Europe/Paris',
-            });
-
-        const files = [];
         try {
-            const audioRes = await fetch(attachment.url);
-            if (audioRes.ok) {
-                const buf = Buffer.from(await audioRes.arrayBuffer());
-                files.push(new AttachmentBuilder(buf, { name: 'vocal.ogg' }));
-            }
-        } catch {}
-
-        const buf = await require('../levels/logCard').renderLogCard({
-            title: 'Message vocal envoyé',
-            accent: '#a855f7',
-            avatarURL: message.author.displayAvatarURL({ dynamic: true, size: 128 }),
-            rows: [
-                { label: 'Auteur', value: `${message.author.tag} (${message.author.id})` },
-                { label: 'Salon', value: message.channel?.name ?? message.channelId },
-                { label: 'Date', value: formatDate(message.createdAt) },
-                { label: 'Durée', value: durationSecs > 0 ? `${durationSecs}s` : 'Inconnue' },
-            ],
-            footerExtra: `ID: ${message.author.id}`,
-        });
-
-        files.unshift(new AttachmentBuilder(buf, { name: 'log.png' }));
-        await logChannel.send({ files });
+            const { buildVoiceLogVideo } = require('../levels/voiceLogVideo');
+            const mp4 = await buildVoiceLogVideo({
+                authorTag: message.author.tag,
+                authorId: message.author.id,
+                avatarURL: message.author.displayAvatarURL({ dynamic: true, size: 128 }),
+                channelName: message.channel?.name ?? message.channelId,
+                date: message.createdAt,
+                audioURL: attachment.url,
+                durationMs: attachment.duration || 0,
+            });
+            const file = new AttachmentBuilder(mp4, { name: 'vocal_log.mp4' });
+            await logChannel.send({ files: [file] });
+        } catch (e) {
+            console.error('[Messages] Erreur log vocal vidéo:', e.message);
+        }
     });
 
     // ========== MESSAGE MODIFIÉ ==========
