@@ -146,19 +146,19 @@ async function buildVoiceLogVideo({ authorTag, authorId, avatarURL, channelName,
   await execFileAsync(FFMPEG, ['-y', '-i', tmpAudio, '-ar', '44100', '-ac', '2', tmpWav]);
 
   // FFmpeg : image statique + audio + barre de progression animée
+  const progress = `t/${durationSecs}*${barW}`;
   await execFileAsync(FFMPEG, [
-    '-loop', '1', '-framerate', '15', '-i', tmpImg,
+    '-loop', '1', '-framerate', '24', '-i', tmpImg,
     '-i', tmpWav,
-    '-filter_complex', [
-      `drawbox=x=${barX}:y=${barY}:w='min(t/${durationSecs}*${barW}\\,${barW})':h=6:color=#a855f7:t=fill`,
-      `drawbox=x='${barX}+min(t/${durationSecs}*${barW}\\,${barW})-4':y=${barY - 3}:w=8:h=12:color=#c084fc:t=fill`,
-    ].join(','),
-    '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'stillimage',
+    '-filter_complex',
+    `[0:v]drawbox=x=${barX}:y=${barY}:w='if(gt(${progress},${barW}),${barW},${progress})':h=6:color=#a855f7:t=fill,drawbox=x='${barX}+if(gt(${progress},${barW}),${barW},${progress})-4':y=${barY - 3}:w=8:h=12:color=#c084fc:t=fill[v]`,
+    '-map', '[v]', '-map', '1:a',
+    '-c:v', 'libx264', '-preset', 'ultrafast',
     '-c:a', 'aac', '-b:a', '128k',
     '-pix_fmt', 'yuv420p',
     '-t', String(durationSecs),
     '-y', tmpMp4,
-  ], { timeout: 30000 });
+  ], { timeout: 60000 });
 
   const mp4 = fs.readFileSync(tmpMp4);
   fs.unlinkSync(tmpImg);
@@ -168,4 +168,65 @@ async function buildVoiceLogVideo({ authorTag, authorId, avatarURL, channelName,
   return mp4;
 }
 
-module.exports = { buildVoiceLogVideo };
+async function buildVoiceLogVideoFromBuffer({ title, accent, authorTag, authorId, avatarURL, channelName, date, audioBuffer, durationSecs: rawDur, deletedBy }) {
+  const formatDate = (d) => new Date(d).toLocaleString('fr-FR', {
+    weekday: 'long', day: '2-digit', month: 'long',
+    year: 'numeric', hour: '2-digit', minute: '2-digit',
+    timeZone: 'Europe/Paris',
+  });
+
+  const durationSecs = Math.max(2, Math.round(rawDur || 3));
+  const durationMs = durationSecs * 1000;
+
+  const rows = [
+    { label: 'Auteur', value: `${authorTag} (${authorId})` },
+    { label: 'Salon', value: channelName },
+    { label: 'Date', value: formatDate(date) },
+    { label: 'Durée', value: formatDuration(durationMs) },
+  ];
+  if (deletedBy) rows.push({ label: 'Supprimé par', value: deletedBy });
+
+  const cardBuf = await renderLogCard({
+    title: title || 'Message vocal supprimé',
+    accent: accent || '#ef4444',
+    avatarURL,
+    rows,
+    footerExtra: `ID: ${authorId}`,
+  });
+
+  const { canvas, barX, barW, barY, playY } = drawPlayerBar(cardBuf, durationMs);
+
+  const id = Date.now().toString(36);
+  const tmpImg = path.join(TMP, `vlog_${id}.png`);
+  const tmpAudio = path.join(TMP, `vlog_${id}.ogg`);
+  const tmpWav = path.join(TMP, `vlog_${id}.wav`);
+  const tmpMp4 = path.join(TMP, `vlog_${id}.mp4`);
+
+  fs.writeFileSync(tmpImg, canvas.toBuffer('image/png'));
+  fs.writeFileSync(tmpAudio, audioBuffer);
+
+  await execFileAsync(FFMPEG, ['-y', '-i', tmpAudio, '-ar', '44100', '-ac', '2', tmpWav]);
+
+  const progress = `t/${durationSecs}*${barW}`;
+  await execFileAsync(FFMPEG, [
+    '-loop', '1', '-framerate', '24', '-i', tmpImg,
+    '-i', tmpWav,
+    '-filter_complex',
+    `[0:v]drawbox=x=${barX}:y=${barY}:w='if(gt(${progress},${barW}),${barW},${progress})':h=6:color=${accent || '#ef4444'}:t=fill,drawbox=x='${barX}+if(gt(${progress},${barW}),${barW},${progress})-4':y=${barY - 3}:w=8:h=12:color=#c084fc:t=fill[v]`,
+    '-map', '[v]', '-map', '1:a',
+    '-c:v', 'libx264', '-preset', 'ultrafast',
+    '-c:a', 'aac', '-b:a', '128k',
+    '-pix_fmt', 'yuv420p',
+    '-t', String(durationSecs),
+    '-y', tmpMp4,
+  ], { timeout: 60000 });
+
+  const mp4 = fs.readFileSync(tmpMp4);
+  fs.unlinkSync(tmpImg);
+  fs.unlinkSync(tmpAudio);
+  fs.unlinkSync(tmpWav);
+  fs.unlinkSync(tmpMp4);
+  return mp4;
+}
+
+module.exports = { buildVoiceLogVideo, buildVoiceLogVideoFromBuffer };

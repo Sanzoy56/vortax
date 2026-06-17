@@ -13,7 +13,7 @@ module.exports = (client) => {
     client.on(Events.MessageCreate, (message) => {
         if (!message.guild) return;
         const isVoice = message.flags.has(MessageFlags.IsVoiceMessage);
-        MSG_CACHE.set(message.id, {
+        const entry = {
             content:      message.content || null,
             authorId:     message.author?.id,
             authorTag:    message.author?.tag,
@@ -23,9 +23,16 @@ module.exports = (client) => {
             embeds:       message.embeds.length > 0,
             attachments:  message.attachments.size > 0,
             isVoiceMessage: isVoice,
-            voiceUrl:     isVoice ? message.attachments.first()?.url : null,
             voiceDuration: isVoice ? (message.attachments.first()?.duration || 0) : 0,
-        });
+        };
+        // Télécharger l'audio pour le garder en cas de suppression
+        if (isVoice) {
+            const url = message.attachments.first()?.url;
+            if (url) fetch(url).then(r => r.ok ? r.arrayBuffer() : null)
+                .then(buf => { if (buf) entry.voiceBuffer = Buffer.from(buf); })
+                .catch(() => {});
+        }
+        MSG_CACHE.set(message.id, entry);
         // Limiter la taille du cache : supprimer la plus ancienne entrée
         if (MSG_CACHE.size > MSG_CACHE_MAX) {
             MSG_CACHE.delete(MSG_CACHE.keys().next().value);
@@ -167,10 +174,31 @@ module.exports = (client) => {
             }
         } catch {}
 
-        // Message vocal supprimé → log spéciale
+        // Message vocal supprimé → log vidéo avec l'audio
         const wasVoice = cached?.isVoiceMessage || message.flags?.has(MessageFlags.IsVoiceMessage);
         if (wasVoice) {
-            const durSecs = cached?.voiceDuration || 0;
+            try {
+                if (cached?.voiceBuffer) {
+                    const { buildVoiceLogVideoFromBuffer } = require('../levels/voiceLogVideo');
+                    const mp4 = await buildVoiceLogVideoFromBuffer({
+                        title: 'Message vocal supprimé',
+                        accent: '#ef4444',
+                        authorTag: authorTag || 'Inconnu',
+                        authorId: authorId || '?',
+                        avatarURL: authorAvatar,
+                        channelName: message.channel?.name ?? message.channelId,
+                        date: createdAt || new Date(),
+                        audioBuffer: cached.voiceBuffer,
+                        durationSecs: cached.voiceDuration || 3,
+                        deletedBy,
+                    });
+                    const file = new AttachmentBuilder(mp4, { name: 'vocal_supprime.mp4' });
+                    return logChannel.send({ files: [file] });
+                }
+            } catch (e) {
+                console.error('[Messages] Erreur log vocal supprimé:', e.message);
+            }
+            // Fallback si pas d'audio en cache
             return sendLogCard(logChannel, {
                 title: 'Message vocal supprimé',
                 accent: '#ef4444',
@@ -178,10 +206,8 @@ module.exports = (client) => {
                 rows: [
                     { label: 'Auteur', value: auteurDisplay },
                     { label: 'Salon', value: message.channel?.name ?? message.channelId },
-                    { label: 'Créé le', value: createdAt ? formatDate(createdAt) : 'Inconnue' },
                     { label: 'Supprimé le', value: formatDate(new Date()) },
                     { label: 'Supprimé par', value: deletedBy },
-                    { label: 'Durée', value: durSecs > 0 ? `${Math.round(durSecs)}s` : 'Inconnue' },
                 ],
                 footerExtra: authorId ? `ID: ${authorId}` : undefined,
             });
