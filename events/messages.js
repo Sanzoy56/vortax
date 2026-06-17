@@ -1,4 +1,4 @@
-const { Events, AuditLogEvent } = require('discord.js');
+const { Events, AuditLogEvent, MessageFlags, AttachmentBuilder } = require('discord.js');
 const { getConfig } = require('../config')
 const { sendLogCard } = require('../levels/logCard')
 
@@ -26,6 +26,52 @@ module.exports = (client) => {
         if (MSG_CACHE.size > MSG_CACHE_MAX) {
             MSG_CACHE.delete(MSG_CACHE.keys().next().value);
         }
+    });
+
+    // ========== MESSAGE VOCAL ENVOYÉ ==========
+    client.on(Events.MessageCreate, async (message) => {
+        if (!message.guild || message.author?.bot) return;
+        if (!message.flags.has(MessageFlags.IsVoiceMessage)) return;
+
+        const config = await getConfig();
+        const logChannel = message.guild.channels.cache.get(config.log_messages);
+        if (!logChannel) return;
+
+        const attachment = message.attachments.first();
+        if (!attachment) return;
+
+        const durationSecs = Math.round((attachment.duration || 0) / 1000);
+        const formatDate = (date) =>
+            date.toLocaleString('fr-FR', {
+                weekday: 'long', day: '2-digit', month: 'long',
+                year: 'numeric', hour: '2-digit', minute: '2-digit',
+                timeZone: 'Europe/Paris',
+            });
+
+        const files = [];
+        try {
+            const audioRes = await fetch(attachment.url);
+            if (audioRes.ok) {
+                const buf = Buffer.from(await audioRes.arrayBuffer());
+                files.push(new AttachmentBuilder(buf, { name: 'vocal.ogg' }));
+            }
+        } catch {}
+
+        const buf = await require('../levels/logCard').renderLogCard({
+            title: 'Message vocal envoyé',
+            accent: '#a855f7',
+            avatarURL: message.author.displayAvatarURL({ dynamic: true, size: 128 }),
+            rows: [
+                { label: 'Auteur', value: `${message.author.tag} (${message.author.id})` },
+                { label: 'Salon', value: message.channel?.name ?? message.channelId },
+                { label: 'Date', value: formatDate(message.createdAt) },
+                { label: 'Durée', value: durationSecs > 0 ? `${durationSecs}s` : 'Inconnue' },
+            ],
+            footerExtra: `ID: ${message.author.id}`,
+        });
+
+        files.unshift(new AttachmentBuilder(buf, { name: 'log.png' }));
+        await logChannel.send({ files });
     });
 
     // ========== MESSAGE MODIFIÉ ==========
