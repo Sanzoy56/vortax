@@ -18,12 +18,8 @@ function createQueue(guild, voiceChannel, textChannel) {
     channelId: voiceChannel.id,
     guildId: guild.id,
     adapterCreator: guild.voiceAdapterCreator,
-    // selfDeaf: false est nécessaire pour que connection.receiver reçoive
-    // l'audio des autres membres (utilisé par events/voiceAI.js).
     selfDeaf: false,
-    // NB: daveEncryption: false a été testé mais Discord ferme alors la
-    // connexion avec le code 4017 "E2EE/DAVE protocol required" — le
-    // protocole DAVE est obligatoire sur ce serveur, donc on le laisse activé.
+    daveEncryption: false,
   });
   const player = createAudioPlayer();
   connection.subscribe(player);
@@ -55,33 +51,47 @@ function createQueue(guild, voiceChannel, textChannel) {
     console.log(`[Musique] Player: ${oldState.status} -> ${newState.status} (connexion: ${connection.state.status})`);
   });
 
+  let readySince = null;
   connection.on('stateChange', (oldState, newState) => {
+    if (oldState.status === newState.status) return;
     console.log(`[Musique] Connexion: ${oldState.status} -> ${newState.status}`);
+    if (newState.status === VoiceConnectionStatus.Ready) {
+      readySince = Date.now();
+      console.log('[Musique] Connexion READY — receiver actif.');
+    } else if (oldState.status === VoiceConnectionStatus.Ready) {
+      const dur = readySince ? ((Date.now() - readySince) / 1000).toFixed(1) : '?';
+      console.log(`[Musique] Perdu le ready après ${dur}s.`);
+    }
   });
 
   connection.on('error', err => {
     console.error('[Musique] Erreur connexion:', err.message);
   });
 
-  // ── Filet de sécurité : connexion bloquée sur "signalling"/"connecting" ──
-  // Si Discord ne répond jamais (souci réseau ponctuel), on retente un rejoin
-  // après 15s plutôt que de rester bloqué indéfiniment sans le moindre son.
-  entersState(connection, VoiceConnectionStatus.Ready, 15_000).catch(() => {
-    if (queues.get(guild.id) !== queue) return; // déjà remplacée/détruite
-    console.log('[Musique] Connexion bloquée après 15s, rejoin forcé.');
-    try {
-      connection.rejoin({ channelId: voiceChannel.id, selfDeaf: false, selfMute: false });
-    } catch (e) {
-      console.error('[Musique] Erreur rejoin:', e.message);
-    }
+  // ── Si jamais ready après 45s : détruire et recréer proprement ─────────────
+  // rejoin() sur une connexion DAVE en échec perpétue le problème (session MLS
+  // corrompue). On repart de zéro avec une connexion fraîche.
+  let everReady = false;
+  connection.on(VoiceConnectionStatus.Ready, () => { everReady = true; });
+  entersState(connection, VoiceConnectionStatus.Ready, 45_000).catch(() => {
+    if (everReady) return;                       // DAVE négocie, on attend
+    if (queues.get(guild.id) !== queue) return;  // déjà remplacée
+    console.log('[Musique] Jamais atteint ready après 45s — reconnexion propre.');
+    try { connection.destroy(); } catch {}
+    queues.delete(guild.id);
+    setTimeout(() => {
+      if (queues.has(guild.id)) return; // quelqu'un a déjà recréé
+      const newQueue = createQueue(guild, voiceChannel, textChannel);
+      queues.set(guild.id, newQueue);
+    }, 2000);
   });
 
   connection.on(VoiceConnectionStatus.Disconnected, async () => {
     try {
       // Une déconnexion peut être temporaire (reconnexion auto en cours)
       await Promise.race([
-        entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
-        entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+        entersState(connection, VoiceConnectionStatus.Signalling, 30_000),
+        entersState(connection, VoiceConnectionStatus.Connecting, 30_000),
       ]);
     } catch {
       console.log('[Musique] Déconnexion définitive du vocal.');

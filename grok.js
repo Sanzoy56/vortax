@@ -27,7 +27,6 @@ const MOD_ROLES = {
 const conversationHistory = new Map();
 const blockedUsers        = new Set();
 const pendingActions      = new Map();
-const pendingMusicLink    = new Map(); // userId -> { expires } : en attente d'un lien après une recherche infructueuse
 const MAX_HISTORY         = 10;
 
 function storePending(id, data) {
@@ -346,81 +345,7 @@ function detectAction(text) {
 }
 
 // ── Détection commandes musique (vocal) ───────────────────────────────────────
-function detectMusic(text) {
-  const n = normalize(text);
 
-  if (/\bstop\b/.test(n) || (/\b(?:arrete|coupe|stoppe)\b/.test(n) && /\b(?:musique|son|chanson|lecture)\b/.test(n)))
-    return { type: 'stop' };
-
-  if (/\bpause\b/.test(n))
-    return { type: 'pause' };
-
-  if (/\b(?:reprend?s?|resume|continue)\b/.test(n) && /\b(?:musique|son|chanson|lecture)\b/.test(n))
-    return { type: 'resume' };
-
-  if (/\b(?:skip|suivant|next)\b/.test(n))
-    return { type: 'skip' };
-
-  if (/\b(?:quitte|sors|deconnecte)\b/.test(n) && /\b(?:vocal|voc)\b/.test(n))
-    return { type: 'leave' };
-
-  if (/\b(?:rejoins?|viens|connecte(?:-?toi)?|rentre)\b/.test(n) && /\b(?:vocal|voc)\b/.test(n))
-    return { type: 'join' };
-
-  const playM = text.match(/\b(joue|jouer|mets?|mettre|lance|lancer|balance)\s+(?:moi\s+|nous\s+)?(?:de\s+la\s+musique\s+|du\s+son\s+|la\s+(?:musique|chanson|piste)\s+)?(.+)/i);
-  if (playM) {
-    const verb = playM[1].toLowerCase();
-    const q = playM[2].replace(/[,?!.\s]+$/, '').trim();
-    // "mets"/"mettre" sont très ambigus en français ("mets à jour", "mets en place"...) :
-    // on exige un mot lié à la musique ou un lien pour ces verbes-là. Les autres
-    // (joue, jouer, lance, lancer, balance) ne servent qu'à demander de la musique.
-    const hasMusicCue = /\b(?:musique|son|chanson|piste|morceau|titre|playlist)\b/.test(n) || /https?:\/\//i.test(text);
-    const verbIsAmbiguous = /^mets?$|^mettre$/.test(verb);
-    if (q && (hasMusicCue || !verbIsAmbiguous)) return { type: 'play', query: q };
-  }
-
-  return null;
-}
-
-// ── Filet de secours IA : détecte une demande de musique formulée sans verbe
-// explicite ("vtxbot mais Mili mili de inoxtag") que la regex ci-dessus ne
-// peut pas couvrir. N'est appelé que si detectMusic() n'a rien trouvé.
-async function detectMusicAI(text) {
-  try {
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROK_API_KEY}` },
-      body: JSON.stringify({
-        model: 'grok-3-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `Tu analyses un message envoyé à un bot Discord pour déterminer si l'utilisateur demande de jouer une musique précise (titre, artiste ou lien), même sans verbe explicite (ex: "mais Mili mili de inoxtag" = demande de jouer ce titre). Ignore les mots de liaison ("mais", "bah", "et", "donc"...). Réponds UNIQUEMENT avec un JSON strict : {"play": true, "query": "titre et artiste"} si c'est une demande de musique, sinon {"play": false}.`,
-          },
-          { role: 'user', content: text },
-        ],
-        max_tokens: 60,
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      }),
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    const raw  = data.choices?.[0]?.message?.content;
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed?.play && parsed.query) return { type: 'play', query: String(parsed.query).trim() };
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-// ── Renvoie le salon vocal occupé par le bot si différent de celui demandé ──
-function busyElsewhere(music, guildId, voiceChannel) {
-  const existing = music.getQueue(guildId);
-  return (existing && existing.voiceChannel.id !== voiceChannel.id) ? existing.voiceChannel : null;
-}
 
 // ── Confirmation embed avec boutons Oui/Non ───────────────────────────────────
 function buildConfirmation(description) {
@@ -717,99 +642,6 @@ module.exports = (client) => {
       }
     }
 
-    // ── Lien envoyé suite à une recherche infructueuse ──────────────────────
-    {
-      const pending = pendingMusicLink.get(message.author.id);
-      if (pending) {
-        pendingMusicLink.delete(message.author.id);
-        const urlMatch = userInput.match(/https?:\/\/\S+/i);
-        if (Date.now() < pending.expires && urlMatch) {
-          const music = require('./music');
-          const voiceChannel = message.member?.voice?.channel;
-          if (!voiceChannel) return message.reply(`Tu n'es même pas en vocal. Difficile de t'imposer de la musique dans le vide.`);
-          const perms = voiceChannel.permissionsFor(client.user);
-          if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ou de parler dans ce salon vocal.`);
-          const busy = busyElsewhere(music, message.guild.id, voiceChannel);
-          if (busy) return message.reply(`Je suis déjà occupé dans **${busy.name}**. Un seul vocal à la fois, ça devrait suffire à ta petite tête.`);
-          try {
-            const result = await music.playUrl(message.guild, voiceChannel, message.channel, urlMatch[0]);
-            if (!result) return message.reply(`Même ce lien est inutilisable. J'abandonne, et toi aussi tu devrais.`);
-            if (result.position > 1) return message.reply(`**${result.title}** ajouté à la file (position ${result.position}). Patience, sujet.`);
-            return message.reply(`Lecture de **${result.title}**. Essaie d'apprécier.`);
-          } catch (e) {
-            console.error('[Musique] playUrl:', e.message);
-            return message.reply(`Une erreur est survenue pendant la lecture. Comme c'est étonnant.`);
-          }
-        }
-      }
-    }
-
-    // ── Détection musique ─────────────────────────────────────────────────
-    const musicAction = detectMusic(userInput) ?? await detectMusicAI(userInput);
-    if (musicAction) {
-      const music = require('./music');
-      const guildId = message.guild.id;
-
-      if (musicAction.type === 'play') {
-        const voiceChannel = message.member?.voice?.channel;
-        if (!voiceChannel) return message.reply(`Tu n'es même pas en vocal. Difficile de t'imposer de la musique dans le vide.`);
-        const perms = voiceChannel.permissionsFor(client.user);
-        if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ou de parler dans ce salon vocal.`);
-        const busy = busyElsewhere(music, guildId, voiceChannel);
-        if (busy) return message.reply(`Je suis déjà occupé dans **${busy.name}**. Un seul vocal à la fois, ça devrait suffire à ta petite tête.`);
-        try {
-          // Si un lien est présent dans la demande (même mêlé à du texte), on le
-          // privilégie plutôt que de lancer une recherche texte qui risque de
-          // tomber sur une tout autre musique.
-          const urlMatch = musicAction.query.match(/https?:\/\/\S+/i);
-          const result = urlMatch
-            ? await music.playUrl(message.guild, voiceChannel, message.channel, urlMatch[0])
-            : await music.playRequest(message.guild, voiceChannel, message.channel, musicAction.query);
-
-          if (!result) {
-            if (urlMatch) return message.reply(`Même ce lien est inutilisable. Bravo.`);
-            pendingMusicLink.set(message.author.id, { expires: Date.now() + 3 * 60 * 1000 });
-            return message.reply(`Je n'ai rien trouvé pour « ${musicAction.query} ». Envoie-moi un lien directement, si toutefois tu sais ce qu'est une URL.`);
-          }
-          if (result.position > 1) return message.reply(`**${result.title}** ajouté à la file (position ${result.position}). Patience, sujet.`);
-          return message.reply(`Lecture de **${result.title}**. Essaie d'apprécier.`);
-        } catch (e) {
-          console.error('[Musique] play:', e.message);
-          return message.reply(`Une erreur est survenue pendant la lecture. Comme c'est étonnant.`);
-        }
-      }
-
-      if (musicAction.type === 'stop') {
-        const ok = music.stop(guildId);
-        return message.reply(ok ? `Musique arrêtée. Le silence te convient mieux.` : `Je ne joue rien actuellement.`);
-      }
-      if (musicAction.type === 'pause') {
-        const ok = music.pause(guildId);
-        return message.reply(ok ? `Lecture en pause.` : `Je ne joue rien actuellement.`);
-      }
-      if (musicAction.type === 'resume') {
-        const ok = music.resume(guildId);
-        return message.reply(ok ? `Reprise de la lecture.` : `Rien à reprendre.`);
-      }
-      if (musicAction.type === 'skip') {
-        const ok = music.skip(guildId);
-        return message.reply(ok ? `Musique suivante.` : `Il n'y a rien à passer.`);
-      }
-      if (musicAction.type === 'leave') {
-        const ok = music.leave(guildId);
-        return message.reply(ok ? `Je quitte le vocal. Avec plaisir.` : `Je ne suis même pas en vocal.`);
-      }
-      if (musicAction.type === 'join') {
-        const voiceChannel = message.member?.voice?.channel;
-        if (!voiceChannel) return message.reply(`Tu n'es même pas en vocal. Je ne vais pas deviner où te rejoindre.`);
-        const perms = voiceChannel.permissionsFor(client.user);
-        if (!perms?.has('Connect') || !perms?.has('Speak')) return message.reply(`Je n'ai pas la permission de rejoindre ce salon vocal.`);
-        const busy = busyElsewhere(music, guildId, voiceChannel);
-        if (busy) return message.reply(`Je suis déjà occupé dans **${busy.name}**. Un seul vocal à la fois, ça devrait suffire à ta petite tête.`);
-        music.join(message.guild, voiceChannel, message.channel);
-        return message.reply(`Je rejoins **${voiceChannel.name}**. Présence obligatoire, apparemment.`);
-      }
-    }
 
     // ── Ordres Sanzoy ────────────────────────────────────────────────────
     if (isSanzoy) detectOrders(userInput, message, message.guild);
@@ -857,7 +689,18 @@ module.exports = (client) => {
 
       history.push({ role: 'assistant', content: reply });
 
-      if (reply.length > 1990) {
+      const askedVoice = /\b(vocal|vocale|voix|parle|dis[- ]?(?:le|moi)?(?:\s+en)?\s+voc|message vocal|en vocal|audio)\b/i.test(userInput);
+      const shouldVoice = askedVoice || (reply.length <= 300 && Math.random() < 0.45);
+      if (shouldVoice) {
+        try {
+          const { sendVoiceReply } = require('./levels/ttsGlados');
+          const voiceText = reply.startsWith(message.author.username) ? reply : `${message.author.username}. ${reply}`;
+          await sendVoiceReply(client, message.channelId, message.id, voiceText, message.guild);
+        } catch (e) {
+          console.error('[Grok] TTS vocal échoué, fallback texte:', e.message);
+          await message.reply(reply);
+        }
+      } else if (reply.length > 1990) {
         const chunks = [];
         let current = '';
         for (const line of reply.split('\n')) {
@@ -876,24 +719,4 @@ module.exports = (client) => {
     }
   });
 
-  // ── Salon vocal du bot supprimé → nettoyer la file (évite "déjà occupé" sur un salon mort) ──
-  client.on(Events.ChannelDelete, (channel) => {
-    if (channel.type !== ChannelType.GuildVoice) return;
-    const music = require('./music');
-    const queue = music.getQueue(channel.guild.id);
-    if (queue && queue.voiceChannel.id === channel.id) music.leave(channel.guild.id);
-  });
-
-  // ── Plus personne dans le salon vocal du bot → il quitte ──────────────────
-  client.on(Events.VoiceStateUpdate, (oldState, newState) => {
-    if (!oldState.channelId || oldState.channelId === newState.channelId) return;
-    const music = require('./music');
-    const guildId = oldState.guild.id;
-    const queue = music.getQueue(guildId);
-    if (!queue || queue.voiceChannel.id !== oldState.channelId) return;
-    const channel = oldState.channel;
-    if (!channel) return;
-    const humans = channel.members.filter((m) => !m.user.bot);
-    if (humans.size === 0) music.leave(guildId);
-  });
 };

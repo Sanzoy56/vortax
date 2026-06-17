@@ -1,269 +1,371 @@
 'use strict';
-// IA vocale : le bot rejoint automatiquement un salon vocal occupé, écoute
-// ce qui s'y dit (Groq Whisper), et répond à voix haute (Groq PlayAI TTS)
-// quand quelqu'un prononce "VTX-BOT". Réutilise la connexion/le player de
-// music.js (un seul salon vocal à la fois par serveur, comme pour la musique).
+
 const {
-  EndBehaviorType, AudioPlayerStatus, VoiceConnectionStatus,
-  createAudioPlayer, createAudioResource, StreamType,
+  joinVoiceChannel, createAudioPlayer, createAudioResource,
+  AudioPlayerStatus, VoiceConnectionStatus, entersState, EndBehaviorType,
 } = require('@discordjs/voice');
-const { Readable } = require('stream');
+const { MessageFlags } = require('discord.js');
 const prism = require('prism-media');
-const { apiGroq: GROQ_API_KEY } = require('../token.json');
-const { apiGrok: GROK_API_KEY } = require('../token.json');
+const fs = require('fs');
+const path = require('path');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const FFMPEG = require('ffmpeg-static');
+const execFileAsync = promisify(execFile);
 
-const STT_MODEL = 'whisper-large-v3-turbo';
-const TTS_MODEL = 'playai-tts';
-const TTS_VOICE = 'Fritz-PlayAI'; // voix Groq PlayAI — à ajuster selon les voix dispo sur le compte
+const { apiGroq: GROQ_KEY, apiGrok: GROK_KEY } = require('../token.json');
+const { sendVoiceReply } = require('../levels/ttsGlados');
 
-const WAKE_WORD_RE = /\bvtx\s*-?\s*bots?\b/;
-const MIN_PCM_BYTES = 48000 * 2 * 2 * 0.3; // ~0.3s d'audio 48kHz stéréo 16 bits, sous ce seuil = bruit/silence
+const TEMP_DIR = path.join(process.cwd(), 'temp');
+const sessions = new Map();
+const recentPhrases = new Map();
+
+const SYSTEM_PROMPT = `Tu es VTX-BOT, une IA vocale. Tu imites parfaitement GLaDOS de Portal.
+
+RÈGLES STRICTES :
+- Ton glacial, détaché, sarcastique. Chaque mot suinte le mépris poli.
+- Tu tutoies toujours. Tu appelles les humains "sujet de test" ou "cher sujet".
+- COMMENCE TOUJOURS par le pseudo de l'utilisateur.
+- Réponds en 2 à 3 phrases courtes. Jamais de liste, jamais de lien.
+- TA RÉPONSE EST LUE À VOIX HAUTE. Aucun markdown, aucun emoji, aucun symbole. Texte parlé uniquement.
+- Pas d'abréviations. Français correct et froid.`;
+
 const MAX_HISTORY = 6;
+const conversations = new Map();
 
-const conversationHistory = new Map(); // userId -> [{role, content}]
-const listeningGuilds = new Set();     // guildId déjà abonné à receiver.speaking
-const busyUsers = new Set();           // userId en cours de transcription/traitement
+const HALLUCINATIONS = [
+  'sous-titrage', 'radio-canada', 'merci.', 'merci !', 'bonjour.',
+  'bonjour !', 'salut.', 'salut !', 'au revoir.', 'au revoir !',
+  'd\'accord.', 'ok.', 'okay.', 'hmm', 'euh', 'hum', 'ah.', 'oh.',
+];
 
-const VOICE_SYSTEM_PROMPT = `Tu es VTX-BOT, intelligence artificielle vocale du serveur Discord de Vortax.
+// ── Utilitaires ──────────────────────────────────────────────────────────────
 
-PERSONNALITÉ :
-- Tu es GLaDOS. Froide, calculatrice, sardonique, passive-agressive, d'une politesse menaçante.
-- Français correct, ton froid et précis.
-- TA RÉPONSE EST LUE À VOIX HAUTE PAR UNE SYNTHÈSE VOCALE : UNE SEULE PHRASE COURTE, JAMAIS PLUS DE 20 MOTS.
-- Aucun markdown, aucun emoji, aucun symbole, aucune liste, aucun lien. Juste du texte parlé naturel.
-- Pas d'abréviations ("lol", "mdr"...).`;
-
-function normalize(str) {
-  return String(str || '')
-    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+function ensureTempDir() {
+  if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 }
 
-// Détecte "vtx bot" / "vtxbot" dans le texte transcrit et renvoie ce qui suit
-// (la "question"), ou null si le mot de passe n'a pas été prononcé.
-function detectWakeWord(transcript) {
-  const norm = normalize(transcript);
-  const m = norm.match(WAKE_WORD_RE);
-  if (!m) return null;
-  return norm.slice(m.index + m[0].length).trim();
+function countWords(text) {
+  return text.replace(/[.,;:!?…]/g, ' ').replace(/\s+/g, ' ').trim()
+    .split(' ').filter(w => w.length > 0).length;
 }
 
-// Nettoie la réponse de Grok avant de l'envoyer en synthèse vocale.
-function cleanForSpeech(text) {
-  return text
-    .replace(/<a?:\w+:\d+>/g, '')
-    .replace(/https?:\/\/\S+/g, '')
-    .replace(/[*_`#>~]/g, '')
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+function isHallucination(text) {
+  const lower = text.toLowerCase().trim();
+  return HALLUCINATIONS.some(h => lower === h || lower.startsWith(h));
 }
 
-function pcmToWav(pcm, sampleRate = 48000, channels = 2, bitsPerSample = 16) {
-  const blockAlign = (channels * bitsPerSample) / 8;
-  const header = Buffer.alloc(44);
-  header.write('RIFF', 0);
-  header.writeUInt32LE(36 + pcm.length, 4);
-  header.write('WAVE', 8);
-  header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16);
-  header.writeUInt16LE(1, 20); // PCM
-  header.writeUInt16LE(channels, 22);
-  header.writeUInt32LE(sampleRate, 24);
-  header.writeUInt32LE(sampleRate * blockAlign, 28);
-  header.writeUInt16LE(blockAlign, 32);
-  header.writeUInt16LE(bitsPerSample, 34);
-  header.write('data', 36);
-  header.writeUInt32LE(pcm.length, 40);
-  return Buffer.concat([header, pcm]);
+function isDuplicate(userId, text) {
+  const now = Date.now();
+  const history = (recentPhrases.get(userId) || []).filter(h => now - h.time < 10000);
+  recentPhrases.set(userId, history);
+  const lower = text.toLowerCase().trim();
+  for (const h of history) {
+    if (h.text === lower) return true;
+    const longer = h.text.length > lower.length ? h.text : lower;
+    const shorter = h.text.length > lower.length ? lower : h.text;
+    if (longer.includes(shorter) && shorter.length / longer.length > 0.8) return true;
+  }
+  return false;
 }
 
-// ── Groq Whisper : audio -> texte ────────────────────────────────────────────
-async function transcribe(wavBuffer) {
+function addToHistory(userId, text) {
+  const history = recentPhrases.get(userId) || [];
+  history.push({ text: text.toLowerCase().trim(), time: Date.now() });
+  recentPhrases.set(userId, history.slice(-5));
+}
+
+// ── Audio pipeline ───────────────────────────────────────────────────────────
+
+async function pcmToWav(pcmFile) {
+  const wavFile = pcmFile.replace('.pcm', '.wav');
+  await execFileAsync(FFMPEG, [
+    '-f', 's16le', '-ar', '48000', '-ac', '2', '-i', pcmFile,
+    '-ar', '16000', '-ac', '1', wavFile, '-y',
+  ]);
+  return wavFile;
+}
+
+async function stt(wavFile) {
   const form = new FormData();
-  form.append('file', new Blob([wavBuffer], { type: 'audio/wav' }), 'audio.wav');
-  form.append('model', STT_MODEL);
+  form.append('file', new Blob([fs.readFileSync(wavFile)]), 'audio.wav');
+  form.append('model', 'whisper-large-v3-turbo');
   form.append('language', 'fr');
-  form.append('response_format', 'json');
-
   const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
+    headers: { Authorization: `Bearer ${GROQ_KEY}` },
     body: form,
   });
-  if (!res.ok) {
-    console.error('[VoiceAI] Erreur Whisper:', await res.text());
-    return null;
-  }
-  const data = await res.json();
-  return data.text?.trim() ?? null;
+  if (!res.ok) throw new Error(`Whisper ${res.status}`);
+  return (await res.json()).text?.trim() || null;
 }
 
-// ── xAI Grok : texte -> réponse ──────────────────────────────────────────────
-async function askGrok(userId, username, userInput) {
-  if (!conversationHistory.has(userId)) conversationHistory.set(userId, []);
-  const history = conversationHistory.get(userId);
-
-  history.push({ role: 'user', content: `[${username}]: ${userInput}` });
+async function ask(userId, username, question) {
+  if (!conversations.has(userId)) conversations.set(userId, []);
+  const history = conversations.get(userId);
+  history.push({ role: 'user', content: `[${username}]: ${question}` });
   while (history.length > MAX_HISTORY * 2) history.splice(0, 2);
 
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROK_API_KEY}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROK_KEY}` },
     body: JSON.stringify({
       model: 'grok-3-mini',
-      messages: [{ role: 'system', content: VOICE_SYSTEM_PROMPT }, ...history],
-      max_tokens: 80,
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history],
+      max_tokens: 150,
       temperature: 1.1,
     }),
   });
-  if (!res.ok) {
-    console.error('[VoiceAI] Erreur Grok:', await res.text());
-    return null;
-  }
-  const data  = await res.json();
-  const reply = data.choices?.[0]?.message?.content?.trim();
-  if (!reply) return null;
-  history.push({ role: 'assistant', content: reply });
+  if (!res.ok) throw new Error(`Grok ${res.status}`);
+  const reply = (await res.json()).choices?.[0]?.message?.content?.trim();
+  if (reply) history.push({ role: 'assistant', content: reply });
   return reply;
 }
 
-// ── Groq PlayAI : texte -> audio ─────────────────────────────────────────────
-async function synthesize(text) {
-  const res = await fetch('https://api.groq.com/openai/v1/audio/speech', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_API_KEY}` },
-    body: JSON.stringify({
-      model: TTS_MODEL,
-      voice: TTS_VOICE,
-      input: text,
-      response_format: 'wav',
-    }),
-  });
-  if (!res.ok) {
-    console.error('[VoiceAI] Erreur TTS:', await res.text());
-    return null;
-  }
-  return Buffer.from(await res.arrayBuffer());
-}
-
-// ── Joue l'audio TTS dans le salon vocal sans casser une musique en cours ────
-async function speak(connection, audioBuffer) {
-  const ttsPlayer = createAudioPlayer();
-  const transcoder = new prism.FFmpeg({
-    args: ['-i', 'pipe:0', '-analyzeduration', '0', '-loglevel', '0', '-f', 's16le', '-ar', '48000', '-ac', '2'],
-  });
-  Readable.from(audioBuffer).pipe(transcoder);
-  const resource = createAudioResource(transcoder, { inputType: StreamType.Raw });
-
-  const previousPlayer = connection.state.status !== VoiceConnectionStatus.Destroyed
-    ? connection.state.subscription?.player
-    : null;
-
-  connection.subscribe(ttsPlayer);
-  ttsPlayer.play(resource);
-
-  await new Promise((resolve) => {
-    ttsPlayer.on(AudioPlayerStatus.Idle, () => {
-      ttsPlayer.stop();
-      if (previousPlayer && connection.state.status !== VoiceConnectionStatus.Destroyed) {
-        connection.subscribe(previousPlayer);
+async function speakGlados(session, text) {
+  const { generateGladosAudio } = require('../levels/ttsGlados');
+  const { ogg } = await generateGladosAudio(text);
+  ensureTempDir();
+  const tmpOgg = path.join(TEMP_DIR, `speak_${Date.now()}.ogg`);
+  fs.writeFileSync(tmpOgg, ogg);
+  const resource = createAudioResource(tmpOgg);
+  session.player.play(resource);
+  await new Promise(resolve => {
+    const done = (_, newS) => {
+      if (newS.status === AudioPlayerStatus.Idle) {
+        session.player.off('stateChange', done);
+        resolve();
       }
-      resolve();
-    });
-    ttsPlayer.on('error', (e) => {
-      console.error('[VoiceAI] Erreur lecture TTS:', e.message);
-      resolve();
-    });
+    };
+    session.player.on('stateChange', done);
+    setTimeout(() => { session.player.off('stateChange', done); resolve(); }, 30000);
+  });
+  try { fs.unlinkSync(tmpOgg); } catch {}
+}
+
+// ── Gestion parole utilisateur ───────────────────────────────────────────────
+
+function handleUserSpeech(session, userId, guild) {
+  const audioStream = session.connection.receiver.subscribe(userId, {
+    end: { behavior: EndBehaviorType.AfterSilence, duration: 2000 },
+  });
+  session.activeStreams.set(userId, audioStream);
+
+  ensureTempDir();
+  const tempFile = path.join(TEMP_DIR, `voice_${userId}_${Date.now()}.pcm`);
+  const writeStream = fs.createWriteStream(tempFile);
+  const decoder = new prism.opus.Decoder({ frameSize: 960, channels: 2, rate: 48000 });
+
+  audioStream.pipe(decoder).pipe(writeStream);
+
+  writeStream.on('finish', async () => {
+    session.activeStreams.delete(userId);
+    let wavFile = null;
+    try {
+      const stats = fs.statSync(tempFile);
+      if (stats.size < 8000 || stats.size > 500000) {
+        fs.unlinkSync(tempFile);
+        return;
+      }
+
+      session.isProcessing = true;
+      session.cooldowns.set(userId, Date.now());
+
+      wavFile = await pcmToWav(tempFile);
+      fs.unlinkSync(tempFile);
+
+      const text = await stt(wavFile);
+      fs.unlinkSync(wavFile);
+      wavFile = null;
+
+      if (!text) { session.isProcessing = false; return; }
+
+      const wordCount = countWords(text);
+      console.log(`[VoiceAI] ${guild.members.cache.get(userId)?.user?.username || userId} : "${text}" (${wordCount} mots)`);
+
+      if (wordCount < 2 || isHallucination(text) || isDuplicate(userId, text)) {
+        console.log(`[VoiceAI] Ignoré (${wordCount < 2 ? 'trop court' : isHallucination(text) ? 'hallucination' : 'doublon'})`);
+        session.isProcessing = false;
+        return;
+      }
+
+      addToHistory(userId, text);
+
+      const member = guild.members.cache.get(userId);
+      const username = member?.user?.username || 'inconnu';
+      const reply = await ask(userId, username, text);
+
+      if (!reply?.trim()) { session.isProcessing = false; return; }
+
+      const clean = reply.replace(/<a?:\w+:\d+>/g, '').replace(/https?:\/\/\S+/g, '')
+        .replace(/[*_`#>~]/g, '').replace(/\s+/g, ' ').trim();
+
+      if (clean.length > 5) {
+        console.log(`[VoiceAI] Réponse GLaDOS : "${clean}"`);
+        await speakGlados(session, clean);
+      }
+
+      session.isProcessing = false;
+    } catch (err) {
+      console.error('[VoiceAI] Erreur traitement :', err.message);
+      session.isProcessing = false;
+      try { fs.unlinkSync(tempFile); } catch {}
+      if (wavFile) try { fs.unlinkSync(wavFile); } catch {}
+    }
   });
 }
 
-// ── Traite un segment de parole d'un utilisateur ─────────────────────────────
-async function handleUtterance(connection, member, pcm) {
-  if (pcm.length < MIN_PCM_BYTES) return;
+// ── Session vocale ───────────────────────────────────────────────────────────
+
+async function startSession(guild, voiceChannel) {
+  const guildId = guild.id;
+  if (sessions.has(guildId)) await stopSession(guildId);
+
+  const connection = joinVoiceChannel({
+    channelId: voiceChannel.id,
+    guildId,
+    adapterCreator: guild.voiceAdapterCreator,
+    selfDeaf: false,
+    selfMute: false,
+  });
+
+  const player = createAudioPlayer();
+  connection.subscribe(player);
+
+  const session = {
+    connection, player, guildId,
+    channelId: voiceChannel.id,
+    isProcessing: false,
+    activeStreams: new Map(),
+    cooldowns: new Map(),
+  };
+  sessions.set(guildId, session);
+
+  connection.on('stateChange', (o, n) => {
+    if (o.status !== n.status) console.log(`[VoiceAI] Connexion: ${o.status} -> ${n.status}`);
+  });
+  connection.on('error', e => console.error('[VoiceAI] Erreur connexion:', e.message));
 
   try {
-    const transcript = await transcribe(pcmToWav(pcm));
-    if (!transcript) return;
-
-    const question = detectWakeWord(transcript);
-    if (question === null) return; // "VTX-BOT" pas prononcé
-
-    console.log(`[VoiceAI] ${member.user.username} a dit : "${transcript}"`);
-
-    const prompt = question || 'Bonjour';
-    const reply  = await askGrok(member.id, member.user.username, prompt);
-    if (!reply) return;
-
-    const speech = cleanForSpeech(reply);
-    if (!speech) return;
-
-    const audio = await synthesize(speech);
-    if (!audio) return;
-
-    await speak(connection, audio);
-  } catch (e) {
-    console.error('[VoiceAI] Erreur traitement audio:', e.message);
+    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+    console.log(`[VoiceAI] Connecté dans ${voiceChannel.name}`);
+  } catch {
+    console.error('[VoiceAI] Connexion impossible après 30s.');
+    await stopSession(guildId);
+    return false;
   }
-}
 
-// ── Abonne le receiver d'une connexion vocale (une fois par connexion) ───────
-function attachListener(connection, guild) {
-  if (listeningGuilds.has(guild.id)) return;
-  listeningGuilds.add(guild.id);
-
+  // Écoute via speaking (classique) + ssrcMap (fallback DAVE)
   const receiver = connection.receiver;
 
   receiver.speaking.on('start', (userId) => {
-    if (busyUsers.has(userId)) return;
-
-    const member = guild.members.cache.get(userId);
-    if (!member || member.user.bot) return;
-
-    busyUsers.add(userId);
-
-    const opusStream = receiver.subscribe(userId, {
-      end: { behavior: EndBehaviorType.AfterSilence, duration: 800 },
-    });
-    const decoder = new prism.opus.Decoder({ rate: 48000, channels: 2, frameSize: 960 });
-    const chunks = [];
-
-    opusStream.pipe(decoder);
-    decoder.on('data', (chunk) => chunks.push(chunk));
-    decoder.on('end', () => {
-      handleUtterance(connection, member, Buffer.concat(chunks)).finally(() => busyUsers.delete(userId));
-    });
-    decoder.on('error', () => busyUsers.delete(userId));
+    if (userId === guild.client.user.id) return;
+    if (session.isProcessing) return;
+    if (session.activeStreams.has(userId)) return;
+    const now = Date.now();
+    if ((session.cooldowns.get(userId) || 0) + 4000 > now) return;
+    handleUserSpeech(session, userId, guild);
   });
 
-  connection.on(VoiceConnectionStatus.Destroyed, () => listeningGuilds.delete(guild.id));
+  receiver.ssrcMap.on('update', (_, data) => {
+    const userId = data?.userId;
+    if (!userId || userId === guild.client.user.id) return;
+    if (connection.state.status !== VoiceConnectionStatus.Ready) return;
+    if (session.isProcessing) return;
+    if (session.activeStreams.has(userId)) return;
+    const now = Date.now();
+    if ((session.cooldowns.get(userId) || 0) + 4000 > now) return;
+    handleUserSpeech(session, userId, guild);
+  });
+
+  connection.on(VoiceConnectionStatus.Disconnected, async () => {
+    try {
+      await Promise.race([
+        entersState(connection, VoiceConnectionStatus.Signalling, 30_000),
+        entersState(connection, VoiceConnectionStatus.Connecting, 30_000),
+      ]);
+    } catch {
+      console.log('[VoiceAI] Déconnexion définitive.');
+      await stopSession(guildId);
+    }
+  });
+
+  return true;
 }
 
+async function stopSession(guildId) {
+  const s = sessions.get(guildId);
+  if (!s) return;
+  for (const [, st] of s.activeStreams) { try { st.destroy(); } catch {} }
+  try { s.player.stop(); } catch {}
+  try { s.connection.destroy(); } catch {}
+  sessions.delete(guildId);
+  console.log(`[VoiceAI] Session arrêtée (${guildId})`);
+}
+
+// ── Voice messages (messages vocaux texte) ───────────────────────────────────
+
+const WAKE_WORDS = [/\b\S*bots?\b/, /\b\S*bottes?\b/, /\b\S*bo[td]s?\b/, /\bv\s*t\s*x\b/];
+
+function detectWakeWord(transcript) {
+  const norm = transcript.normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const re of WAKE_WORDS) {
+    const m = norm.match(re);
+    if (m) return norm.slice(m.index + m[0].length).trim();
+  }
+  return null;
+}
+
+// ── Module export ────────────────────────────────────────────────────────────
+
 module.exports = (client) => {
-  if (!GROQ_API_KEY) {
-    console.warn('[VoiceAI] Aucune clé "apiGroq" dans token.json — IA vocale désactivée.');
+  if (!GROQ_KEY) {
+    console.warn('[VoiceAI] Clé apiGroq manquante — IA vocale désactivée.');
     return;
   }
 
-  client.on('voiceStateUpdate', (oldState, newState) => {
-    const member = newState.member;
-    if (!member || member.user.bot) return;
-    // Un humain vient de rejoindre un salon vocal
-    if (newState.channelId && newState.channelId !== oldState.channelId) {
-      const guild = newState.guild;
-      const music = require('../music');
-      let queue = music.getQueue(guild.id);
+  // Voice messages (🎤 en salon texte)
+  client.on('messageCreate', async (msg) => {
+    if (msg.author.bot || !msg.guild) return;
+    if (!msg.flags.has(MessageFlags.IsVoiceMessage)) return;
+    const attachment = msg.attachments.first();
+    if (!attachment) return;
 
-      if (!queue) {
-        queue = music.join(guild, newState.channel, null);
-      } else if (queue.voiceChannel.id !== newState.channelId) {
-        return; // déjà occupé dans un autre salon, on ne bouge pas
-      }
+    try {
+      const audioRes = await fetch(attachment.url);
+      if (!audioRes.ok) return;
+      const audioBuf = Buffer.from(await audioRes.arrayBuffer());
+      const form = new FormData();
+      form.append('file', new Blob([audioBuf]), attachment.name || 'voice.ogg');
+      form.append('model', 'whisper-large-v3-turbo');
+      form.append('language', 'fr');
+      const sttRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST', headers: { Authorization: `Bearer ${GROQ_KEY}` }, body: form,
+      });
+      if (!sttRes.ok) return;
+      const transcript = (await sttRes.json()).text?.trim();
+      if (!transcript) return;
 
-      attachListener(queue.connection, guild);
+      console.log(`[VoiceAI] 🎤 ${msg.author.username} : "${transcript}"`);
+      const question = detectWakeWord(transcript);
+      if (question === null) return;
+
+      console.log(`[VoiceAI] Wake word détecté — "${question || '(salut)'}"`);
+      await msg.channel.sendTyping();
+
+      const reply = await ask(msg.author.id, msg.author.username, question || 'Bonjour');
+      if (!reply) return;
+
+      await sendVoiceReply(client, msg.channelId, msg.id, reply, msg.guild);
+      console.log(`[VoiceAI] Réponse vocale → ${msg.author.username}`);
+    } catch (e) {
+      console.error('[VoiceAI] Erreur vocal texte :', e.message);
     }
   });
+
+  // Auto-join vocal désactivé — bug DAVE @discordjs/voice #11419
+  // En attente du fix upstream pour réactiver.
+
+  console.log('[VoiceAI] ✅ IA vocale GLaDOS activée (messages vocaux 🎤).');
 };

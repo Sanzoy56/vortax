@@ -81,6 +81,7 @@ module.exports = (client) => {
     client.on('channelUpdate', async (oldChannel, newChannel) => {
         if (!newChannel.guild) return;
         if (Date.now() - newChannel.createdTimestamp < 5000) return;
+        if (newChannel.parentId === '1424486399197057025') return;
 
         const logs      = await newChannel.guild.fetchAuditLogs({ type: AuditLogEvent.ChannelUpdate, limit: 1 }).catch(() => null);
         const entry     = logs?.entries.first();
