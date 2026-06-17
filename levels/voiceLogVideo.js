@@ -103,14 +103,15 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-async function buildVoiceLogVideo({ authorTag, authorId, avatarURL, channelName, date, audioURL, durationMs }) {
+async function buildVoiceLogVideo({ authorTag, authorId, avatarURL, channelName, date, audioURL, durationSecs: rawDur }) {
   const formatDate = (d) => new Date(d).toLocaleString('fr-FR', {
     weekday: 'long', day: '2-digit', month: 'long',
     year: 'numeric', hour: '2-digit', minute: '2-digit',
     timeZone: 'Europe/Paris',
   });
 
-  const durationSecs = Math.max(1, Math.round(durationMs / 1000));
+  const durationSecs = Math.max(2, Math.round(rawDur || 3));
+  const durationMs = durationSecs * 1000;
 
   const cardBuf = await renderLogCard({
     title: 'Message vocal',
@@ -140,27 +141,29 @@ async function buildVoiceLogVideo({ authorTag, authorId, avatarURL, channelName,
   if (!audioRes.ok) throw new Error('Audio download failed');
   fs.writeFileSync(tmpAudio, Buffer.from(await audioRes.arrayBuffer()));
 
-  // FFmpeg : image statique + audio + barre de progression animée (drawbox violet qui grandit)
+  // Convertir OGG → WAV pour compatibilité FFmpeg
+  const tmpWav = path.join(TMP, `vlog_${id}.wav`);
+  await execFileAsync(FFMPEG, ['-y', '-i', tmpAudio, '-ar', '44100', '-ac', '2', tmpWav]);
+
+  // FFmpeg : image statique + audio + barre de progression animée
   await execFileAsync(FFMPEG, [
-    '-loop', '1', '-i', tmpImg,
-    '-i', tmpAudio,
+    '-loop', '1', '-framerate', '15', '-i', tmpImg,
+    '-i', tmpWav,
     '-filter_complex', [
-      // Barre de progression qui se remplit
-      `drawbox=x=${barX}:y=${barY}:w='min(t/${durationSecs}*${barW},${barW})':h=6:color=#a855f7:t=fill`,
-      // Point de progression (cercle simulé par un petit carré)
-      `drawbox=x='${barX}+min(t/${durationSecs}*${barW},${barW})-4':y=${barY - 3}:w=8:h=12:color=#c084fc:t=fill`,
+      `drawbox=x=${barX}:y=${barY}:w='min(t/${durationSecs}*${barW}\\,${barW})':h=6:color=#a855f7:t=fill`,
+      `drawbox=x='${barX}+min(t/${durationSecs}*${barW}\\,${barW})-4':y=${barY - 3}:w=8:h=12:color=#c084fc:t=fill`,
     ].join(','),
     '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'stillimage',
     '-c:a', 'aac', '-b:a', '128k',
     '-pix_fmt', 'yuv420p',
     '-t', String(durationSecs),
-    '-shortest',
     '-y', tmpMp4,
-  ]);
+  ], { timeout: 30000 });
 
   const mp4 = fs.readFileSync(tmpMp4);
   fs.unlinkSync(tmpImg);
   fs.unlinkSync(tmpAudio);
+  fs.unlinkSync(tmpWav);
   fs.unlinkSync(tmpMp4);
   return mp4;
 }

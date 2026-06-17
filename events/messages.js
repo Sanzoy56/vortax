@@ -12,6 +12,7 @@ module.exports = (client) => {
     // ========== MISE EN CACHE DES MESSAGES ==========
     client.on(Events.MessageCreate, (message) => {
         if (!message.guild) return;
+        const isVoice = message.flags.has(MessageFlags.IsVoiceMessage);
         MSG_CACHE.set(message.id, {
             content:      message.content || null,
             authorId:     message.author?.id,
@@ -21,6 +22,9 @@ module.exports = (client) => {
             createdAt:    message.createdAt,
             embeds:       message.embeds.length > 0,
             attachments:  message.attachments.size > 0,
+            isVoiceMessage: isVoice,
+            voiceUrl:     isVoice ? message.attachments.first()?.url : null,
+            voiceDuration: isVoice ? (message.attachments.first()?.duration || 0) : 0,
         });
         // Limiter la taille du cache : supprimer la plus ancienne entrée
         if (MSG_CACHE.size > MSG_CACHE_MAX) {
@@ -49,7 +53,7 @@ module.exports = (client) => {
                 channelName: message.channel?.name ?? message.channelId,
                 date: message.createdAt,
                 audioURL: attachment.url,
-                durationMs: attachment.duration || 0,
+                durationSecs: attachment.duration || 3,
             });
             const file = new AttachmentBuilder(mp4, { name: 'vocal_log.mp4' });
             await logChannel.send({ files: [file] });
@@ -162,6 +166,26 @@ module.exports = (client) => {
                 deletedBy = `${log.executor.tag} (${log.executor.id})`;
             }
         } catch {}
+
+        // Message vocal supprimé → log spéciale
+        const wasVoice = cached?.isVoiceMessage || message.flags?.has(MessageFlags.IsVoiceMessage);
+        if (wasVoice) {
+            const durSecs = cached?.voiceDuration || 0;
+            return sendLogCard(logChannel, {
+                title: 'Message vocal supprimé',
+                accent: '#ef4444',
+                avatarURL: authorAvatar,
+                rows: [
+                    { label: 'Auteur', value: auteurDisplay },
+                    { label: 'Salon', value: message.channel?.name ?? message.channelId },
+                    { label: 'Créé le', value: createdAt ? formatDate(createdAt) : 'Inconnue' },
+                    { label: 'Supprimé le', value: formatDate(new Date()) },
+                    { label: 'Supprimé par', value: deletedBy },
+                    { label: 'Durée', value: durSecs > 0 ? `${Math.round(durSecs)}s` : 'Inconnue' },
+                ],
+                footerExtra: authorId ? `ID: ${authorId}` : undefined,
+            });
+        }
 
         // Contenu : Discord.js en priorité, sinon cache local
         const contenu = message.content?.slice(0, 1000)
