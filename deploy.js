@@ -203,7 +203,8 @@ const commands = [
                 .setRequired(true)
                 .addChoices(
                     { name: '💬 Message normal', value: 'message' },
-                    { name: '📋 Embed',          value: 'embed'   }
+                    { name: '📋 Embed',          value: 'embed'   },
+                    { name: '🎤 Vocal',          value: 'vocal'   }
                 )
         )
         .addStringOption(option =>

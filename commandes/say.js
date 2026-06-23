@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, Routes, MessageFlags } = require('discord.js');
+const { generateGladosAudio, fakeWaveform } = require('../levels/ttsGlados');
 
 const ALLOWED_ROLES = [
   '1491458130322919435', // Sanzoy
@@ -22,6 +23,34 @@ module.exports = (client) => {
       if (!message) return interaction.reply({ content: '❌ Tu dois renseigner un message !', ephemeral: true });
       await interaction.channel.send(message);
       await interaction.reply({ content: '✅ Message envoyé !', ephemeral: true });
+    }
+
+    // ========== VOCAL ==========
+    if (type === 'vocal') {
+      const message = interaction.options.getString('message');
+      if (!message) return interaction.reply({ content: '❌ Tu dois renseigner un message !', ephemeral: true });
+
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        const { ogg, duration } = await generateGladosAudio(message);
+        await interaction.client.rest.post(Routes.channelMessages(interaction.channelId), {
+          body: {
+            flags: MessageFlags.IsVoiceMessage,
+            attachments: [{
+              id: '0',
+              filename: 'voice-message.ogg',
+              duration_secs: duration,
+              waveform: fakeWaveform(duration),
+            }],
+          },
+          files: [{ data: ogg, name: 'voice-message.ogg', contentType: 'audio/ogg' }],
+        });
+        await interaction.editReply({ content: '✅ Message vocal envoyé !' });
+      } catch (e) {
+        console.error('[Say] Erreur vocal:', e.message);
+        await interaction.editReply({ content: '❌ Erreur lors de la génération vocale.' });
+      }
+      return;
     }
 
     // ========== EMBED ==========
