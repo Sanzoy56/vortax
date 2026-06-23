@@ -39,6 +39,7 @@ async function generateGladosAudio(text) {
       'equalizer=f=1200:t=q:w=1:g=4',
       'equalizer=f=3000:t=q:w=0.5:g=2',
       'aecho=0.8:0.7:20:0.5',
+      'volume=2.5',
     ].join(','),
     '-c:a', 'libopus', '-b:a', '64k',
     tmpOgg,

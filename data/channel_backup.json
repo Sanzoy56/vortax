@@ -1,6 +1,6 @@
 {
   "guildId": "1495863681420886057",
-  "savedAt": "2026-06-17T18:38:00.240Z",
+  "savedAt": "2026-06-23T12:36:25.543Z",
   "channels": [
     {
       "id": "1516757203694915714",
@@ -26,15 +26,6 @@
       "bitrate": 64000,
       "permissionOverwrites": [
         {
-          "id": "1495863681420886057",
-          "type": 0,
-          "allow": [],
-          "deny": [
-            "ViewChannel",
-            "Connect"
-          ]
-        },
-        {
           "id": "1495864702457217271",
           "type": 1,
           "allow": [
@@ -42,6 +33,15 @@
             "Connect"
           ],
           "deny": []
+        },
+        {
+          "id": "1495863681420886057",
+          "type": 0,
+          "allow": [],
+          "deny": [
+            "ViewChannel",
+            "Connect"
+          ]
         }
       ]
     },
@@ -69,20 +69,20 @@
       "bitrate": null,
       "permissionOverwrites": [
         {
-          "id": "1495863681420886057",
-          "type": 0,
-          "allow": [],
-          "deny": [
-            "ViewChannel"
-          ]
-        },
-        {
           "id": "1495864702457217271",
           "type": 1,
           "allow": [
             "ViewChannel"
           ],
           "deny": []
+        },
+        {
+          "id": "1495863681420886057",
+          "type": 0,
+          "allow": [],
+          "deny": [
+            "ViewChannel"
+          ]
         }
       ]
     }
