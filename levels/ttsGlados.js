@@ -20,14 +20,29 @@ let piperReady = false;
 function ensurePiper() {
   if (piperReady || IS_WINDOWS) { piperReady = true; return; }
   const linuxDir = path.join(PIPER_DIR, 'piper_linux');
+  const { execSync } = require('child_process');
   try {
-    require('child_process').execSync(`chmod +x "${path.join(linuxDir, 'piper')}"`, { stdio: 'ignore' });
-    const links = { 'libpiper_phonemize.so': 'libpiper_phonemize.so.1', 'libespeak-ng.so': 'libespeak-ng.so.1' };
-    for (const [link, target] of Object.entries(links)) {
-      const p = path.join(linuxDir, link);
-      if (!require('fs').existsSync(p)) require('fs').symlinkSync(target, p);
+    // Rendre tous les binaires exécutables
+    execSync(`chmod +x "${path.join(linuxDir, 'piper')}" "${path.join(linuxDir, 'piper_phonemize')}" "${path.join(linuxDir, 'espeak-ng')}"`, { stdio: 'pipe' });
+    console.log('[TTS] chmod +x piper OK');
+  } catch (e) { console.error('[TTS] chmod échoué:', e.message); }
+  // Créer les symlinks manquants
+  const links = {
+    'libpiper_phonemize.so': 'libpiper_phonemize.so.1',
+    'libespeak-ng.so': 'libespeak-ng.so.1',
+  };
+  for (const [link, target] of Object.entries(links)) {
+    const p = path.join(linuxDir, link);
+    if (!fs.existsSync(p)) {
+      try { fs.symlinkSync(target, p); console.log(`[TTS] Symlink créé: ${link} -> ${target}`); }
+      catch (e) { console.error(`[TTS] Symlink ${link} échoué:`, e.message); }
     }
-  } catch {}
+  }
+  // Vérifier que espeak-ng-data est accessible
+  const espeakData = path.join(linuxDir, 'espeak-ng-data');
+  if (!fs.existsSync(espeakData)) {
+    console.error('[TTS] ⚠️ espeak-ng-data manquant dans piper_linux/');
+  }
   piperReady = true;
 }
 
@@ -42,10 +57,15 @@ async function generateGladosAudio(text) {
     const proc = require('child_process').spawn(PIPER_EXE, [
       '--model', PIPER_MODEL, '--output_file', tmpWav,
     ], { stdio: ['pipe', 'pipe', 'pipe'], env });
+    let stderr = '';
+    proc.stderr.on('data', d => stderr += d.toString());
     proc.stdin.write(text);
     proc.stdin.end();
-    proc.on('close', code => code === 0 ? resolve() : reject(new Error(`Piper exit ${code}`)));
-    proc.on('error', reject);
+    proc.on('close', code => {
+      if (code === 0) return resolve();
+      reject(new Error(`Piper exit ${code}: ${stderr.trim().slice(0, 200)}`));
+    });
+    proc.on('error', e => reject(new Error(`Piper spawn: ${e.message}`)));
     setTimeout(() => { proc.kill(); reject(new Error('Piper timeout')); }, 15000);
   });
 
