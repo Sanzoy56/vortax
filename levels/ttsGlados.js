@@ -134,9 +134,25 @@ async function generateGladosAudio(text) {
     inputFile = tmpMp3;
   }
 
+  const isPiper = inputFile === tmpWav;
+  const af = isPiper
+    ? 'volume=0.8'
+    : [
+        'asetrate=24000*0.85',
+        'aresample=48000',
+        'atempo=1.176',
+        'compand=attacks=0:points=-80/-80|-45/-45|-27/-25|0/-10:gain=2',
+        'highpass=f=350',
+        'lowpass=f=3500',
+        'equalizer=f=900:t=q:w=1.5:g=5',
+        'equalizer=f=2800:t=q:w=0.8:g=3',
+        'tremolo=f=6:d=0.08',
+        'volume=0.8',
+      ].join(',');
+
   await execFileAsync(FFMPEG, [
     '-y', '-i', inputFile,
-    '-af', 'volume=0.8',
+    '-af', af,
     '-c:a', 'libopus', '-b:a', '64k',
     tmpOgg,
   ]);
