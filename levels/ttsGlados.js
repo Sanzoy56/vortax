@@ -17,37 +17,75 @@ const PIPER_EXE = IS_WINDOWS
 const PIPER_MODEL = path.join(PIPER_DIR, 'fr_FR-glados-medium.onnx');
 
 let piperReady = false;
-function ensurePiper() {
-  if (piperReady || IS_WINDOWS) { piperReady = true; return; }
+const PIPER_URL = 'https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz';
+const MODEL_URL = 'https://raw.githubusercontent.com/TazzerMAN/piper-voice-glados-fr/main/models/fr_FR-glados-medium.tar.gz';
+
+async function ensurePiper() {
+  if (piperReady) return;
+  if (IS_WINDOWS) { piperReady = true; return; }
+
   const linuxDir = path.join(PIPER_DIR, 'piper_linux');
   const { execSync } = require('child_process');
+
+  // Vérifier si le binaire est un vrai ELF (pas corrompu par git)
+  let needDownload = false;
   try {
-    // Rendre tous les binaires exécutables
-    execSync(`chmod +x "${path.join(linuxDir, 'piper')}" "${path.join(linuxDir, 'piper_phonemize')}" "${path.join(linuxDir, 'espeak-ng')}"`, { stdio: 'pipe' });
-    console.log('[TTS] chmod +x piper OK');
-  } catch (e) { console.error('[TTS] chmod échoué:', e.message); }
-  // Créer les symlinks manquants
-  const links = {
-    'libpiper_phonemize.so': 'libpiper_phonemize.so.1',
-    'libespeak-ng.so': 'libespeak-ng.so.1',
-  };
-  for (const [link, target] of Object.entries(links)) {
-    const p = path.join(linuxDir, link);
-    if (!fs.existsSync(p)) {
-      try { fs.symlinkSync(target, p); console.log(`[TTS] Symlink créé: ${link} -> ${target}`); }
-      catch (e) { console.error(`[TTS] Symlink ${link} échoué:`, e.message); }
+    const header = Buffer.alloc(4);
+    const fd = fs.openSync(PIPER_EXE, 'r');
+    fs.readSync(fd, header, 0, 4, 0);
+    fs.closeSync(fd);
+    needDownload = header.toString() !== '\x7fELF';
+  } catch { needDownload = true; }
+
+  if (needDownload) {
+    console.log('[TTS] Piper manquant ou corrompu — téléchargement...');
+    try {
+      fs.mkdirSync(linuxDir, { recursive: true });
+      // Télécharger et extraire Piper
+      const piperRes = await fetch(PIPER_URL);
+      if (!piperRes.ok) throw new Error(`Download piper: ${piperRes.status}`);
+      const piperTar = path.join(TMP, 'piper_dl.tar.gz');
+      fs.writeFileSync(piperTar, Buffer.from(await piperRes.arrayBuffer()));
+      execSync(`tar xzf "${piperTar}" -C "${linuxDir}" --strip-components=1`, { stdio: 'pipe' });
+      fs.unlinkSync(piperTar);
+      console.log('[TTS] Piper téléchargé OK');
+    } catch (e) {
+      console.error('[TTS] Échec téléchargement Piper:', e.message);
+      piperReady = true;
+      return;
     }
   }
-  // Vérifier que espeak-ng-data est accessible
-  const espeakData = path.join(linuxDir, 'espeak-ng-data');
-  if (!fs.existsSync(espeakData)) {
-    console.error('[TTS] ⚠️ espeak-ng-data manquant dans piper_linux/');
+
+  // Vérifier si le modèle GLaDOS existe
+  if (!fs.existsSync(PIPER_MODEL)) {
+    console.log('[TTS] Modèle GLaDOS FR manquant — téléchargement...');
+    try {
+      const modelRes = await fetch(MODEL_URL);
+      if (!modelRes.ok) throw new Error(`Download model: ${modelRes.status}`);
+      const modelTar = path.join(TMP, 'glados_dl.tar.gz');
+      fs.writeFileSync(modelTar, Buffer.from(await modelRes.arrayBuffer()));
+      execSync(`tar xzf "${modelTar}" -C "${PIPER_DIR}"`, { stdio: 'pipe' });
+      fs.unlinkSync(modelTar);
+      console.log('[TTS] Modèle GLaDOS FR téléchargé OK');
+    } catch (e) { console.error('[TTS] Échec téléchargement modèle:', e.message); }
   }
+
+  // chmod + symlinks
+  try {
+    execSync(`chmod +x "${path.join(linuxDir, 'piper')}"`, { stdio: 'pipe' });
+    const links = { 'libpiper_phonemize.so': 'libpiper_phonemize.so.1', 'libespeak-ng.so': 'libespeak-ng.so.1' };
+    for (const [link, target] of Object.entries(links)) {
+      const p = path.join(linuxDir, link);
+      if (!fs.existsSync(p)) fs.symlinkSync(target, p);
+    }
+    console.log('[TTS] Piper prêt (Linux)');
+  } catch (e) { console.error('[TTS] Setup Linux échoué:', e.message); }
+
   piperReady = true;
 }
 
 async function generateGladosAudio(text) {
-  ensurePiper();
+  await ensurePiper();
   const id = Date.now().toString(36);
   const tmpWav = path.join(TMP, `vtx_${id}.wav`);
   const tmpOgg = path.join(TMP, `vtx_${id}.ogg`);
