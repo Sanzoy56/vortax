@@ -84,83 +84,32 @@ async function ensurePiper() {
   piperReady = true;
 }
 
-async function generateWithPiper(text, tmpWav) {
-  await ensurePiper();
-  await new Promise((resolve, reject) => {
-    const env = IS_WINDOWS ? process.env : { ...process.env, LD_LIBRARY_PATH: path.dirname(PIPER_EXE) };
-    const proc = require('child_process').spawn(PIPER_EXE, [
-      '--model', PIPER_MODEL, '--output_file', tmpWav,
-    ], { stdio: ['pipe', 'pipe', 'pipe'], env });
-    let stderr = '';
-    proc.stderr.on('data', d => stderr += d.toString());
-    proc.stdin.write(text);
-    proc.stdin.end();
-    proc.on('close', code => {
-      if (code === 0) return resolve();
-      reject(new Error(`Piper exit ${code}: ${stderr.trim().slice(0, 200)}`));
-    });
-    proc.on('error', e => reject(new Error(`Piper spawn: ${e.message}`)));
-    setTimeout(() => { proc.kill(); reject(new Error('Piper timeout')); }, 15000);
-  });
-}
-
-async function generateWithEdgeTTS(text, tmpMp3) {
-  const { MsEdgeTTS } = require('msedge-tts');
-  const edge = new MsEdgeTTS();
-  await edge.setMetadata('fr-FR-DeniseNeural', 'audio-24khz-96kbitrate-mono-mp3');
-  const stream = edge.toStream(text);
-  const chunks = [];
-  await new Promise((resolve, reject) => {
-    stream.audioStream.on('data', c => chunks.push(c));
-    stream.audioStream.on('end', resolve);
-    stream.audioStream.on('error', reject);
-  });
-  fs.writeFileSync(tmpMp3, Buffer.concat(chunks));
-}
+const GLADOS_API = 'https://sanzoy-glados-tts.hf.space/tts';
 
 async function generateGladosAudio(text) {
   const id = Date.now().toString(36);
   const tmpWav = path.join(TMP, `vtx_${id}.wav`);
-  const tmpMp3 = path.join(TMP, `vtx_${id}.mp3`);
   const tmpOgg = path.join(TMP, `vtx_${id}.ogg`);
 
-  let inputFile;
-  try {
-    await generateWithPiper(text, tmpWav);
-    inputFile = tmpWav;
-  } catch (e) {
-    console.log(`[TTS] Piper échoué (${e.message.slice(0, 80)}), fallback Edge TTS`);
-    await generateWithEdgeTTS(text, tmpMp3);
-    inputFile = tmpMp3;
-  }
-
-  const isPiper = inputFile === tmpWav;
-  const af = isPiper
-    ? 'volume=0.8'
-    : [
-        'asetrate=24000*0.85',
-        'aresample=48000',
-        'atempo=1.176',
-        'compand=attacks=0:points=-80/-80|-45/-45|-27/-25|0/-10:gain=2',
-        'highpass=f=350',
-        'lowpass=f=3500',
-        'equalizer=f=900:t=q:w=1.5:g=5',
-        'equalizer=f=2800:t=q:w=0.8:g=3',
-        'tremolo=f=6:d=0.08',
-        'volume=0.8',
-      ].join(',');
+  // Appel API Hugging Face (Piper GLaDOS FR hébergé)
+  const res = await fetch(GLADOS_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error(`GLaDOS API ${res.status}: ${await res.text().catch(() => '')}`);
+  fs.writeFileSync(tmpWav, Buffer.from(await res.arrayBuffer()));
 
   await execFileAsync(FFMPEG, [
-    '-y', '-i', inputFile,
-    '-af', af,
+    '-y', '-i', tmpWav,
+    '-af', 'volume=0.8',
     '-c:a', 'libopus', '-b:a', '64k',
     tmpOgg,
   ]);
 
   const ogg = fs.readFileSync(tmpOgg);
   const duration = Math.max(5, Math.ceil(ogg.length / (64000 / 8)));
-  try { fs.unlinkSync(tmpWav); } catch {}
-  try { fs.unlinkSync(tmpMp3); } catch {}
+  fs.unlinkSync(tmpWav);
   fs.unlinkSync(tmpOgg);
   return { ogg, duration };
 }
