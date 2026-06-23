@@ -84,12 +84,8 @@ async function ensurePiper() {
   piperReady = true;
 }
 
-async function generateGladosAudio(text) {
+async function generateWithPiper(text, tmpWav) {
   await ensurePiper();
-  const id = Date.now().toString(36);
-  const tmpWav = path.join(TMP, `vtx_${id}.wav`);
-  const tmpOgg = path.join(TMP, `vtx_${id}.ogg`);
-
   await new Promise((resolve, reject) => {
     const env = IS_WINDOWS ? process.env : { ...process.env, LD_LIBRARY_PATH: path.dirname(PIPER_EXE) };
     const proc = require('child_process').spawn(PIPER_EXE, [
@@ -106,9 +102,40 @@ async function generateGladosAudio(text) {
     proc.on('error', e => reject(new Error(`Piper spawn: ${e.message}`)));
     setTimeout(() => { proc.kill(); reject(new Error('Piper timeout')); }, 15000);
   });
+}
+
+async function generateWithEdgeTTS(text, tmpMp3) {
+  const { MsEdgeTTS } = require('msedge-tts');
+  const edge = new MsEdgeTTS();
+  await edge.setMetadata('fr-FR-DeniseNeural', 'audio-24khz-96kbitrate-mono-mp3');
+  const stream = edge.toStream(text);
+  const chunks = [];
+  await new Promise((resolve, reject) => {
+    stream.audioStream.on('data', c => chunks.push(c));
+    stream.audioStream.on('end', resolve);
+    stream.audioStream.on('error', reject);
+  });
+  fs.writeFileSync(tmpMp3, Buffer.concat(chunks));
+}
+
+async function generateGladosAudio(text) {
+  const id = Date.now().toString(36);
+  const tmpWav = path.join(TMP, `vtx_${id}.wav`);
+  const tmpMp3 = path.join(TMP, `vtx_${id}.mp3`);
+  const tmpOgg = path.join(TMP, `vtx_${id}.ogg`);
+
+  let inputFile;
+  try {
+    await generateWithPiper(text, tmpWav);
+    inputFile = tmpWav;
+  } catch (e) {
+    console.log(`[TTS] Piper échoué (${e.message.slice(0, 80)}), fallback Edge TTS`);
+    await generateWithEdgeTTS(text, tmpMp3);
+    inputFile = tmpMp3;
+  }
 
   await execFileAsync(FFMPEG, [
-    '-y', '-i', tmpWav,
+    '-y', '-i', inputFile,
     '-af', 'volume=0.8',
     '-c:a', 'libopus', '-b:a', '64k',
     tmpOgg,
@@ -116,7 +143,8 @@ async function generateGladosAudio(text) {
 
   const ogg = fs.readFileSync(tmpOgg);
   const duration = Math.max(5, Math.ceil(ogg.length / (64000 / 8)));
-  fs.unlinkSync(tmpWav);
+  try { fs.unlinkSync(tmpWav); } catch {}
+  try { fs.unlinkSync(tmpMp3); } catch {}
   fs.unlinkSync(tmpOgg);
   return { ogg, duration };
 }
