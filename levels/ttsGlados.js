@@ -1,6 +1,5 @@
 'use strict';
 
-const { MsEdgeTTS } = require('msedge-tts');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const { Routes, MessageFlags } = require('discord.js');
@@ -10,43 +9,36 @@ const FFMPEG = require('ffmpeg-static');
 const execFileAsync = promisify(execFile);
 const TMP = process.env.TEMP || '/tmp';
 
+const PIPER_DIR = path.join(__dirname, '../assets/piper');
+const PIPER_EXE = path.join(PIPER_DIR, 'piper/piper.exe');
+const PIPER_MODEL = path.join(PIPER_DIR, 'fr_FR-glados-medium.onnx');
+
 async function generateGladosAudio(text) {
-  const edge = new MsEdgeTTS();
-  await edge.setMetadata('fr-FR-DeniseNeural', 'audio-24khz-96kbitrate-mono-mp3');
-  const stream = edge.toStream(text);
-  const chunks = [];
+  const id = Date.now().toString(36);
+  const tmpWav = path.join(TMP, `vtx_${id}.wav`);
+  const tmpOgg = path.join(TMP, `vtx_${id}.ogg`);
+
   await new Promise((resolve, reject) => {
-    stream.audioStream.on('data', c => chunks.push(c));
-    stream.audioStream.on('end', resolve);
-    stream.audioStream.on('error', reject);
+    const proc = require('child_process').spawn(PIPER_EXE, [
+      '--model', PIPER_MODEL, '--output_file', tmpWav,
+    ], { stdio: ['pipe', 'pipe', 'pipe'] });
+    proc.stdin.write(text);
+    proc.stdin.end();
+    proc.on('close', code => code === 0 ? resolve() : reject(new Error(`Piper exit ${code}`)));
+    proc.on('error', reject);
+    setTimeout(() => { proc.kill(); reject(new Error('Piper timeout')); }, 15000);
   });
 
-  const id = Date.now().toString(36);
-  const tmpMp3 = path.join(TMP, `vtx_${id}.mp3`);
-  const tmpOgg = path.join(TMP, `vtx_${id}.ogg`);
-  fs.writeFileSync(tmpMp3, Buffer.concat(chunks));
-
   await execFileAsync(FFMPEG, [
-    '-y', '-i', tmpMp3,
-    '-af', [
-      'asetrate=24000*0.85',
-      'aresample=48000',
-      'atempo=1.176',
-      'compand=attacks=0:points=-80/-80|-45/-45|-27/-25|0/-10:gain=2',
-      'highpass=f=350',
-      'lowpass=f=3500',
-      'equalizer=f=900:t=q:w=1.5:g=5',
-      'equalizer=f=2800:t=q:w=0.8:g=3',
-      'tremolo=f=6:d=0.08',
-      'volume=3.0',
-    ].join(','),
+    '-y', '-i', tmpWav,
+    '-af', 'volume=2.5',
     '-c:a', 'libopus', '-b:a', '64k',
     tmpOgg,
   ]);
 
   const ogg = fs.readFileSync(tmpOgg);
   const duration = Math.max(5, Math.ceil(ogg.length / (64000 / 8)));
-  fs.unlinkSync(tmpMp3);
+  fs.unlinkSync(tmpWav);
   fs.unlinkSync(tmpOgg);
   return { ogg, duration };
 }
