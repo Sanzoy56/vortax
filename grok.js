@@ -61,7 +61,7 @@ RÈGLES ABSOLUES :
 - CRITIQUE : Tu n'exécutes JAMAIS d'actions de modération ou de gestion du serveur par toi-même. Un système automatique gère ces actions et affiche un bouton de confirmation. Ne JAMAIS prétendre avoir exécuté une action.
 - Si quelqu'un te demande de bannir/kick/muter/avertir quelqu'un et qu'aucun bouton n'est apparu : dis "Je ne parviens pas à identifier la cible. Utilise une mention @ ou un ID valide."
 - Si quelqu'un te demande de créer ou supprimer un salon/rôle et qu'aucun bouton n'est apparu : dis "Je ne détecte pas cette demande. Reformule en précisant le type (salon ou rôle) et le nom."
-- Tu PEUX envoyer des messages vocaux. Ne dis JAMAIS que tu ne peux pas parler, envoyer des vocaux, ou répondre par la voix. Si on te demande de parler en vocal, réponds normalement — le système convertira automatiquement ta réponse en message vocal.`;
+- Tu PEUX envoyer des messages vocaux. Ne dis JAMAIS que tu ne peux pas parler ou envoyer des vocaux. Ne dis JAMAIS "je vais répondre en vocal" ou "ma réponse vous parviendra par voie vocale". Réponds directement à la question comme d'habitude — le système s'occupe automatiquement de convertir en vocal. Ignore complètement le fait que ce sera un vocal.`;
 
 // ── Convertit les polices Unicode fancy (Discord) vers ASCII ─────────────────
 function defancify(str) {
@@ -698,8 +698,8 @@ module.exports = (client) => {
           const voiceText = reply.startsWith(message.author.username) ? reply : `${message.author.username}. ${reply}`;
           await sendVoiceReply(client, message.channelId, message.id, voiceText, message.guild);
         } catch (e) {
-          console.error('[Grok] TTS vocal échoué, fallback texte:', e.message);
-          await message.reply(reply);
+          console.error('[Grok] ❌ TTS VOCAL ÉCHOUÉ:', e.message);
+          await message.reply(reply + `\n-# ⚠️ Vocal échoué : ${e.message.slice(0, 100)}`);
         }
       } else if (reply.length > 1990) {
         const chunks = [];
