@@ -8,3 +8,5 @@ giveaways.json
 .env
 warn.json
 token.json
+assets/piper/piper/
+temp/
