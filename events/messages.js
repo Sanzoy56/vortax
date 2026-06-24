@@ -147,9 +147,11 @@ module.exports = (client) => {
 
     // ========== MESSAGE SUPPRIMÉ ==========
     client.on(Events.MessageDelete, async (message) => {
+        if (message.author?.bot) return;
         // Récupérer depuis le cache local si Discord.js n'a pas le message
         const cached = MSG_CACHE.get(message.id);
         MSG_CACHE.delete(message.id);
+        console.log(`[Messages] Suppression détectée — cached=${!!cached}, hasImages=${cached?.imageBuffers?.length || 0}`);
 
         // Si le message est partial ET absent du cache local → log minimal
         if (message.partial && !cached) {
