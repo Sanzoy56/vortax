@@ -11,7 +11,7 @@ module.exports = (client) => {
 
     // ========== MISE EN CACHE DES MESSAGES ==========
     client.on(Events.MessageCreate, (message) => {
-        if (!message.guild) return;
+        if (!message.guild || message.author?.bot) return;
         const isVoice = message.flags.has(MessageFlags.IsVoiceMessage);
         const entry = {
             content:      message.content || null,
@@ -31,6 +31,18 @@ module.exports = (client) => {
             if (url) fetch(url).then(r => r.ok ? r.arrayBuffer() : null)
                 .then(buf => { if (buf) entry.voiceBuffer = Buffer.from(buf); })
                 .catch(() => {});
+        }
+        // Télécharger les images/GIFs pour les garder en cas de suppression
+        const imageAtts = [...message.attachments.values()].filter(a =>
+            a.contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(a.name || '')
+        );
+        if (imageAtts.length > 0 && !isVoice) {
+            entry.imageBuffers = [];
+            for (const att of imageAtts.slice(0, 4)) { // max 4 images
+                fetch(att.url).then(r => r.ok ? r.arrayBuffer() : null)
+                    .then(buf => { if (buf) entry.imageBuffers.push({ buffer: Buffer.from(buf), name: att.name || 'image.png' }); })
+                    .catch(() => {});
+            }
         }
         MSG_CACHE.set(message.id, entry);
         // Limiter la taille du cache : supprimer la plus ancienne entrée
@@ -220,19 +232,42 @@ module.exports = (client) => {
             || (message.attachments?.size || cached?.attachments ? '(fichier)' : '')
             || '(vide)';
 
-        await sendLogCard(logChannel, {
-            title: 'Message supprimé',
-            accent: '#ef4444',
-            avatarURL: authorAvatar,
-            rows: [
-                { label: 'Auteur', value: auteurDisplay },
-                { label: 'Salon', value: message.channel?.name ?? message.channelId },
-                { label: 'Créé le', value: createdAt ? formatDate(createdAt) : 'Inconnue' },
-                { label: 'Supprimé le', value: formatDate(new Date()) },
-                { label: 'Supprimé par', value: deletedBy },
-            ],
-            longText: { label: 'Contenu', value: contenu },
-            footerExtra: authorId ? `ID: ${authorId}` : undefined,
-        });
+        let logBuf;
+
+        if (cached?.imageBuffers?.length) {
+            // Image/GIF supprimé → intégrer l'image dans le canvas
+            const { renderImageLogCard } = require('../levels/imageLogCard');
+            logBuf = await renderImageLogCard({
+                title: 'Image / GIF supprimé',
+                accent: '#ef4444',
+                avatarURL: authorAvatar,
+                rows: [
+                    { label: 'Auteur', value: auteurDisplay },
+                    { label: 'Salon', value: message.channel?.name ?? message.channelId },
+                    { label: 'Créé le', value: createdAt ? formatDate(createdAt) : 'Inconnue' },
+                    { label: 'Supprimé le', value: formatDate(new Date()) },
+                    { label: 'Supprimé par', value: deletedBy },
+                ],
+                footerExtra: authorId ? `ID: ${authorId}` : undefined,
+                imageBuffer: cached.imageBuffers[0].buffer,
+            });
+        } else {
+            logBuf = await require('../levels/logCard').renderLogCard({
+                title: 'Message supprimé',
+                accent: '#ef4444',
+                avatarURL: authorAvatar,
+                rows: [
+                    { label: 'Auteur', value: auteurDisplay },
+                    { label: 'Salon', value: message.channel?.name ?? message.channelId },
+                    { label: 'Créé le', value: createdAt ? formatDate(createdAt) : 'Inconnue' },
+                    { label: 'Supprimé le', value: formatDate(new Date()) },
+                    { label: 'Supprimé par', value: deletedBy },
+                ],
+                longText: { label: 'Contenu', value: contenu },
+                footerExtra: authorId ? `ID: ${authorId}` : undefined,
+            });
+        }
+
+        await logChannel.send({ files: [new AttachmentBuilder(logBuf, { name: 'log.png' })] });
     });
 };

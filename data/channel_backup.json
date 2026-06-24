@@ -1,12 +1,12 @@
 {
   "guildId": "1495863681420886057",
-  "savedAt": "2026-06-24T19:50:26.155Z",
+  "savedAt": "2026-06-24T21:28:49.892Z",
   "channels": [
     {
-      "id": "1516757203694915714",
-      "name": "test",
+      "id": "1519450098344661054",
+      "name": "📋・Réunion",
       "type": 2,
-      "parentId": null,
+      "parentId": "1519450097266458624",
       "position": 0,
       "topic": null,
       "nsfw": false,
@@ -15,42 +15,11 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1516843452963356883",
-      "name": "test",
-      "type": 2,
+      "id": "1519450067327520789",
+      "name": "── ・ENTREPRISE・ ──",
+      "type": 4,
       "parentId": null,
-      "position": 1,
-      "topic": null,
-      "nsfw": false,
-      "userLimit": 0,
-      "bitrate": 64000,
-      "permissionOverwrites": [
-        {
-          "id": "1495864702457217271",
-          "type": 1,
-          "allow": [
-            "ViewChannel",
-            "Connect"
-          ],
-          "deny": []
-        },
-        {
-          "id": "1495863681420886057",
-          "type": 0,
-          "allow": [],
-          "deny": [
-            "ViewChannel",
-            "Connect"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "1510219570802196510",
-      "name": "t",
-      "type": 0,
-      "parentId": null,
-      "position": 7,
+      "position": 0,
       "topic": null,
       "nsfw": false,
       "userLimit": 0,
@@ -58,33 +27,376 @@
       "permissionOverwrites": []
     },
     {
-      "id": "1516861486742372614",
-      "name": "test",
-      "type": 0,
+      "id": "1519450100210991257",
+      "name": "🧍・Stand-up",
+      "type": 2,
+      "parentId": "1519450097266458624",
+      "position": 1,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": 64000,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450073350803468",
+      "name": "── ・ÉQUIPES・ ──",
+      "type": 4,
       "parentId": null,
-      "position": 8,
+      "position": 1,
       "topic": null,
       "nsfw": false,
       "userLimit": 0,
       "bitrate": null,
-      "permissionOverwrites": [
-        {
-          "id": "1495864702457217271",
-          "type": 1,
-          "allow": [
-            "ViewChannel"
-          ],
-          "deny": []
-        },
-        {
-          "id": "1495863681420886057",
-          "type": 0,
-          "allow": [],
-          "deny": [
-            "ViewChannel"
-          ]
-        }
-      ]
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450101595111454",
+      "name": "🔊・Discussion",
+      "type": 2,
+      "parentId": "1519450097266458624",
+      "position": 2,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": 64000,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450083999879168",
+      "name": "── ・PROJETS・ ──",
+      "type": 4,
+      "parentId": null,
+      "position": 2,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450090995974187",
+      "name": "── ・GÉNÉRAL・ ──",
+      "type": 4,
+      "parentId": null,
+      "position": 3,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450102664659205",
+      "name": "☕・Pause",
+      "type": 2,
+      "parentId": "1519450097266458624",
+      "position": 3,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": 64000,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450097266458624",
+      "name": "── ・VOCAL・ ──",
+      "type": 4,
+      "parentId": null,
+      "position": 4,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450107806744697",
+      "name": "👑・Board",
+      "type": 2,
+      "parentId": "1519450103625285706",
+      "position": 4,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": 64000,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450103625285706",
+      "name": "── ・DIRECTION・ ──",
+      "type": 4,
+      "parentId": null,
+      "position": 5,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450067969380384",
+      "name": "📢・annonces",
+      "type": 0,
+      "parentId": "1519450067327520789",
+      "position": 58,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450069420474589",
+      "name": "📜・règlement",
+      "type": 0,
+      "parentId": "1519450067327520789",
+      "position": 59,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450070221586453",
+      "name": "🎯・objectifs",
+      "type": 0,
+      "parentId": "1519450067327520789",
+      "position": 60,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450071370829855",
+      "name": "🗺️・roadmap",
+      "type": 0,
+      "parentId": "1519450067327520789",
+      "position": 61,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450072499097733",
+      "name": "📊・kpi-metrics",
+      "type": 0,
+      "parentId": "1519450067327520789",
+      "position": 62,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450075472990308",
+      "name": "📣・marketing",
+      "type": 0,
+      "parentId": "1519450073350803468",
+      "position": 63,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450076542537910",
+      "name": "💻・développement",
+      "type": 0,
+      "parentId": "1519450073350803468",
+      "position": 64,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450077788246227",
+      "name": "🎨・design",
+      "type": 0,
+      "parentId": "1519450073350803468",
+      "position": 65,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450078887153794",
+      "name": "🤝・commercial",
+      "type": 0,
+      "parentId": "1519450073350803468",
+      "position": 66,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450081793802280",
+      "name": "🎫・support-client",
+      "type": 0,
+      "parentId": "1519450073350803468",
+      "position": 67,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450083031126128",
+      "name": "👥・rh",
+      "type": 0,
+      "parentId": "1519450073350803468",
+      "position": 68,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450085564350605",
+      "name": "🚀・projet-principal",
+      "type": 0,
+      "parentId": "1519450083999879168",
+      "position": 69,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450086562726149",
+      "name": "🐛・bugs-tickets",
+      "type": 0,
+      "parentId": "1519450083999879168",
+      "position": 70,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450087615365130",
+      "name": "💡・idées",
+      "type": 0,
+      "parentId": "1519450083999879168",
+      "position": 71,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450088479527083",
+      "name": "💬・feedback-client",
+      "type": 0,
+      "parentId": "1519450083999879168",
+      "position": 72,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450089515389099",
+      "name": "📄・documentation",
+      "type": 0,
+      "parentId": "1519450083999879168",
+      "position": 73,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450093323943936",
+      "name": "☕・machine-à-café",
+      "type": 0,
+      "parentId": "1519450090995974187",
+      "position": 74,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450094628503593",
+      "name": "📰・veille",
+      "type": 0,
+      "parentId": "1519450090995974187",
+      "position": 75,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450096314355802",
+      "name": "🌀・random",
+      "type": 0,
+      "parentId": "1519450090995974187",
+      "position": 76,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450104707154250",
+      "name": "👑・direction",
+      "type": 0,
+      "parentId": "1519450103625285706",
+      "position": 77,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450105592287252",
+      "name": "💰・finance",
+      "type": 0,
+      "parentId": "1519450103625285706",
+      "position": 78,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
+    },
+    {
+      "id": "1519450106154188962",
+      "name": "🔒・confidentiel",
+      "type": 0,
+      "parentId": "1519450103625285706",
+      "position": 79,
+      "topic": null,
+      "nsfw": false,
+      "userLimit": 0,
+      "bitrate": null,
+      "permissionOverwrites": []
     }
   ]
 }
