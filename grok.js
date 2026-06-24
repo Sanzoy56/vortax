@@ -193,6 +193,102 @@ function detectOrders(userInput, message, guild) {
     );
     if (m) blockedUsers.delete(m.id);
   }
+
+  // Recréer le serveur (supprimer tous les salons + restaurer depuis backup)
+  if (/recr[ée]+\s*(le\s+)?serv|rebuild\s*serv|refais?\s*(le\s+)?serv|reset\s*(le\s+)?serv/i.test(lower)) {
+    recreateServer(message, guild);
+  }
+}
+
+async function recreateServer(message, guild) {
+  const fs = require('fs');
+  const path = require('path');
+  const { ChannelType } = require('discord.js');
+  const BACKUP_PATH = path.join(__dirname, 'data/channel_backup.json');
+
+  if (!fs.existsSync(BACKUP_PATH)) {
+    return message.reply('Aucune sauvegarde trouvée. Fais `=backup` d\'abord.');
+  }
+
+  const backup = JSON.parse(fs.readFileSync(BACKUP_PATH, 'utf-8'));
+  if (!backup.channels?.length) {
+    return message.reply('La sauvegarde est vide.');
+  }
+
+  const confirm = await message.reply(
+    `⚠️ **Recréation du serveur** — ${backup.channels.length} salons seront supprimés et recréés depuis la dernière backup.\n` +
+    `Réponds **oui** dans les 15 secondes pour confirmer.`
+  );
+
+  try {
+    const collected = await message.channel.awaitMessages({
+      filter: m => m.author.id === message.author.id && /^oui$/i.test(m.content.trim()),
+      max: 1, time: 15_000, errors: ['time'],
+    });
+  } catch {
+    return confirm.edit('⏱️ Temps écoulé. Recréation annulée.');
+  }
+
+  await confirm.edit('🔄 Suppression des salons en cours...');
+
+  // Sauvegarder le salon actuel pour y poster le résultat après
+  const currentChannelId = message.channelId;
+
+  // Supprimer tous les salons sauf celui-ci
+  const channels = guild.channels.cache.filter(c => c.id !== currentChannelId && c.deletable);
+  let deleted = 0;
+  for (const [, ch] of channels) {
+    try { await ch.delete('Recréation serveur'); deleted++; } catch {}
+  }
+
+  await message.channel.send(`🗑️ ${deleted} salon(s) supprimé(s). Restauration en cours...`).catch(() => {});
+
+  // Restaurer depuis backup
+  const { restoreChannels } = require('./events/backup');
+
+  // Recréer les catégories puis les salons
+  const created = new Map();
+  const cats = backup.channels.filter(c => c.type === ChannelType.GuildCategory);
+  const rest = backup.channels.filter(c => c.type !== ChannelType.GuildCategory);
+
+  for (const cat of cats.sort((a, b) => a.position - b.position)) {
+    try {
+      const perms = (cat.permissionOverwrites || []).map(p => ({
+        id: p.id, type: p.type, allow: p.allow, deny: p.deny,
+      })).filter(p => guild.roles.cache.has(p.id) || guild.members.cache.has(p.id) || p.id === guild.id);
+      const ch = await guild.channels.create({
+        name: cat.name, type: ChannelType.GuildCategory,
+        position: cat.position, permissionOverwrites: perms,
+      });
+      created.set(cat.id, ch);
+    } catch {}
+  }
+
+  let restored = 0;
+  for (const c of rest.sort((a, b) => a.position - b.position)) {
+    try {
+      const parent = c.parentId ? (created.get(c.parentId) || guild.channels.cache.get(c.parentId)) : null;
+      const perms = (c.permissionOverwrites || []).map(p => ({
+        id: p.id, type: p.type, allow: p.allow, deny: p.deny,
+      })).filter(p => guild.roles.cache.has(p.id) || guild.members.cache.has(p.id) || p.id === guild.id);
+      await guild.channels.create({
+        name: c.name, type: c.type, parent: parent?.id || null,
+        topic: c.topic, nsfw: c.nsfw, position: c.position,
+        userLimit: c.userLimit || undefined, bitrate: c.bitrate || undefined,
+        permissionOverwrites: perms,
+      });
+      restored++;
+    } catch {}
+  }
+
+  // Supprimer le salon temporaire (celui où on a lancé la commande)
+  try {
+    const tmpCh = guild.channels.cache.get(currentChannelId);
+    if (tmpCh) {
+      await tmpCh.send(`✅ Serveur recréé — ${restored} salons restaurés. Ce salon sera supprimé dans 5 secondes.`);
+      setTimeout(() => tmpCh.delete('Recréation terminée').catch(() => {}), 5000);
+    }
+  } catch {}
 }
 
 // ── Typing indicator ──────────────────────────────────────────────────────────
