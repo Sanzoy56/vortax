@@ -262,28 +262,9 @@ module.exports = (client) => {
             const isGif = imgData.name?.toLowerCase().endsWith('.gif');
 
             if (isGif) {
-                // GIF supprimé → convertir en MP4 + carte log
-                const { renderLogCard } = require('../levels/logCard');
-                const FFMPEG = require('ffmpeg-static');
-                const { execFile } = require('child_process');
-                const { promisify } = require('util');
-                const fs = require('fs');
-                const path = require('path');
-                const TMP = process.env.TEMP || '/tmp';
-                const id = Date.now().toString(36);
-                const tmpGif = path.join(TMP, `log_${id}.gif`);
-                const tmpMp4 = path.join(TMP, `log_${id}.mp4`);
-
-                fs.writeFileSync(tmpGif, imgData.buffer);
-                await promisify(execFile)(FFMPEG, [
-                    '-y', '-i', tmpGif,
-                    '-movflags', 'faststart', '-pix_fmt', 'yuv420p',
-                    '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
-                    '-c:v', 'libx264', '-preset', 'ultrafast',
-                    tmpMp4,
-                ]);
-
-                logBuf = await renderLogCard({
+                // GIF supprimé → carte log vidéo avec le GIF intégré
+                const { buildGifLogVideo } = require('../levels/gifLogVideo');
+                const mp4 = await buildGifLogVideo({
                     title: 'GIF supprimé',
                     accent: '#ef4444',
                     avatarURL: authorAvatar,
@@ -295,18 +276,9 @@ module.exports = (client) => {
                         { label: 'Supprimé par', value: deletedBy },
                     ],
                     footerExtra: authorId ? `ID: ${authorId}` : undefined,
+                    gifBuffer: imgData.buffer,
                 });
-
-                const mp4Buf = fs.readFileSync(tmpMp4);
-                fs.unlinkSync(tmpGif);
-                fs.unlinkSync(tmpMp4);
-
-                await logChannel.send({
-                    files: [
-                        new AttachmentBuilder(logBuf, { name: 'log.png' }),
-                        new AttachmentBuilder(mp4Buf, { name: 'gif_supprime.mp4' }),
-                    ]
-                });
+                await logChannel.send({ files: [new AttachmentBuilder(mp4, { name: 'gif_log.mp4' })] });
                 return;
             }
 
