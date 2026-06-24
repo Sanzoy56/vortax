@@ -59,19 +59,33 @@ module.exports = (client) => {
             }
 
             if (imageUrls.length > 0) {
-                entry.imageBuffers = [];
-                for (const img of imageUrls.slice(0, 4)) {
-                    fetch(img.url).then(r => r.ok ? r.arrayBuffer() : null)
-                        .then(buf => { if (buf) entry.imageBuffers.push({ buffer: Buffer.from(buf), name: img.name }); })
-                        .catch(() => {});
-                }
+                entry.imageUrls = imageUrls.slice(0, 4);
             }
         }
+        // Si c'est une URL tenor/giphy/cdn, stocker l'URL brute du contenu aussi
+        if (!entry.imageUrls?.length && message.content) {
+            const cdnMatch = message.content.match(/https?:\/\/(?:cdn\.discordapp\.com|media\.discordapp\.net)\S*\.gif\S*/i);
+            if (cdnMatch) entry.imageUrls = [{ url: cdnMatch[0], name: 'gif.gif' }];
+        }
+
         MSG_CACHE.set(message.id, entry);
         // Limiter la taille du cache : supprimer la plus ancienne entrée
         if (MSG_CACHE.size > MSG_CACHE_MAX) {
             MSG_CACHE.delete(MSG_CACHE.keys().next().value);
         }
+    });
+
+    // Capter les embeds ajoutés après l'envoi (Discord résout les embeds ~1s après)
+    client.on(Events.MessageUpdate, (oldMsg, newMsg) => {
+        if (!newMsg.guild || newMsg.author?.bot) return;
+        const cached = MSG_CACHE.get(newMsg.id);
+        if (!cached || cached.imageUrls?.length) return;
+        const urls = [];
+        for (const embed of newMsg.embeds) {
+            const u = embed.video?.url || embed.image?.url || embed.thumbnail?.url;
+            if (u) urls.push({ url: u, name: /\.gif|tenor|giphy/i.test(u) ? 'gif.gif' : 'image.png' });
+        }
+        if (urls.length) cached.imageUrls = urls.slice(0, 4);
     });
 
     // ========== MESSAGE VOCAL ENVOYÉ (log vidéo avec barre de progression) ==========
@@ -147,11 +161,12 @@ module.exports = (client) => {
 
     // ========== MESSAGE SUPPRIMÉ ==========
     client.on(Events.MessageDelete, async (message) => {
-        if (message.author?.bot) return;
         // Récupérer depuis le cache local si Discord.js n'a pas le message
         const cached = MSG_CACHE.get(message.id);
         MSG_CACHE.delete(message.id);
-        console.log(`[Messages] Suppression détectée — cached=${!!cached}, hasImages=${cached?.imageBuffers?.length || 0}`);
+        // Ignorer les messages de bots (pas cachés, donc pas de cached)
+        if (message.author?.bot || cached?.authorId === message.client.user?.id) return;
+        console.log(`[Messages] Suppression détectée — cached=${!!cached}, imageUrls=${cached?.imageUrls?.length || 0}, names=${cached?.imageUrls?.map(i=>i.name).join(',') || 'none'}`);
 
         // Si le message est partial ET absent du cache local → log minimal
         if (message.partial && !cached) {
@@ -258,6 +273,17 @@ module.exports = (client) => {
             || '(vide)';
 
         let logBuf;
+
+        // Télécharger les images depuis les URLs cachées
+        if (cached?.imageUrls?.length) {
+            cached.imageBuffers = [];
+            for (const img of cached.imageUrls) {
+                try {
+                    const r = await fetch(img.url);
+                    if (r.ok) cached.imageBuffers.push({ buffer: Buffer.from(await r.arrayBuffer()), name: img.name });
+                } catch {}
+            }
+        }
 
         if (cached?.imageBuffers?.length) {
             const imgData = cached.imageBuffers[0];

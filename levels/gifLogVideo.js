@@ -10,35 +10,36 @@ const execFileAsync = promisify(execFile);
 const { renderLogCard } = require('./logCard');
 
 const TMP = process.env.TEMP || '/tmp';
-const GIF_W = 360;
-const GIF_H = 270;
+const GIF_W = 340;
+const GIF_H = 340;
 
 async function buildGifLogVideo({ title, accent, avatarURL, rows, footerExtra, gifBuffer }) {
   const cardBuf = await renderLogCard({
     title, accent, avatarURL, rows, footerExtra,
-    longText: { label: 'Contenu', value: '(GIF ci-dessous)' },
   });
 
-  // Charger la carte pour connaître ses dimensions
   const cardImg = await loadImage(cardBuf);
   const cardW = cardImg.width;
   const cardH = cardImg.height;
 
-  // Créer un canvas étendu avec espace pour le GIF
-  const totalH = cardH + GIF_H + 30;
-  const canvas = createCanvas(cardW, totalH);
+  // Layout horizontal : carte à gauche, GIF à droite
+  const totalW = cardW + GIF_W + 40;
+  const rawH = Math.max(cardH, GIF_H + 40);
+  const totalH = rawH % 2 === 0 ? rawH : rawH + 1;
+  const canvasW = totalW % 2 === 0 ? totalW : totalW + 1;
+  const canvas = createCanvas(canvasW, totalH);
   const ctx = canvas.getContext('2d');
 
   // Fond
   ctx.fillStyle = '#0d0d20';
-  ctx.fillRect(0, 0, cardW, totalH);
+  ctx.fillRect(0, 0, canvasW, totalH);
 
-  // Carte log
-  ctx.drawImage(cardImg, 0, 0);
+  // Carte log à gauche
+  ctx.drawImage(cardImg, 0, Math.floor((totalH - cardH) / 2));
 
-  // Zone GIF (fond sombre + label)
-  const gifX = Math.floor((cardW - GIF_W) / 2);
-  const gifY = cardH + 10;
+  // Zone GIF à droite
+  const gifX = cardW + 20;
+  const gifY = Math.floor((totalH - GIF_H) / 2);
 
   ctx.fillStyle = '#0a0a18';
   ctx.strokeStyle = '#1e1e45';
@@ -46,6 +47,11 @@ async function buildGifLogVideo({ title, accent, avatarURL, rows, footerExtra, g
   roundRect(ctx, gifX - 8, gifY - 8, GIF_W + 16, GIF_H + 16, 8);
   ctx.fill();
   ctx.stroke();
+
+  // Label
+  ctx.font = `bold 11px 'Noto Sans', sans-serif`;
+  ctx.fillStyle = '#7a7a9a';
+  ctx.fillText('CONTENU SUPPRIMÉ', gifX, gifY - 14);
 
   const id = Date.now().toString(36);
   const tmpCard = path.join(TMP, `glog_${id}_card.png`);
@@ -59,10 +65,10 @@ async function buildGifLogVideo({ title, accent, avatarURL, rows, footerExtra, g
   await execFileAsync(FFMPEG, [
     '-y',
     '-loop', '1', '-framerate', '15', '-i', tmpCard,
-    '-ignore_loop', '0', '-i', tmpGif,
+    '-stream_loop', '-1', '-i', tmpGif,
     '-filter_complex', [
       `[1:v]scale=${GIF_W}:${GIF_H}:force_original_aspect_ratio=decrease,pad=${GIF_W}:${GIF_H}:(ow-iw)/2:(oh-ih)/2:color=0x0a0a18[gif]`,
-      `[0:v][gif]overlay=${gifX}:${gifY}:shortest=1[out]`,
+      `[0:v][gif]overlay=${gifX}:${gifY}:shortest=1,scale=trunc(iw/2)*2:trunc(ih/2)*2[out]`,
     ].join(';'),
     '-map', '[out]',
     '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
