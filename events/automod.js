@@ -144,8 +144,9 @@ module.exports = (client) => {
             if (!imgRes.ok) continue;
             const buf = Buffer.from(await imgRes.arrayBuffer());
             const hash = createHash('md5').update(buf).digest('hex');
-            if (blockedHashes.has(hash)) {
-              await appliquerSanction(member, guild, message, rule.sanction, `Règle : ${rule.label} (image bloquée)`, logSalon);
+            const matchedImg = blockedList.find(i => i.md5 === hash);
+            if (matchedImg) {
+              await appliquerSanction(member, guild, message, matchedImg.sanction || rule.sanction, `Règle : ${rule.label} (${matchedImg.name})`, logSalon);
               return;
             }
           }
