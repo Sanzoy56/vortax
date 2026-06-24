@@ -198,6 +198,11 @@ function detectOrders(userInput, message, guild) {
   if (/recr[ée]+\s*(le\s+)?serv|rebuild\s*serv|refais?\s*(le\s+)?serv|reset\s*(le\s+)?serv/i.test(lower)) {
     recreateServer(message, guild);
   }
+
+  // Modèles de serveur
+  if (/mod[èe]le|template/i.test(lower) && /serv/i.test(lower)) {
+    applyServerTemplate(message, guild);
+  }
 }
 
 async function recreateServer(message, guild) {
@@ -287,6 +292,105 @@ async function recreateServer(message, guild) {
     if (tmpCh) {
       await tmpCh.send(`✅ Serveur recréé — ${restored} salons restaurés. Ce salon sera supprimé dans 5 secondes.`);
       setTimeout(() => tmpCh.delete('Recréation terminée').catch(() => {}), 5000);
+    }
+  } catch {}
+}
+
+async function applyServerTemplate(message, guild) {
+  const { EmbedBuilder, ChannelType } = require('discord.js');
+  const { TEMPLATES, STYLES, listTemplatesEmbed, listStylesEmbed, previewTemplate, formatTemplate } = require('./levels/serverTemplates');
+  const templateKeys = Object.keys(TEMPLATES);
+  const styleKeys = Object.keys(STYLES);
+
+  // Étape 1 : choisir le modèle
+  const tplEmbed = new EmbedBuilder()
+    .setColor(0x7c5cfc)
+    .setTitle('📋 Modèles de serveur')
+    .setDescription(listTemplatesEmbed() + '\nRéponds avec le **numéro** du modèle.');
+  await message.reply({ embeds: [tplEmbed] });
+
+  let tplChoice;
+  try {
+    const c = await message.channel.awaitMessages({
+      filter: m => m.author.id === message.author.id && /^\d+$/.test(m.content.trim()),
+      max: 1, time: 30_000, errors: ['time'],
+    });
+    tplChoice = parseInt(c.first().content.trim()) - 1;
+  } catch { return message.channel.send('⏱️ Temps écoulé.'); }
+
+  if (tplChoice < 0 || tplChoice >= templateKeys.length) return message.channel.send('❌ Numéro invalide.');
+  const templateKey = templateKeys[tplChoice];
+
+  // Étape 2 : choisir le style
+  const styleEmbed = new EmbedBuilder()
+    .setColor(0x7c5cfc)
+    .setTitle('🎨 Style des salons')
+    .setDescription(listStylesEmbed() + '\nRéponds avec le **numéro** du style.');
+  await message.channel.send({ embeds: [styleEmbed] });
+
+  let styleChoice;
+  try {
+    const c = await message.channel.awaitMessages({
+      filter: m => m.author.id === message.author.id && /^\d+$/.test(m.content.trim()),
+      max: 1, time: 30_000, errors: ['time'],
+    });
+    styleChoice = parseInt(c.first().content.trim()) - 1;
+  } catch { return message.channel.send('⏱️ Temps écoulé.'); }
+
+  if (styleChoice < 0 || styleChoice >= styleKeys.length) return message.channel.send('❌ Numéro invalide.');
+  const styleKey = styleKeys[styleChoice];
+
+  // Étape 3 : preview image + confirmation
+  const { AttachmentBuilder } = require('discord.js');
+  const { renderTemplatePreview } = require('./levels/templatePreview');
+  const previewFormatted = formatTemplate(templateKey, styleKey);
+  const tpl = TEMPLATES[templateKey];
+  const style = STYLES[styleKey];
+  const previewBuf = renderTemplatePreview(previewFormatted, tpl.label, style.label);
+  const previewFile = new AttachmentBuilder(previewBuf, { name: 'preview.png' });
+  const previewEmbed = new EmbedBuilder()
+    .setColor(0x7c5cfc)
+    .setTitle(`${tpl.label} — ${style.label}`)
+    .setImage('attachment://preview.png')
+    .setDescription('⚠️ **Tous les salons actuels seront supprimés.**\nRéponds **oui** pour confirmer.');
+  await message.channel.send({ embeds: [previewEmbed], files: [previewFile] });
+
+  try {
+    await message.channel.awaitMessages({
+      filter: m => m.author.id === message.author.id && /^oui$/i.test(m.content.trim()),
+      max: 1, time: 20_000, errors: ['time'],
+    });
+  } catch { return message.channel.send('⏱️ Annulé.'); }
+
+  // Étape 4 : supprimer les salons existants
+  await message.channel.send('🔄 Suppression des salons en cours...');
+  const currentId = message.channelId;
+  for (const [, ch] of guild.channels.cache.filter(c => c.id !== currentId && c.deletable)) {
+    try { await ch.delete('Template serveur'); } catch {}
+  }
+
+  // Étape 5 : créer les salons depuis le template
+  const formatted = formatTemplate(templateKey, styleKey);
+  let created = 0;
+  for (const cat of formatted) {
+    try {
+      const category = await guild.channels.create({ name: cat.catName, type: ChannelType.GuildCategory });
+      for (const ch of cat.channels) {
+        await guild.channels.create({
+          name: ch.name,
+          type: ch.type === 2 ? ChannelType.GuildVoice : ChannelType.GuildText,
+          parent: category.id,
+        });
+        created++;
+      }
+    } catch {}
+  }
+
+  try {
+    const tmpCh = guild.channels.cache.get(currentId);
+    if (tmpCh) {
+      await tmpCh.send(`✅ **${tpl.label}** appliqué — ${created} salons créés avec le style **${style.label}**.\nCe salon sera supprimé dans 5 secondes.`);
+      setTimeout(() => tmpCh.delete('Template appliqué').catch(() => {}), 5000);
     }
   } catch {}
 }
