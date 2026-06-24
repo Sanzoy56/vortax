@@ -156,15 +156,19 @@ module.exports = (client) => {
 
       // Règle images : détecte les pièces jointes bloquées par hash perceptuel
       if (key === 'images') {
+        console.log('[Automod] Règle images active, vérification...');
         const imageAttachments = [...message.attachments.values()].filter(a =>
           a.contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name || '')
         );
+        console.log(`[Automod] ${imageAttachments.length} image(s) dans le message`);
         if (imageAttachments.length === 0) continue;
 
         try {
           const blockedRes = await fetch('https://vtx-bot.alwaysdata.net/api/automod/images');
+          console.log(`[Automod] API blocked images: ${blockedRes.status}`);
           if (!blockedRes.ok) continue;
           const blockedList = await blockedRes.json();
+          console.log(`[Automod] ${blockedList.length} image(s) bloquée(s) en base`);
           if (!blockedList.length) continue;
 
           // Télécharger et hasher les images bloquées si pas encore fait
@@ -183,8 +187,12 @@ module.exports = (client) => {
             if (!imgRes.ok) continue;
             const buf = Buffer.from(await imgRes.arrayBuffer());
             const hash = await perceptualHash(buf);
+            console.log(`[Automod] Hash image envoyée: ${hash?.slice(0, 16)}...`);
             if (!hash) continue;
 
+            for (const bl of blockedList) {
+              if (bl.phash) console.log(`[Automod] vs ${bl.name}: distance=${hammingDistance(hash, bl.phash)}`);
+            }
             const matchedImg = blockedList.find(i => i.phash && hammingDistance(hash, i.phash) < 12);
             if (matchedImg) {
               await appliquerSanction(member, guild, message, matchedImg.sanction || rule.sanction, `Règle : ${rule.label} (${matchedImg.name})`, logSalon);
