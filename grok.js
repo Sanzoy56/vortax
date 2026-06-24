@@ -175,6 +175,7 @@ function findRole(guild, name) {
 // ── Ordres de Sanzoy (bloquer/débloquer) ──────────────────────────────────────
 function detectOrders(userInput, message, guild) {
   const lower = userInput.toLowerCase();
+  let handled = false;
 
   const blockM = lower.match(/(?:ne (?:lui )?parle plus(?: à)?|ignore|bloque|silence|tais-toi avec)\s+(?:à\s+)?(\w+)/i);
   if (blockM) {
@@ -197,12 +198,16 @@ function detectOrders(userInput, message, guild) {
   // Recréer le serveur (supprimer tous les salons + restaurer depuis backup)
   if (/recr[ée]+\s*(le\s+)?serv|rebuild\s*serv|refais?\s*(le\s+)?serv|reset\s*(le\s+)?serv/i.test(lower)) {
     recreateServer(message, guild);
+    handled = true;
   }
 
   // Modèles de serveur
   if (/mod[èe]le|template/i.test(lower) && /serv/i.test(lower)) {
     applyServerTemplate(message, guild);
+    handled = true;
   }
+
+  return handled;
 }
 
 async function recreateServer(message, guild) {
@@ -845,7 +850,7 @@ module.exports = (client) => {
 
 
     // ── Ordres Sanzoy ────────────────────────────────────────────────────
-    if (isSanzoy) detectOrders(userInput, message, message.guild);
+    if (isSanzoy && detectOrders(userInput, message, message.guild)) return;
 
     // ── Réponse IA ────────────────────────────────────────────────────────
     const userId = message.author.id;
