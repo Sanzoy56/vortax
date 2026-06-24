@@ -253,6 +253,243 @@ const TEMPLATES = {
     ],
   },
 
+  anime: {
+    label: '🌸 Anime / Manga',
+    desc: 'Serveur pour fans d\'anime et manga',
+    channels: [
+      { cat: '── ・ACCUEIL・ ──', items: [
+        { name: 'bienvenue', emoji: '🌸', type: 0 },
+        { name: 'règles', emoji: '📜', type: 0 },
+        { name: 'annonces', emoji: '📢', type: 0 },
+        { name: 'rôles', emoji: '🎭', type: 0 },
+      ]},
+      { cat: '── ・ANIME・ ──', items: [
+        { name: 'discussion-anime', emoji: '🎬', type: 0 },
+        { name: 'recommandations', emoji: '⭐', type: 0 },
+        { name: 'saison-en-cours', emoji: '📺', type: 0 },
+        { name: 'spoilers', emoji: '🚨', type: 0 },
+        { name: 'classements', emoji: '🏆', type: 0 },
+      ]},
+      { cat: '── ・MANGA & LN・ ──', items: [
+        { name: 'manga', emoji: '📖', type: 0 },
+        { name: 'light-novel', emoji: '📚', type: 0 },
+        { name: 'webtoon', emoji: '📱', type: 0 },
+        { name: 'scans', emoji: '🔍', type: 0 },
+      ]},
+      { cat: '── ・CRÉATIONS・ ──', items: [
+        { name: 'fan-art', emoji: '🎨', type: 0 },
+        { name: 'wallpapers', emoji: '🖼️', type: 0 },
+        { name: 'cosplay', emoji: '👘', type: 0 },
+        { name: 'amv-edit', emoji: '🎞️', type: 0 },
+        { name: 'waifus-husbandos', emoji: '💕', type: 0 },
+      ]},
+      { cat: '── ・COMMUNAUTÉ・ ──', items: [
+        { name: 'général', emoji: '💬', type: 0 },
+        { name: 'memes', emoji: '😂', type: 0 },
+        { name: 'musique-ost', emoji: '🎵', type: 0 },
+        { name: 'jeux-gacha', emoji: '🎰', type: 0 },
+        { name: 'off-topic', emoji: '🌀', type: 0 },
+        { name: 'selfies', emoji: '🤳', type: 0 },
+      ]},
+      { cat: '── ・VOCAL・ ──', items: [
+        { name: 'Watch Party', emoji: '📺', type: 2 },
+        { name: 'Discussion', emoji: '🔊', type: 2 },
+        { name: 'Musique', emoji: '🎵', type: 2 },
+        { name: 'AFK', emoji: '💤', type: 2 },
+      ]},
+      { cat: '── ・STAFF・ ──', items: [
+        { name: 'staff', emoji: '🛡️', type: 0 },
+        { name: 'logs', emoji: '📋', type: 0 },
+      ]},
+    ],
+  },
+
+  roleplay: {
+    label: '🎭 Roleplay / RP',
+    desc: 'Serveur de roleplay avec lore et personnages',
+    channels: [
+      { cat: '── ・LORE・ ──', items: [
+        { name: 'règlement-rp', emoji: '📜', type: 0 },
+        { name: 'annonces', emoji: '📢', type: 0 },
+        { name: 'univers', emoji: '🌍', type: 0 },
+        { name: 'timeline', emoji: '⏳', type: 0 },
+        { name: 'races-classes', emoji: '⚔️', type: 0 },
+        { name: 'carte', emoji: '🗺️', type: 0 },
+      ]},
+      { cat: '── ・PERSONNAGES・ ──', items: [
+        { name: 'modèle-fiche', emoji: '📝', type: 0 },
+        { name: 'fiches-validées', emoji: '✅', type: 0 },
+        { name: 'fiches-en-attente', emoji: '⏳', type: 0 },
+        { name: 'relations', emoji: '💕', type: 0 },
+        { name: 'galerie-persos', emoji: '🖼️', type: 0 },
+      ]},
+      { cat: '── ・ZONES RP・ ──', items: [
+        { name: 'place-centrale', emoji: '🏛️', type: 0 },
+        { name: 'forêt', emoji: '🌲', type: 0 },
+        { name: 'taverne', emoji: '🍺', type: 0 },
+        { name: 'donjon', emoji: '🏰', type: 0 },
+        { name: 'marché', emoji: '🏪', type: 0 },
+        { name: 'arène', emoji: '⚔️', type: 0 },
+        { name: 'port', emoji: '⛵', type: 0 },
+        { name: 'zone-interdite', emoji: '☠️', type: 0 },
+      ]},
+      { cat: '── ・HORS-RP・ ──', items: [
+        { name: 'général', emoji: '💬', type: 0 },
+        { name: 'questions-rp', emoji: '❓', type: 0 },
+        { name: 'memes', emoji: '😂', type: 0 },
+        { name: 'médias', emoji: '📷', type: 0 },
+        { name: 'inspiration', emoji: '✨', type: 0 },
+      ]},
+      { cat: '── ・VOCAL・ ──', items: [
+        { name: 'Session RP', emoji: '🎭', type: 2 },
+        { name: 'Discussion HRP', emoji: '🔊', type: 2 },
+        { name: 'AFK', emoji: '💤', type: 2 },
+      ]},
+      { cat: '── ・STAFF・ ──', items: [
+        { name: 'staff', emoji: '🛡️', type: 0 },
+        { name: 'validation', emoji: '✅', type: 0 },
+        { name: 'logs', emoji: '📋', type: 0 },
+        { name: 'Réunion MJ', emoji: '🎲', type: 2 },
+      ]},
+    ],
+  },
+
+  musique: {
+    label: '🎵 Musique / Label',
+    desc: 'Serveur musical ou label indépendant',
+    channels: [
+      { cat: '── ・INFOS・ ──', items: [
+        { name: 'annonces', emoji: '📢', type: 0 },
+        { name: 'règles', emoji: '📜', type: 0 },
+        { name: 'sorties', emoji: '🆕', type: 0 },
+        { name: 'événements', emoji: '📅', type: 0 },
+      ]},
+      { cat: '── ・MUSIQUE・ ──', items: [
+        { name: 'partage-sons', emoji: '🎵', type: 0 },
+        { name: 'beats-instrus', emoji: '🥁', type: 0 },
+        { name: 'lyrics', emoji: '✍️', type: 0 },
+        { name: 'mix-master', emoji: '🎛️', type: 0 },
+        { name: 'feedback', emoji: '💭', type: 0 },
+        { name: 'covers', emoji: '🎤', type: 0 },
+        { name: 'playlists', emoji: '📋', type: 0 },
+      ]},
+      { cat: '── ・PRODUCTION・ ──', items: [
+        { name: 'fl-studio', emoji: '🟧', type: 0 },
+        { name: 'ableton', emoji: '⬛', type: 0 },
+        { name: 'plugins-vst', emoji: '🔌', type: 0 },
+        { name: 'samples-packs', emoji: '📦', type: 0 },
+        { name: 'tutoriels', emoji: '📚', type: 0 },
+      ]},
+      { cat: '── ・BUSINESS・ ──', items: [
+        { name: 'collabs', emoji: '🤝', type: 0 },
+        { name: 'promotion', emoji: '📣', type: 0 },
+        { name: 'distribution', emoji: '💿', type: 0 },
+        { name: 'commissions', emoji: '💰', type: 0 },
+      ]},
+      { cat: '── ・COMMUNAUTÉ・ ──', items: [
+        { name: 'général', emoji: '💬', type: 0 },
+        { name: 'memes', emoji: '😂', type: 0 },
+        { name: 'setup', emoji: '🎧', type: 0 },
+        { name: 'concerts', emoji: '🎪', type: 0 },
+      ]},
+      { cat: '── ・VOCAL・ ──', items: [
+        { name: 'Session studio', emoji: '🎙️', type: 2 },
+        { name: 'Écoute commune', emoji: '🎧', type: 2 },
+        { name: 'Discussion', emoji: '🔊', type: 2 },
+        { name: 'AFK', emoji: '💤', type: 2 },
+      ]},
+    ],
+  },
+
+  education: {
+    label: '📖 Éducation / Études',
+    desc: 'Serveur scolaire ou entraide étudiante',
+    channels: [
+      { cat: '── ・ACCUEIL・ ──', items: [
+        { name: 'bienvenue', emoji: '👋', type: 0 },
+        { name: 'règlement', emoji: '📜', type: 0 },
+        { name: 'annonces', emoji: '📢', type: 0 },
+        { name: 'emploi-du-temps', emoji: '📅', type: 0 },
+      ]},
+      { cat: '── ・MATIÈRES・ ──', items: [
+        { name: 'mathématiques', emoji: '📐', type: 0 },
+        { name: 'physique-chimie', emoji: '🔬', type: 0 },
+        { name: 'svt', emoji: '🧬', type: 0 },
+        { name: 'français', emoji: '📝', type: 0 },
+        { name: 'histoire-géo', emoji: '🌍', type: 0 },
+        { name: 'anglais', emoji: '🇬🇧', type: 0 },
+        { name: 'philosophie', emoji: '🤔', type: 0 },
+        { name: 'informatique', emoji: '💻', type: 0 },
+      ]},
+      { cat: '── ・ENTRAIDE・ ──', items: [
+        { name: 'aide-devoirs', emoji: '❓', type: 0 },
+        { name: 'fiches-cours', emoji: '📄', type: 0 },
+        { name: 'révisions', emoji: '📚', type: 0 },
+        { name: 'examens', emoji: '✏️', type: 0 },
+        { name: 'orientation', emoji: '🧭', type: 0 },
+        { name: 'ressources', emoji: '🔗', type: 0 },
+      ]},
+      { cat: '── ・DÉTENTE・ ──', items: [
+        { name: 'général', emoji: '💬', type: 0 },
+        { name: 'memes', emoji: '😂', type: 0 },
+        { name: 'off-topic', emoji: '🌀', type: 0 },
+        { name: 'jeux', emoji: '🎮', type: 0 },
+      ]},
+      { cat: '── ・VOCAL・ ──', items: [
+        { name: 'Révisions', emoji: '📚', type: 2 },
+        { name: 'Groupe de travail', emoji: '👥', type: 2 },
+        { name: 'Discussion', emoji: '🔊', type: 2 },
+        { name: 'AFK', emoji: '💤', type: 2 },
+      ]},
+    ],
+  },
+
+  business: {
+    label: '💼 Business / Startup',
+    desc: 'Serveur professionnel ou entreprise',
+    channels: [
+      { cat: '── ・ENTREPRISE・ ──', items: [
+        { name: 'annonces', emoji: '📢', type: 0 },
+        { name: 'règlement', emoji: '📜', type: 0 },
+        { name: 'objectifs', emoji: '🎯', type: 0 },
+        { name: 'roadmap', emoji: '🗺️', type: 0 },
+        { name: 'kpi-metrics', emoji: '📊', type: 0 },
+      ]},
+      { cat: '── ・ÉQUIPES・ ──', items: [
+        { name: 'marketing', emoji: '📣', type: 0 },
+        { name: 'développement', emoji: '💻', type: 0 },
+        { name: 'design', emoji: '🎨', type: 0 },
+        { name: 'commercial', emoji: '🤝', type: 0 },
+        { name: 'support-client', emoji: '🎫', type: 0 },
+        { name: 'rh', emoji: '👥', type: 0 },
+      ]},
+      { cat: '── ・PROJETS・ ──', items: [
+        { name: 'projet-principal', emoji: '🚀', type: 0 },
+        { name: 'bugs-tickets', emoji: '🐛', type: 0 },
+        { name: 'idées', emoji: '💡', type: 0 },
+        { name: 'feedback-client', emoji: '💬', type: 0 },
+        { name: 'documentation', emoji: '📄', type: 0 },
+      ]},
+      { cat: '── ・GÉNÉRAL・ ──', items: [
+        { name: 'machine-à-café', emoji: '☕', type: 0 },
+        { name: 'veille', emoji: '📰', type: 0 },
+        { name: 'random', emoji: '🌀', type: 0 },
+      ]},
+      { cat: '── ・VOCAL・ ──', items: [
+        { name: 'Réunion', emoji: '📋', type: 2 },
+        { name: 'Stand-up', emoji: '🧍', type: 2 },
+        { name: 'Discussion', emoji: '🔊', type: 2 },
+        { name: 'Pause', emoji: '☕', type: 2 },
+      ]},
+      { cat: '── ・DIRECTION・ ──', items: [
+        { name: 'direction', emoji: '👑', type: 0 },
+        { name: 'finance', emoji: '💰', type: 0 },
+        { name: 'confidentiel', emoji: '🔒', type: 0 },
+        { name: 'Board', emoji: '👑', type: 2 },
+      ]},
+    ],
+  },
+
   dev: {
     label: '💻 Développement',
     desc: 'Serveur pour développeurs et projets tech',

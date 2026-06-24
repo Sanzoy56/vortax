@@ -65,8 +65,9 @@ function renderTemplatePreview(formatted, templateLabel, styleLabel) {
     ctx.font = `bold 11px ${FONT}`;
     const catText = cat.catName.toUpperCase();
 
-    // Flèche ▼
-    ctx.fillText('▼  ' + catText, 12, y + 14);
+    // Flèche ▼ — retirer les emojis des catégories
+    const cleanCat = catText.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]/gu, '').trim();
+    ctx.fillText('▼  ' + cleanCat, 12, y + 14);
     y += CAT_H;
 
     // Salons
@@ -82,11 +83,10 @@ function renderTemplatePreview(formatted, templateLabel, styleLabel) {
       }
 
       // Icône
-      ctx.fillStyle = isHovered ? TEXT_HOVER : TEXT_COLOR;
-      ctx.font = `14px ${FONT}`;
-      const icon = isVoice ? '🔊' : '#';
-
-      if (!isVoice) {
+      if (isVoice) {
+        ctx.fillStyle = isHovered ? TEXT_HOVER : VOICE_COLOR;
+        drawSpeakerIcon(ctx, 18, y + 8, 12);
+      } else {
         ctx.font = `bold 16px ${FONT}`;
         ctx.fillStyle = isHovered ? TEXT_HOVER : '#6d6f78';
         ctx.fillText('#', 22, y + 18);
@@ -95,8 +95,8 @@ function renderTemplatePreview(formatted, templateLabel, styleLabel) {
       // Nom du salon
       ctx.font = `500 14px ${FONT}`;
       ctx.fillStyle = isHovered ? TEXT_HOVER : TEXT_COLOR;
-      const nameX = isVoice ? 22 : 40;
-      const displayName = isVoice ? '🔊 ' + ch.name : ch.name;
+      const nameX = 40;
+      const displayName = ch.name.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]/gu, '').trim();
       ctx.fillText(truncate(ctx, displayName, W - nameX - 16), nameX, y + 18);
 
       y += CHAN_H;
@@ -113,6 +113,28 @@ function renderTemplatePreview(formatted, templateLabel, styleLabel) {
   ctx.fillText('VTX-BOT • Template Preview', 16, H - FOOTER_H / 2 + 4);
 
   return canvas.toBuffer('image/png');
+}
+
+function drawSpeakerIcon(ctx, x, y, size) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x, y + size * 0.3);
+  ctx.lineTo(x + size * 0.3, y + size * 0.3);
+  ctx.lineTo(x + size * 0.6, y);
+  ctx.lineTo(x + size * 0.6, y + size);
+  ctx.lineTo(x + size * 0.3, y + size * 0.7);
+  ctx.lineTo(x, y + size * 0.7);
+  ctx.closePath();
+  ctx.fill();
+  // Ondes
+  ctx.beginPath();
+  ctx.arc(x + size * 0.7, y + size * 0.5, size * 0.25, -0.8, 0.8);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x + size * 0.7, y + size * 0.5, size * 0.45, -0.6, 0.6);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function truncate(ctx, text, maxW) {
