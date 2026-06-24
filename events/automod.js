@@ -123,6 +123,24 @@ module.exports = (client) => {
 
     for (const [key, rule] of Object.entries(rules)) {
       if (!rule.enabled) continue
+
+      // Règle images : détecte les pièces jointes (images, GIFs, fichiers)
+      if (key === 'images') {
+        const hasAttachment = message.attachments.size > 0;
+        const hasEmbedImage = message.embeds.some(e => e.image || e.thumbnail || e.video);
+        if (!hasAttachment && !hasEmbedImage) continue;
+
+        // Si des salons sont précisés, ne bloquer que dans ces salons
+        const channels = (rule.words || '').split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
+        if (channels.length > 0) {
+          const channelName = message.channel.name?.toLowerCase() || '';
+          if (!channels.some(c => channelName.includes(c))) continue;
+        }
+
+        await appliquerSanction(member, guild, message, rule.sanction, `Règle : ${rule.label}`, logSalon)
+        return;
+      }
+
       if (!rule.words) continue
 
       const words = rule.words.split(',').map(w => w.trim().toLowerCase()).filter(Boolean)
