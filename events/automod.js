@@ -31,12 +31,7 @@ function hammingDistance(a, b) {
   return d;
 }
 
-async function getConfig() {
-  try {
-    const res = await fetch('http://localhost:3001/config')
-    return await res.json()
-  } catch { return {} }
-}
+const { getConfig } = require('../config')
 
 const GLADOS = {
   delete:      (m) => `Message supprimé, <@${m.id}>. J'ai trouvé ça constructif, mais non.`,
@@ -151,8 +146,10 @@ module.exports = (client) => {
     const logSalon = guild.channels.cache.get(config.log_moderation)
     const rules = config.automod_rules || {}
 
+    console.log(`[Automod] Règles chargées: ${Object.keys(rules).join(', ')} | images.enabled=${rules.images?.enabled}`);
+
     for (const [key, rule] of Object.entries(rules)) {
-      if (!rule.enabled) continue
+      if (!rule.enabled) { if (key === 'images') console.log('[Automod] ❌ Règle images DÉSACTIVÉE'); continue; }
 
       // Règle images : détecte les pièces jointes bloquées par hash perceptuel
       if (key === 'images') {
