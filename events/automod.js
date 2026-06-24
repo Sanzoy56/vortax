@@ -124,21 +124,33 @@ module.exports = (client) => {
     for (const [key, rule] of Object.entries(rules)) {
       if (!rule.enabled) continue
 
-      // Règle images : détecte les pièces jointes (images, GIFs, fichiers)
+      // Règle images : détecte les pièces jointes bloquées par hash
       if (key === 'images') {
-        const hasAttachment = message.attachments.size > 0;
-        const hasEmbedImage = message.embeds.some(e => e.image || e.thumbnail || e.video);
-        if (!hasAttachment && !hasEmbedImage) continue;
+        const imageAttachments = [...message.attachments.values()].filter(a =>
+          a.contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name || '')
+        );
+        if (imageAttachments.length === 0) continue;
 
-        // Si des salons sont précisés, ne bloquer que dans ces salons
-        const channels = (rule.words || '').split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
-        if (channels.length > 0) {
-          const channelName = message.channel.name?.toLowerCase() || '';
-          if (!channels.some(c => channelName.includes(c))) continue;
-        }
+        try {
+          const { createHash } = require('crypto');
+          const blockedRes = await fetch('https://vtx-bot.alwaysdata.net/api/automod/images');
+          if (!blockedRes.ok) continue;
+          const blockedList = await blockedRes.json();
+          if (!blockedList.length) continue;
+          const blockedHashes = new Set(blockedList.map(i => i.md5));
 
-        await appliquerSanction(member, guild, message, rule.sanction, `Règle : ${rule.label}`, logSalon)
-        return;
+          for (const att of imageAttachments) {
+            const imgRes = await fetch(att.url);
+            if (!imgRes.ok) continue;
+            const buf = Buffer.from(await imgRes.arrayBuffer());
+            const hash = createHash('md5').update(buf).digest('hex');
+            if (blockedHashes.has(hash)) {
+              await appliquerSanction(member, guild, message, rule.sanction, `Règle : ${rule.label} (image bloquée)`, logSalon);
+              return;
+            }
+          }
+        } catch (e) { console.error('[Automod] Erreur vérif images:', e.message); }
+        continue;
       }
 
       if (!rule.words) continue
