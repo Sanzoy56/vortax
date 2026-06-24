@@ -204,11 +204,14 @@ module.exports = (client) => {
 
       const words = rule.words.split(',').map(w => w.trim().toLowerCase()).filter(Boolean)
 
+      // Pour les règles autres que "liens", ignorer les URLs (GIFs Discord, tenor, etc.)
+      const textToCheck = key === 'liens' ? content : content.replace(/https?:\/\/\S+/gi, '')
+
       const matched = words.some(word => {
         try {
-          return new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(content)
+          return new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(textToCheck)
         } catch {
-          return content.includes(word)
+          return textToCheck.includes(word)
         }
       })
 
