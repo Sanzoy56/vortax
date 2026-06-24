@@ -205,7 +205,13 @@ module.exports = (client) => {
       const words = rule.words.split(',').map(w => w.trim().toLowerCase()).filter(Boolean)
 
       // Pour les règles autres que "liens", ignorer les URLs (GIFs Discord, tenor, etc.)
-      const textToCheck = key === 'liens' ? content : content.replace(/https?:\/\/\S+/gi, '')
+      // Pour "liens", ignorer les GIFs/médias Discord autorisés
+      let textToCheck;
+      if (key === 'liens') {
+        textToCheck = content.replace(/https?:\/\/(?:tenor\.com|media\.tenor\.com|giphy\.com|media\.giphy\.com|cdn\.discordapp\.com|media\.discordapp\.net)\S*/gi, '')
+      } else {
+        textToCheck = content.replace(/https?:\/\/\S+/gi, '')
+      }
 
       const matched = words.some(word => {
         try {
