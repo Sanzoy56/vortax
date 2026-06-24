@@ -33,15 +33,38 @@ module.exports = (client) => {
                 .catch(() => {});
         }
         // Télécharger les images/GIFs pour les garder en cas de suppression
-        const imageAtts = [...message.attachments.values()].filter(a =>
-            a.contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(a.name || '')
-        );
-        if (imageAtts.length > 0 && !isVoice) {
-            entry.imageBuffers = [];
-            for (const att of imageAtts.slice(0, 4)) { // max 4 images
-                fetch(att.url).then(r => r.ok ? r.arrayBuffer() : null)
-                    .then(buf => { if (buf) entry.imageBuffers.push({ buffer: Buffer.from(buf), name: att.name || 'image.png' }); })
-                    .catch(() => {});
+        if (!isVoice) {
+            const imageUrls = [];
+
+            // Images en pièces jointes
+            for (const att of message.attachments.values()) {
+                if (att.contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(att.name || '')) {
+                    imageUrls.push({ url: att.url, name: att.name || 'image.png' });
+                }
+            }
+
+            // GIFs/images d'embed (sélecteur GIF Discord, tenor, giphy)
+            for (const embed of message.embeds) {
+                const embedUrl = embed.video?.url || embed.image?.url || embed.thumbnail?.url;
+                if (embedUrl) {
+                    const isGif = /\.gif|tenor|giphy/i.test(embedUrl);
+                    imageUrls.push({ url: embedUrl, name: isGif ? 'gif.gif' : 'image.png' });
+                }
+            }
+
+            // Fallback : URL directe dans le contenu (tenor/giphy)
+            if (imageUrls.length === 0 && message.content) {
+                const urlMatch = message.content.match(/https?:\/\/(?:tenor\.com|media\.tenor\.com|giphy\.com|media\.giphy\.com)\S+/i);
+                if (urlMatch) imageUrls.push({ url: urlMatch[0], name: 'gif.gif' });
+            }
+
+            if (imageUrls.length > 0) {
+                entry.imageBuffers = [];
+                for (const img of imageUrls.slice(0, 4)) {
+                    fetch(img.url).then(r => r.ok ? r.arrayBuffer() : null)
+                        .then(buf => { if (buf) entry.imageBuffers.push({ buffer: Buffer.from(buf), name: img.name }); })
+                        .catch(() => {});
+                }
             }
         }
         MSG_CACHE.set(message.id, entry);
