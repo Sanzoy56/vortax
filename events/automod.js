@@ -1,5 +1,35 @@
 const { EmbedBuilder } = require('discord.js');
 const { sendLogCard } = require('../levels/logCard');
+const { createCanvas, loadImage } = require('canvas');
+
+// Hash perceptuel (aHash) — redimensionne en 8x8 gris et compare les pixels
+async function perceptualHash(buffer) {
+  try {
+    const img = await loadImage(buffer);
+    const canvas = createCanvas(8, 8);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, 8, 8);
+    const data = ctx.getImageData(0, 0, 8, 8).data;
+    let total = 0;
+    const grays = [];
+    for (let i = 0; i < 64; i++) {
+      const gray = data[i * 4] * 0.299 + data[i * 4 + 1] * 0.587 + data[i * 4 + 2] * 0.114;
+      grays.push(gray);
+      total += gray;
+    }
+    const avg = total / 64;
+    let hash = '';
+    for (const g of grays) hash += g >= avg ? '1' : '0';
+    return hash;
+  } catch { return null; }
+}
+
+function hammingDistance(a, b) {
+  if (!a || !b || a.length !== b.length) return 99;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++;
+  return d;
+}
 
 async function getConfig() {
   try {
@@ -124,7 +154,7 @@ module.exports = (client) => {
     for (const [key, rule] of Object.entries(rules)) {
       if (!rule.enabled) continue
 
-      // Règle images : détecte les pièces jointes bloquées par hash
+      // Règle images : détecte les pièces jointes bloquées par hash perceptuel
       if (key === 'images') {
         const imageAttachments = [...message.attachments.values()].filter(a =>
           a.contentType?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)$/i.test(a.name || '')
@@ -132,19 +162,30 @@ module.exports = (client) => {
         if (imageAttachments.length === 0) continue;
 
         try {
-          const { createHash } = require('crypto');
           const blockedRes = await fetch('https://vtx-bot.alwaysdata.net/api/automod/images');
           if (!blockedRes.ok) continue;
           const blockedList = await blockedRes.json();
           if (!blockedList.length) continue;
-          const blockedHashes = new Set(blockedList.map(i => i.md5));
+
+          // Télécharger et hasher les images bloquées si pas encore fait
+          if (!blockedList[0].phash) {
+            for (const entry of blockedList) {
+              try {
+                const r = await fetch(`https://vtx-bot.alwaysdata.net/api/automod/images/${entry.id}/file`);
+                if (!r.ok) continue;
+                entry.phash = await perceptualHash(Buffer.from(await r.arrayBuffer()));
+              } catch {}
+            }
+          }
 
           for (const att of imageAttachments) {
             const imgRes = await fetch(att.url);
             if (!imgRes.ok) continue;
             const buf = Buffer.from(await imgRes.arrayBuffer());
-            const hash = createHash('md5').update(buf).digest('hex');
-            const matchedImg = blockedList.find(i => i.md5 === hash);
+            const hash = await perceptualHash(buf);
+            if (!hash) continue;
+
+            const matchedImg = blockedList.find(i => i.phash && hammingDistance(hash, i.phash) < 12);
             if (matchedImg) {
               await appliquerSanction(member, guild, message, matchedImg.sanction || rule.sanction, `Règle : ${rule.label} (${matchedImg.name})`, logSalon);
               return;
