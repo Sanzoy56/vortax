@@ -1,7 +1,7 @@
 'use strict';
 const { getUser, saveUser, getAllUsers, today } = require('../../db');
 
-const ADMIN_ROLE_ID = 'TON_ROLE_ID_ICI'; // remplace par l'ID du rôle admin/staff
+const ADMIN_ROLE_ID = '1361408552664568100'; // remplace par l'ID du rôle admin/staff
 
 function resetQuestsForUser(user) {
   user.quests = { date: null, list: [] };
