@@ -282,6 +282,34 @@ async function cmdQuetes(msg) {
   }
 }
 
+// ── =resetquetes @membre|all ──────────────────────────────────
+async function cmdResetQuetes(msg, args) {
+  const isAdmin = msg.member.permissions.has('Administrator');
+  if (!isAdmin) return msg.reply(re(0xef4444, `${PERDU} Réservé aux administrateurs.`));
+
+  const target = args[0]?.toLowerCase();
+
+  if (target === 'all' || target === 'tout') {
+    const { getAllUsers } = require('../levels/db');
+    const allUsers = getAllUsers();
+    let count = 0;
+    for (const user of Object.values(allUsers)) {
+      user.quests = { date: null, list: [] };
+      saveUser(user);
+      count++;
+    }
+    return msg.reply(re(0x22c55e, `${CHECK} Quêtes réinitialisées pour **${count}** membres.`));
+  }
+
+  const mentioned = msg.mentions.users.first();
+  if (!mentioned) return msg.reply(re(0xef4444, `${PERDU} Usage : \`=resetquetes @membre\` ou \`=resetquetes all\`.`));
+
+  const user = getUser(mentioned.id);
+  user.quests = { date: null, list: [] };
+  saveUser(user);
+  msg.reply(re(0x22c55e, `${CHECK} Quêtes réinitialisées pour **${mentioned.username}**.`));
+}
+
 // ── =aide ────────────────────────────────────────────────────
 async function cmdAide(msg) {
   const isStaff = msg.member?.permissions.has('ModerateMembers') || msg.member?.permissions.has('BanMembers') || msg.member?.permissions.has('Administrator');
@@ -298,7 +326,7 @@ async function cmdAide(msg) {
       { name: '🎵 Musique (vocal)', value: 'Parle au bot en étant en vocal :\n« vtxbot rejoins le vocal » — Le bot rejoint ton salon\n« vtxbot mets *titre*» — Joue/ajoute une musique\n« vtxbot pause / reprends / skip / stop » — Contrôle la lecture\n« vtxbot quitte le vocal » — Déconnexion' },
       ...(isStaff ? [{ name: '🎫 Tickets (staff)', value: '`-delete` — Transcript + supprimer\n`vtxbot [action]` — IA modération' }] : []),
       ...(isStaff ? [{ name: '🎰 Modération Casino (staff)', value: '`=bancasino @membre <perm|durée> [raison]` — Bannir du casino (ex : `7j`, `12h`, `30min`)\n`=debancasino @membre` — Débannir du casino' }] : []),
-      ...(isAdmin ? [{ name: '🛡️ Admin', value: '`/adminexpajouter` `/adminexpretirer` `/adminmoneyajouter` `/adminmoneyretirer`\n`/adminpersos add @m <perso>` — Donner un perso\n`/adminpersos remove @m <perso>` — Retirer un perso\n`/adminpersos list @m` — Lister les persos\n`/adminpersos resetcd @m [perso]` — Reset cooldowns\n`=admindonnerperso @m <perso>` · `=adminretirerperso @m <perso>` · `=adminlisterpersos @m`\n`=testsaison` — Aperçu de l\'annonce de fin de saison (sans reset)\n`=maintenance` — Activer la maintenance pour une ou plusieurs catégories (EXP, économie, casino, persos, staff)\n`=finmaintenance` — Désactiver toute la maintenance' }] : []),
+      ...(isAdmin ? [{ name: '🛡️ Admin', value: '`/adminexpajouter` `/adminexpretirer` `/adminmoneyajouter` `/adminmoneyretirer`\n`/adminpersos add @m <perso>` — Donner un perso\n`/adminpersos remove @m <perso>` — Retirer un perso\n`/adminpersos list @m` — Lister les persos\n`/adminpersos resetcd @m [perso]` — Reset cooldowns\n`=admindonnerperso @m <perso>` · `=adminretirerperso @m <perso>` · `=adminlisterpersos @m`\n`=testsaison` — Aperçu de l\'annonce de fin de saison (sans reset)\n`=maintenance` — Activer la maintenance pour une ou plusieurs catégories (EXP, économie, casino, persos, staff)\n`=finmaintenance` — Désactiver toute la maintenance\n`=resetquetes @membre|all` — Réinitialiser les quêtes' }] : []),
     )
     .setFooter({ text: 'Boosts : /boutique · Inventaire : /inventaire · Quêtes : =quetes' });
   msg.reply({ embeds: [embed] });
@@ -485,7 +513,8 @@ async function cmdFinMaintenance(msg) {
 const CMDS = {
   dep: cmdDep, with: cmdWith, bal: cmdBal, donner: cmdDonner,
   rob: cmdRob, work: cmdWork, profil: cmdProfil, top: cmdTop,
-  quetes: cmdQuetes, aide: cmdAide, createroles: cmdCreateRoles,
+  quetes: cmdQuetes, resetquetes: cmdResetQuetes, aide: cmdAide,
+  createroles: cmdCreateRoles,
   bancasino: cmdBanCasino, debancasino: cmdDebanCasino,
   testsaison: cmdTestSaison,
   maintenance: cmdMaintenance, finmaintenance: cmdFinMaintenance,
@@ -518,6 +547,6 @@ module.exports = {
       }
       try { await handler(msg, args); } catch(e) { console.error('[Prefix]', e.message); }
     });
-    console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =aide =bancasino =debancasino =testsaison =maintenance =finmaintenance');
+    console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =resetquetes =aide =bancasino =debancasino =testsaison =maintenance =finmaintenance');
   },
 };
