@@ -1,10 +1,13 @@
 'use strict';
-const { getAllUsers, saveUser, today } = require('../db');
+// Le reset quotidien n'a plus lieu d'être : les quêtes se renouvellent
+// désormais une par une, dès qu'elles sont terminées (voir quests.js).
+// On garde canAnnounceQuests si tu l'utilises ailleurs, mais startQuestReset
+// n'est plus appelé.
 
-// Garde en mémoire les users qui ont déjà eu leur annonce aujourd'hui
 const announcedToday = new Map();
 
 function canAnnounceQuests(userId) {
+  const { today } = require('../db');
   const todayStr = today();
   if (announcedToday.get(userId) === todayStr) return false;
   announcedToday.set(userId, todayStr);
@@ -12,26 +15,7 @@ function canAnnounceQuests(userId) {
 }
 
 function startQuestReset(client) {
-  setInterval(async () => {
-    const now = new Date();
-    if (now.getHours() !== 0 || now.getMinutes() !== 0) return;
-
-    // Reset la map des annonces à minuit
-    announcedToday.clear();
-
-    const allUsers = getAllUsers();
-    let count = 0;
-
-    for (const [id, user] of Object.entries(allUsers)) {
-      if (!user.quests) continue;
-      user.quests.date = null;
-      user.quests.list = [];
-      saveUser(user);
-      count++;
-    }
-
-    console.log(`[QuestTask] Reset quêtes de ${count} utilisateurs à minuit.`);
-  }, 60 * 1000);
+  // no-op — conservé pour compatibilité si appelé ailleurs
 }
 
 module.exports = { startQuestReset, canAnnounceQuests };

@@ -6,9 +6,17 @@ const { getConfig } = require('../config');
 
 const QUESTS_PER_DAY = 10;
 
+function pickRandomQuest(excludeIds) {
+  const pool = QUEST_POOL.filter(q => !excludeIds.includes(q.id));
+  if (pool.length === 0) return null;
+  const idx = Math.floor(Math.random() * pool.length);
+  return { ...pool[idx], progress: 0, completed: false, rewarded: false };
+}
+
 function generateDailyQuests(user) {
-  const todayStr = today();
-  if (user.quests?.date === todayStr) return;
+  // Ne génère un lot QUE si l'utilisateur n'a jamais eu de quêtes
+  // (plus de reset quotidien — le renouvellement se fait quête par quête)
+  if (user.quests?.list?.length > 0) return;
 
   const pool     = [...QUEST_POOL];
   const selected = [];
@@ -18,7 +26,7 @@ function generateDailyQuests(user) {
   }
 
   if (!user.quests) user.quests = {};
-  user.quests.date = todayStr;
+  user.quests.date = today();
   user.quests.list = selected.map(q => ({
     ...q,
     progress:  0,
@@ -33,9 +41,11 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
 
   const levelBefore = levelFromExp(user.exp);
 
-  // ── Phase SYNC : calculer les complétions, modifier user ──────────────
   const completed = [];
-  for (const q of user.quests.list) {
+  const replacements = [];
+
+  for (let i = 0; i < user.quests.list.length; i++) {
+    const q = user.quests.list[i];
     if (q.rewarded || q.type !== type) continue;
     q.progress = Math.min(q.progress + amount, q.target);
     if (q.progress >= q.target && !q.completed) {
@@ -44,15 +54,20 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
       user.exp    += q.rewardExp   || 0;
       user.wallet += q.rewardCoins || 0;
       completed.push(q);
+
+      // ── Remplacement immédiat par une nouvelle quête ──────────────
+      const currentIds = user.quests.list.map(x => x.id);
+      const fresh = pickRandomQuest(currentIds);
+      if (fresh) {
+        user.quests.list[i] = fresh;
+        replacements.push(fresh);
+      }
     }
   }
 
   const levelAfter = levelFromExp(user.exp);
-
-  // SAUVEGARDE AVANT tout await — évite d'écraser des données écrites entre-temps
   saveUser(user);
 
-  // ── Phase ASYNC : notifier (après la sauvegarde) ──────────────────────
   if (completed.length && guild) {
     const cfg = await getConfig();
     const channel = guild.channels.cache.get(cfg.quetes);
@@ -61,7 +76,9 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
       const { AttachmentBuilder } = require('discord.js');
       const member = await guild.members.fetch(userId).catch(() => null);
 
-      for (const q of completed) {
+      for (let i = 0; i < completed.length; i++) {
+        const q = completed[i];
+        const next = replacements[i];
         const parts = [];
         if (q.rewardExp)   parts.push(`+${q.rewardExp} EXP`);
         if (q.rewardCoins) parts.push(`+${q.rewardCoins} VTX-Coins`);
@@ -72,8 +89,12 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
           if (buf) files = [new AttachmentBuilder(buf, { name: 'quete.png' })];
         }
 
+        const nextLine = next
+          ? `\n🔄 Nouvelle quête débloquée : **${next.label}** — ${next.desc}`
+          : '';
+
         await channel.send({
-          content: `🎯 <@${userId}> a terminé la quête **${q.label}** ! ${parts.join(' • ')} 🎁`,
+          content: `🎯 <@${userId}> a terminé la quête **${q.label}** ! ${parts.join(' • ')} 🎁${nextLine}`,
           files,
         }).catch(() => {});
       }
