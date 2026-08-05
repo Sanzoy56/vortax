@@ -258,24 +258,71 @@ async function cmdTop(msg, args) {
 }
 
 // ── =quetes ──────────────────────────────────────────────────
-const TYPE_CAT = { messages: 'MSG', vocal: 'VOC', coins: 'PRG', exp: 'PRG', commands: 'EVT', bank: 'PRG' };
+// Utilise le même système que la slash command /quetes : 3 slots
+// (quotidienne + hebdo auto, à choix via select menu).
+function buildQuestComponents(user) {
+  const choiceIndex = user.quests.slots.findIndex(s => s.role === 'choice' && s.status === 'choice');
+  if (choiceIndex === -1) return [];
+
+  const slot = user.quests.slots[choiceIndex];
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(`qc_${choiceIndex}`)
+    .setPlaceholder('Choisis ta quête…')
+    .addOptions(
+      slot.options.map(opt => {
+        const rewardParts = [];
+        if (opt.rewardExp)   rewardParts.push(`+${fmt(opt.rewardExp)} XP`);
+        if (opt.rewardCoins) rewardParts.push(`+${fmt(opt.rewardCoins)} coins`);
+        return {
+          label: opt.label.slice(0, 100),
+          description: `${opt.desc} · ${rewardParts.join(' · ')}`.slice(0, 100),
+          value: opt.id,
+        };
+      })
+    );
+
+  return [new ActionRowBuilder().addComponents(menu)];
+}
+
 async function cmdQuetes(msg) {
   try {
-    const { generateDailyQuests } = require('../levels/quests');
-    const { generateQuests }      = require('../levels/canvas');
+    const { ensureQuestSlots, chooseQuest } = require('../levels/quests');
+    const { generateQuests }                = require('../levels/canvas');
+
     const member = await msg.guild.members.fetch(msg.author.id).catch(() => null);
     if (!member) return msg.reply(re(0xef4444, `${PERDU} Membre introuvable.`));
+
     const user = getUser(msg.author.id);
-    generateDailyQuests(user);
+    ensureQuestSlots(user);
     saveUser(user);
-    const quests = (user.quests?.list || []).map(q => ({
-      ...q,
-      cat:  TYPE_CAT[q.type] || 'SPE',
-      desc: `Progression : ${q.progress||0}/${q.target}`,
-    }));
-    if (!quests.length) return msg.reply(re(0x6366f1, `Aucune quête pour aujourd'hui.`));
-    const buffer = await generateQuests(member, quests);
-    msg.reply({ files: [new AttachmentBuilder(buffer, { name: 'quetes.png' })] });
+
+    const buffer      = await generateQuests(member, user.quests.slots);
+    const components   = buildQuestComponents(user);
+    const reply = await msg.reply({ files: [new AttachmentBuilder(buffer, { name: 'quetes.png' })], components });
+
+    if (!components.length) return;
+
+    const collector = reply.createMessageComponentCollector({
+      filter: i => i.user.id === msg.author.id && i.customId.startsWith('qc_') && i.isStringSelectMenu(),
+      time: 15 * 60 * 1000,
+    });
+
+    collector.on('collect', async i => {
+      const slotIndex = parseInt(i.customId.split('_')[1], 10);
+      const questId   = i.values[0];
+
+      const freshUser = getUser(msg.author.id);
+      const picked = chooseQuest(freshUser, slotIndex, questId);
+      if (!picked) {
+        return i.reply({ content: 'Cette quête n\'est plus disponible.', ephemeral: true }).catch(() => {});
+      }
+
+      const newBuffer     = await generateQuests(member, freshUser.quests.slots);
+      const newComponents = buildQuestComponents(freshUser);
+      await i.update({ files: [new AttachmentBuilder(newBuffer, { name: 'quetes.png' })], components: newComponents });
+    });
+
+    collector.on('end', () => reply.edit({ components: [] }).catch(() => {}));
   } catch(e) {
     console.error('[Prefix] quetes:', e.message);
     msg.reply(re(0xef4444, `${PERDU} Erreur lors de la génération des quêtes.`));
@@ -287,6 +334,7 @@ async function cmdResetQuetes(msg, args) {
   const isAdmin = msg.member.permissions.has('Administrator');
   if (!isAdmin) return msg.reply(re(0xef4444, `${PERDU} Réservé aux administrateurs.`));
 
+  const { resetQuestSlots } = require('../levels/quests');
   const target = args[0]?.toLowerCase();
 
   if (target === 'all' || target === 'tout') {
@@ -294,7 +342,7 @@ async function cmdResetQuetes(msg, args) {
     const allUsers = getAllUsers();
     let count = 0;
     for (const user of Object.values(allUsers)) {
-      user.quests = { date: null, list: [] };
+      resetQuestSlots(user);
       saveUser(user);
       count++;
     }
@@ -305,7 +353,7 @@ async function cmdResetQuetes(msg, args) {
   if (!mentioned) return msg.reply(re(0xef4444, `${PERDU} Usage : \`=resetquetes @membre\` ou \`=resetquetes all\`.`));
 
   const user = getUser(mentioned.id);
-  user.quests = { date: null, list: [] };
+  resetQuestSlots(user);
   saveUser(user);
   msg.reply(re(0x22c55e, `${CHECK} Quêtes réinitialisées pour **${mentioned.username}**.`));
 }

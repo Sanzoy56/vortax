@@ -1,105 +1,144 @@
 'use strict';
 const { QUEST_POOL } = require('./ConfigQuests');
-const { getUser, saveUser, today } = require('./db');
+const { getUser, saveUser } = require('./db');
 const { levelFromExp, handleLevelUp } = require('./levels');
-const { getConfig } = require('../config');
 
-const QUESTS_PER_DAY = 10;
+const OPTIONS_PER_SLOT = 3;
 
-function pickRandomQuest(excludeIds) {
-  const pool = QUEST_POOL.filter(q => !excludeIds.includes(q.id));
-  if (pool.length === 0) return null;
-  const idx = Math.floor(Math.random() * pool.length);
-  return { ...pool[idx], progress: 0, completed: false, rewarded: false };
-}
-
-function generateDailyQuests(user) {
-  // Ne génère un lot QUE si l'utilisateur n'a jamais eu de quêtes
-  // (plus de reset quotidien — le renouvellement se fait quête par quête)
-  if (user.quests?.list?.length > 0) return;
-
-  const pool     = [...QUEST_POOL];
-  const selected = [];
-  while (selected.length < QUESTS_PER_DAY && pool.length > 0) {
-    const idx = Math.floor(Math.random() * pool.length);
-    selected.push(pool.splice(idx, 1)[0]);
+// ─── Tirage ────────────────────────────────────────────────────
+function randomPick(pool, count, excludeIds = []) {
+  const source = pool.filter(q => !excludeIds.includes(q.id));
+  const base   = source.length >= count ? source : pool;
+  const copy   = [...base];
+  const picked = [];
+  while (picked.length < count && copy.length > 0) {
+    const idx = Math.floor(Math.random() * copy.length);
+    picked.push(copy.splice(idx, 1)[0]);
   }
-
-  if (!user.quests) user.quests = {};
-  user.quests.date = today();
-  user.quests.list = selected.map(q => ({
-    ...q,
-    progress:  0,
-    completed: false,
-    rewarded:  false,
-  }));
+  return picked;
 }
 
-async function updateQuestProgress(guild, userId, type, amount = 1) {
+function freshQuestInstance(q) {
+  return { ...q, progress: 0, completed: false, rewarded: false };
+}
+
+// Slot 0 — quotidienne : tirée seule, tier 1, pas de choix
+function freshDailySlot(excludeIds = []) {
+  const pool = QUEST_POOL.filter(q => q.tier === 1);
+  const [picked] = randomPick(pool, 1, excludeIds);
+  return { role: 'daily', status: 'active', quest: freshQuestInstance(picked) };
+}
+
+// Slot 1 — hebdo : tirée seule, tier 2, pas de choix
+function freshWeeklySlot(excludeIds = []) {
+  const pool = QUEST_POOL.filter(q => q.tier === 2);
+  const [picked] = randomPick(pool, 1, excludeIds);
+  return { role: 'weekly', status: 'active', quest: freshQuestInstance(picked) };
+}
+
+// Slot 2 — à choix : 3 options proposées (tout le pool, tiers confondus),
+// le joueur en sélectionne une via le select menu.
+function freshChoiceSlot(excludeIds = []) {
+  const options = randomPick(QUEST_POOL, OPTIONS_PER_SLOT, excludeIds).map(q => ({ ...q }));
+  return { role: 'choice', status: 'choice', options };
+}
+
+function freshSlots(excludeIds = []) {
+  const daily = freshDailySlot(excludeIds);
+  const usedAfterDaily = [...excludeIds, daily.quest.id];
+
+  const weekly = freshWeeklySlot(usedAfterDaily);
+  const usedAfterWeekly = [...usedAfterDaily, weekly.quest.id];
+
+  const choice = freshChoiceSlot(usedAfterWeekly);
+
+  return [daily, weekly, choice];
+}
+
+function ensureQuestSlots(user) {
+  if (!user.quests) user.quests = {};
+  const slots = user.quests.slots;
+  const rolesOk = Array.isArray(slots) && slots.length === 3
+    && slots[0]?.role === 'daily' && slots[1]?.role === 'weekly' && slots[2]?.role === 'choice';
+
+  if (!rolesOk) {
+    user.quests.slots   = freshSlots();
+    user.quests.tracked = {};
+  }
+  if (!user.quests.tracked) user.quests.tracked = {};
+}
+
+// Compat : l'ancien code appelait generateDailyQuests(user)
+function generateDailyQuests(user) {
+  ensureQuestSlots(user);
+}
+
+// Le joueur choisit une des 3 quêtes proposées pour le slot "à choix".
+function chooseQuest(user, slotIndex, questId) {
+  ensureQuestSlots(user);
+  const slot = user.quests.slots[slotIndex];
+  if (!slot || slot.role !== 'choice' || slot.status !== 'choice') return null;
+  const picked = slot.options.find(o => o.id === questId);
+  if (!picked) return null;
+
+  user.quests.slots[slotIndex] = { role: 'choice', status: 'active', quest: freshQuestInstance(picked) };
+  saveUser(user);
+  return picked;
+}
+
+function matchQuest(q, type, meta) {
+  if (q.type !== type) return false;
+  if (q.minRankLevel && (!meta || (meta.targetLevel ?? -1) < q.minRankLevel)) return false;
+  return true;
+}
+
+async function updateQuestProgress(guild, userId, type, amount = 1, meta = null) {
   const user = getUser(userId);
-  generateDailyQuests(user);
+  ensureQuestSlots(user);
 
   const levelBefore = levelFromExp(user.exp);
 
-  const completed = [];
-  const replacements = [];
+  for (const slot of user.quests.slots) {
+    if (slot.status !== 'active') continue;
+    const q = slot.quest;
+    if (q.rewarded || !matchQuest(q, type, meta)) continue;
 
-  for (let i = 0; i < user.quests.list.length; i++) {
-    const q = user.quests.list[i];
-    if (q.rewarded || q.type !== type) continue;
-    q.progress = Math.min(q.progress + amount, q.target);
+    if (q.uniqueTrack) {
+      if (!user.quests.tracked[q.id]) user.quests.tracked[q.id] = [];
+      const arr = user.quests.tracked[q.id];
+      const key = meta?.uniqueKey;
+      if (key && !arr.includes(key)) arr.push(key);
+      q.progress = Math.min(arr.length, q.target);
+    } else {
+      q.progress = Math.min((q.progress || 0) + amount, q.target);
+    }
+
     if (q.progress >= q.target && !q.completed) {
       q.completed = true;
       q.rewarded  = true;
       user.exp    += q.rewardExp   || 0;
       user.wallet += q.rewardCoins || 0;
-      completed.push(q);
-
-      // ── Remplacement immédiat par une nouvelle quête ──────────────
-      const currentIds = user.quests.list.map(x => x.id);
-      const fresh = pickRandomQuest(currentIds);
-      if (fresh) {
-        user.quests.list[i] = fresh;
-        replacements.push(fresh);
-      }
     }
+  }
+
+  // Reset silencieux : dès que les 3 slots (quotidienne + hebdo + choix
+  // sélectionnée) sont complétés, on retire 3 nouvelles quêtes. La quotidienne
+  // et l'hebdo sont retirées automatiquement, le slot à choix repasse en mode
+  // sélection avec 3 nouvelles options. Aucun message envoyé.
+  const [daily, weekly, choice] = user.quests.slots;
+  const allDone =
+    daily?.status === 'active'  && daily.quest.completed &&
+    weekly?.status === 'active' && weekly.quest.completed &&
+    choice?.status === 'active' && choice.quest.completed;
+
+  if (allDone) {
+    const usedIds = [daily.quest.id, weekly.quest.id, choice.quest.id];
+    user.quests.slots   = freshSlots(usedIds);
+    user.quests.tracked = {};
   }
 
   const levelAfter = levelFromExp(user.exp);
   saveUser(user);
-
-  if (completed.length && guild) {
-    const cfg = await getConfig();
-    const channel = guild.channels.cache.get(cfg.quetes);
-    if (channel) {
-      const { generateQuestCompleteCard } = require('./canvas');
-      const { AttachmentBuilder } = require('discord.js');
-      const member = await guild.members.fetch(userId).catch(() => null);
-
-      for (let i = 0; i < completed.length; i++) {
-        const q = completed[i];
-        const next = replacements[i];
-        const parts = [];
-        if (q.rewardExp)   parts.push(`+${q.rewardExp} EXP`);
-        if (q.rewardCoins) parts.push(`+${q.rewardCoins} VTX-Coins`);
-
-        let files = [];
-        if (member) {
-          const buf = await generateQuestCompleteCard(member, q).catch(() => null);
-          if (buf) files = [new AttachmentBuilder(buf, { name: 'quete.png' })];
-        }
-
-        const nextLine = next
-          ? `\n🔄 Nouvelle quête débloquée : **${next.label}** — ${next.desc}`
-          : '';
-
-        await channel.send({
-          content: `🎯 <@${userId}> a terminé la quête **${q.label}** ! ${parts.join(' • ')} 🎁${nextLine}`,
-          files,
-        }).catch(() => {});
-      }
-    }
-  }
 
   if (levelAfter > levelBefore && guild) {
     try {
@@ -111,4 +150,4 @@ async function updateQuestProgress(guild, userId, type, amount = 1) {
   }
 }
 
-module.exports = { generateDailyQuests, updateQuestProgress };
+module.exports = { generateDailyQuests, ensureQuestSlots, chooseQuest, updateQuestProgress };

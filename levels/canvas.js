@@ -18,13 +18,33 @@ try {
 
 const FONT = "'Noto Sans', sans-serif";
 
+// Palette de catégories — désaturée par rapport à l'ancienne version
+// (moins "arcade", plus proche d'un thème sobre/pro)
 const CAT_COLORS = {
-  MSG: '#f5c842',
-  VOC: '#a855f7',
-  SOC: '#ec4899',
-  PRG: '#3b82f6',
-  EVT: '#22c55e',
-  SPE: '#f97316',
+  MSG: '#c9a86a',
+  VOC: '#8b7ec8',
+  SOC: '#c97b96',
+  PRG: '#5b8ac4',
+  EVT: '#6fae7f',
+  SPE: '#c98a5b',
+};
+
+const CAT_LABELS = {
+  MSG: 'MESSAGES',
+  VOC: 'VOCAL',
+  SOC: 'SOCIAL',
+  PRG: 'PROGRESSION',
+  EVT: 'ÉVÉNEMENT',
+  SPE: 'SPÉCIALE',
+};
+
+// Palette par rôle de slot — c'est elle qui porte l'identité visuelle
+// principale de la carte (bandeau, pastille), pour qu'on distingue direct
+// quotidienne / hebdo / à choix sans lire le texte.
+const ROLE_META = {
+  daily:  { label: 'QUOTIDIENNE',  color: '#6f9bd6' },
+  weekly: { label: 'HEBDOMADAIRE', color: '#9585c9' },
+  choice: { label: 'À CHOISIR',    color: '#c9a24a' },
 };
 
 function statusColor(presence) {
@@ -54,6 +74,34 @@ function roundRect(ctx, x, y, w, h, r) {
 function drawBackground(ctx, W, H) {
   ctx.fillStyle = '#08080f';
   ctx.fillRect(0, 0, W, H);
+}
+
+// ── Helpers couleurs (pour les nouvelles cartes dégradées) ────
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const bigint = parseInt(full, 16);
+  return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+}
+function hexToRgba(hex, alpha) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Fond dégradé "carte" utilisé par les nouvelles cartes niveau/rang :
+// coin haut-gauche sombre → coin bas-droit teinté de la couleur d'accent
+function drawGradientCard(ctx, W, H, accent, radius = 28) {
+  roundRect(ctx, 0, 0, W, H, radius);
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, '#0a0d18');
+  grad.addColorStop(1, hexToRgba(accent, 0.32));
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  roundRect(ctx, 0.75, 0.75, W - 1.5, H - 1.5, radius);
+  ctx.strokeStyle = hexToRgba(accent, 0.45);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 }
 
 function drawGoldLine(ctx, x, y, w) {
@@ -103,6 +151,30 @@ function drawBar(ctx, x, y, w, h, percent, color) {
   roundRect(ctx, x, y, fillW, h, h / 2);
   ctx.fillStyle = color;
   ctx.fill();
+}
+
+function drawPill(ctx, x, y, text, color, filled = false) {
+  ctx.font = 'bold 13px ' + FONT;
+  const w = ctx.measureText(text).width + 28;
+  const h = 30;
+  roundRect(ctx, x - w, y, w, h, h / 2);
+  if (filled) {
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.fillStyle = '#08080f';
+  } else {
+    ctx.fillStyle = hexToRgba(color, 0.12);
+    ctx.fill();
+    roundRect(ctx, x - w, y, w, h, h / 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = color;
+  }
+  ctx.textAlign = 'center';
+  ctx.fillText(text, x - w / 2, y + h / 2 + 4);
+  ctx.textAlign = 'left';
+  return h;
 }
 
 function sanitize(text) {
@@ -252,126 +324,181 @@ async function generateProfile(member, userData) {
 }
 
 // ════════════════════════════════════════════════════════════
-// 2. QUETES
+// 2. QUETES — 3 slots fixes : daily (auto), weekly (auto), choice (choix)
 // ════════════════════════════════════════════════════════════
-async function generateQuests(member, quests) {
-  const COLS   = 2;
-  const ROWS   = Math.ceil(quests.length / COLS);
-  const CARD_W = 600;
-  const CARD_H = 100;
-  const GAP    = 7;
-  const PAD    = 20;
-  const HEAD_H = 116;
-  const FOOT_H = 34;
+async function generateQuests(member, slots) {
+  const W        = 1400;
+  const PAD      = 44;
+  const HEADER_H = 150;
+  const CARD_H   = 172;
+  const GAP      = 20;
+  const FOOT_H   = 40;
 
-  const W = CARD_W * COLS + GAP + PAD * 2;
-  const H = HEAD_H + ROWS * (CARD_H + GAP) + FOOT_H;
+  const H = HEADER_H + slots.length * CARD_H + (slots.length - 1) * GAP + FOOT_H;
 
   const canvas = createCanvas(W, H);
   const ctx    = canvas.getContext('2d');
 
   drawBackground(ctx, W, H);
 
-  try {
-    const img = await loadImage(member.user.displayAvatarURL({ extension: 'png', size: 128, forceStatic: true }));
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(PAD + 36, 54, 36, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(img, PAD, 18, 72, 72);
-    ctx.restore();
-    ctx.beginPath();
-    ctx.arc(PAD + 36, 54, 38, 0, Math.PI * 2);
-    ctx.strokeStyle = '#f5c842';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-  } catch {}
-
-  const completed = quests.filter(q => q.completed).length;
-  const globalPct = completed / quests.length;
-  const allDone   = completed === quests.length;
-
+  const displayName = member.displayName || member.user.username;
   ctx.fillStyle = '#e8e8f5';
-  ctx.font = 'bold 22px ' + FONT;
-  ctx.fillText(truncate(ctx, '@' + member.user.username, 500), PAD + 88, 40);
+  ctx.font = 'bold 20px ' + FONT;
+  ctx.fillText(truncate(ctx, displayName, 500), PAD, 46);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e8e8f5';
+  ctx.font = 'bold 36px ' + FONT;
+  ctx.fillText('QUÊTES', W / 2, 54);
 
   ctx.fillStyle = '#5a5a7a';
-  ctx.font = '13px ' + FONT;
-  ctx.fillText('Quetes du jour  -  reset a minuit', PAD + 88, 58);
-
-  drawBar(ctx, PAD + 88, 66, W - PAD * 2 - 88, 11, globalPct, allDone ? '#22c55e' : '#7c5cfc');
-  ctx.fillStyle = allDone ? '#22c55e' : '#f5c842';
-  ctx.font = 'bold 11px ' + FONT;
-  ctx.textAlign = 'right';
-  ctx.fillText(completed + '/' + quests.length, W - PAD, 78);
+  ctx.font = '14px ' + FONT;
+  ctx.fillText('Récompenses automatiques dès que le seuil est atteint.', W / 2, 80);
   ctx.textAlign = 'left';
 
-  drawGoldLine(ctx, PAD, 94, W - PAD * 2);
+  const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: 128, forceStatic: true });
+  await drawAvatar(ctx, avatarURL, W - PAD - 38, 56, 38, '#5a5a7a');
 
-  for (let i = 0; i < quests.length; i++) {
-    const q     = quests[i];
-    const col   = i % COLS;
-    const row   = Math.floor(i / COLS);
-    const x     = PAD + col * (CARD_W + GAP);
-    const y     = HEAD_H + row * (CARD_H + GAP);
-    const color = CAT_COLORS[q.cat] || '#7c5cfc';
-    const prog  = Math.min((q.progress || 0) / q.target, 1);
-
-    roundRect(ctx, x, y, CARD_W, CARD_H, 9);
-    ctx.fillStyle = q.completed ? '#0a1a0e' : '#0e0e1c';
-    ctx.fill();
-    roundRect(ctx, x, y, CARD_W, CARD_H, 9);
-    ctx.strokeStyle = q.completed ? '#22c55e44' : '#1e1e45';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    roundRect(ctx, x, y + 10, 4, CARD_H - 20, 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-
-    const catW = ctx.measureText(q.cat).width + 16;
-    roundRect(ctx, x + 12, y + 10, catW, 17, 8);
-    ctx.fillStyle = color + '25';
-    ctx.fill();
-    ctx.fillStyle = color;
-    ctx.font = 'bold 10px ' + FONT;
-    ctx.fillText(q.cat, x + 20, y + 22);
-
-    ctx.fillStyle = q.completed ? '#22c55e' : '#e8e8f5';
-    ctx.font = 'bold 15px ' + FONT;
-    ctx.fillText(truncate(ctx, q.label + (q.completed ? '  ✓' : ''), CARD_W - 200), x + 12, y + 44);
-
-    ctx.fillStyle = '#5a5a7a';
-    ctx.font = '11px ' + FONT;
-    ctx.fillText(truncate(ctx, q.desc || '', CARD_W - 200), x + 12, y + 61);
-
-    drawBar(ctx, x + 12, y + 68, CARD_W - 190, 7, prog, q.completed ? '#22c55e' : color);
-
-    ctx.fillStyle = '#5a5a7a';
-    ctx.font = '11px ' + FONT;
-    ctx.fillText((q.progress || 0) + '/' + q.target, x + 12, y + 90);
-
-    ctx.textAlign = 'right';
-    if (q.rewardExp) {
-      ctx.fillStyle = '#f5c842';
-      ctx.font = 'bold 14px ' + FONT;
-      ctx.fillText('+' + fmt(q.rewardExp) + ' XP', x + CARD_W - 12, y + 34);
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    const y = HEADER_H + i * (CARD_H + GAP);
+    if (slot.status === 'choice') {
+      drawChoiceCard(ctx, slot, PAD, y, W - PAD * 2, CARD_H);
+    } else {
+      drawActiveCard(ctx, slot.role, slot.quest, PAD, y, W - PAD * 2, CARD_H);
     }
-    if (q.rewardCoins) {
-      ctx.fillStyle = '#a855f7';
-      ctx.font = '12px ' + FONT;
-      ctx.fillText('+' + fmt(q.rewardCoins) + ' coins', x + CARD_W - 12, y + 52);
-    }
-    ctx.textAlign = 'left';
   }
 
   ctx.fillStyle = '#35354d';
   ctx.font = '11px ' + FONT;
   ctx.textAlign = 'center';
-  ctx.fillText('Team Vortax  -  2024-2026', W / 2, H - 10);
+  ctx.fillText('Team Vortax', W / 2, H - 14);
   ctx.textAlign = 'left';
 
   return canvas.toBuffer('image/png');
+}
+
+function drawActiveCard(ctx, role, q, x, y, w, h) {
+  const roleMeta = ROLE_META[role] || ROLE_META.choice;
+  const catColor = CAT_COLORS[q.cat] || '#7a7a9a';
+
+  roundRect(ctx, x, y, w, h, 14);
+  ctx.fillStyle = q.completed ? '#0e1712' : '#0e0e1c';
+  ctx.fill();
+  roundRect(ctx, x, y, w, h, 14);
+  ctx.strokeStyle = q.completed ? '#3d6b4a' : '#1e1e45';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  roundRect(ctx, x, y + 14, 5, h - 28, 3);
+  ctx.fillStyle = roleMeta.color;
+  ctx.fill();
+
+  const TX = x + 34;
+  const TW = w - 34 - 260;
+
+  ctx.fillStyle = catColor;
+  ctx.font = 'bold 11px ' + FONT;
+  ctx.fillText(CAT_LABELS[q.cat] || q.cat, TX, y + 30);
+
+  ctx.fillStyle = '#e8e8f5';
+  ctx.font = 'bold 22px ' + FONT;
+  ctx.fillText(truncate(ctx, q.label, TW), TX, y + 60);
+
+  ctx.fillStyle = '#6b6b8a';
+  ctx.font = '13px ' + FONT;
+  ctx.fillText(truncate(ctx, q.desc || '', TW), TX, y + 82);
+
+  const barW = w - 34 - 20;
+  drawBar(ctx, TX, y + 108, barW, 12, Math.min((q.progress || 0) / q.target, 1), q.completed ? '#3d8f57' : roleMeta.color);
+
+  const pad2 = n => String(n).padStart(Math.max(2, String(q.target).length), '0');
+  ctx.fillStyle = '#5a5a7a';
+  ctx.font = 'bold 12px ' + FONT;
+  ctx.textAlign = 'right';
+  ctx.fillText(pad2(q.progress || 0) + ' / ' + pad2(q.target), x + barW + 34, y + 144);
+  ctx.textAlign = 'left';
+
+  drawPill(ctx, x + w - 24, y + 20, roleMeta.label, roleMeta.color);
+
+  ctx.textAlign = 'right';
+  const rewardParts = [];
+  if (q.rewardExp)   rewardParts.push('+' + fmt(q.rewardExp) + ' XP');
+  if (q.rewardCoins) rewardParts.push('+' + fmt(q.rewardCoins) + ' coins');
+  ctx.fillStyle = '#c9a24a';
+  ctx.font = 'bold 14px ' + FONT;
+  ctx.fillText(rewardParts.join(' · '), x + w - 24, y + 72);
+  ctx.textAlign = 'left';
+
+  if (q.completed) {
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#3d8f57';
+    ctx.font = 'bold 12px ' + FONT;
+    ctx.fillText('✓ Terminée', x + w - 24, y + 92);
+    ctx.textAlign = 'left';
+  }
+}
+
+function drawChoiceCard(ctx, slot, x, y, w, h) {
+  const color = ROLE_META.choice.color;
+
+  roundRect(ctx, x, y, w, h, 14);
+  ctx.fillStyle = '#14120c';
+  ctx.fill();
+  roundRect(ctx, x, y, w, h, 14);
+  ctx.strokeStyle = '#4a3f22';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  roundRect(ctx, x, y + 14, 5, h - 28, 3);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  const TX = x + 34;
+  const TW = w - 34 - 220;
+
+  ctx.fillStyle = color;
+  ctx.font = 'bold 11px ' + FONT;
+  ctx.fillText('SÉLECTION', TX, y + 28);
+
+  ctx.fillStyle = '#e8e8f5';
+  ctx.font = 'bold 18px ' + FONT;
+  ctx.fillText('Choisis ta prochaine quête', TX, y + 52);
+
+  const lineH   = (h - 66) / slot.options.length;
+  const descMaxW = TW - 210;
+
+  slot.options.forEach((opt, i) => {
+    const ly = y + 66 + i * lineH + lineH / 2;
+
+    ctx.fillStyle = '#c9c9dd';
+    ctx.font = 'bold 13px ' + FONT;
+    ctx.fillText(truncate(ctx, `${i + 1}. ${opt.label}`, 180), TX, ly - 2);
+
+    ctx.fillStyle = '#6b6b8a';
+    ctx.font = '12px ' + FONT;
+    ctx.fillText(truncate(ctx, opt.desc, descMaxW), TX + 190, ly - 2);
+
+    const rewardParts = [];
+    if (opt.rewardExp)   rewardParts.push('+' + fmt(opt.rewardExp) + ' XP');
+    if (opt.rewardCoins) rewardParts.push('+' + fmt(opt.rewardCoins) + ' coins');
+    ctx.fillStyle = '#c9a24a';
+    ctx.font = 'bold 12px ' + FONT;
+    ctx.textAlign = 'right';
+    ctx.fillText(rewardParts.join(' · '), x + w - 24, ly - 2);
+    ctx.textAlign = 'left';
+
+    if (i < slot.options.length - 1) {
+      ctx.strokeStyle = '#26221a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(TX, y + 66 + (i + 1) * lineH);
+      ctx.lineTo(x + w - 24, y + 66 + (i + 1) * lineH);
+      ctx.stroke();
+    }
+  });
+
+  drawPill(ctx, x + w - 24, y + 20, 'À CHOISIR', color);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -705,116 +832,42 @@ async function generateBal(member, userData) {
 // 5. LEVEL-UP CARD
 // ════════════════════════════════════════════════════════════
 async function generateLevelUpCard(member, oldLevel, newLevel, userData, progressOverride = null) {
-  const W = 700, H = 210;
+  const W = 1000, H = 320;
+  const accent = '#7c5cfc';
+
   const canvas = createCanvas(W, H);
   const ctx    = canvas.getContext('2d');
 
-  ctx.fillStyle = '#08080f';
-  ctx.fillRect(0, 0, W, H);
+  drawGradientCard(ctx, W, H, accent);
 
-  roundRect(ctx, 1, 1, W - 2, H - 2, 14);
-  ctx.fillStyle = '#0d0d20';
-  ctx.fill();
-  roundRect(ctx, 1, 1, W - 2, H - 2, 14);
-  ctx.strokeStyle = '#1e1e45';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // Gradient violet sur la zone avatar
-  const leftGrad = ctx.createLinearGradient(0, 0, 180, 0);
-  leftGrad.addColorStop(0, 'rgba(124,92,252,0.13)');
-  leftGrad.addColorStop(1, 'rgba(124,92,252,0)');
-  roundRect(ctx, 1, 1, W - 2, H - 2, 14);
-  ctx.fillStyle = leftGrad;
-  ctx.fill();
-
-  // Barre gauche violette
-  roundRect(ctx, 0, 0, 5, H, 4);
-  ctx.fillStyle = '#7c5cfc';
-  ctx.fill();
-
-  // Avatar
   const sColor    = statusColor(member.presence);
   const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: 256, forceStatic: true });
-  const AV_R = 60, AV_CX = 35 + AV_R, AV_CY = H / 2;
-  await drawAvatar(ctx, avatarURL, AV_CX, AV_CY, AV_R, sColor);
+  const AV_R = 75, AV_CX = 60 + AV_R, AV_CY = H / 2;
+  await drawAvatar(ctx, avatarURL, AV_CX, AV_CY, AV_R, accent);
 
-  // Badge niveau (nouveau)
-  const badgeCX = AV_CX + Math.round(AV_R * 0.72);
-  const badgeCY = AV_CY + Math.round(AV_R * 0.72);
-  ctx.beginPath(); ctx.arc(badgeCX, badgeCY, 18, 0, Math.PI * 2);
-  ctx.fillStyle = '#0d0d20'; ctx.fill();
-  ctx.beginPath(); ctx.arc(badgeCX, badgeCY, 18, 0, Math.PI * 2);
-  ctx.strokeStyle = '#7c5cfc'; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.fillStyle = '#a78bfa';
-  ctx.font = 'bold 13px ' + FONT;
-  ctx.textAlign = 'center';
-  ctx.fillText(String(newLevel), badgeCX, badgeCY + 5);
-  ctx.textAlign = 'left';
+  const TX = AV_CX + AV_R + 55;
+  const TW = W - TX - 60;
 
-  const TX = AV_CX + AV_R + 24;
-  const TW = W - TX - 20;
+  ctx.fillStyle = '#f5f6fb';
+  ctx.font = 'bold 46px ' + FONT;
+  ctx.fillText('Niveau ' + newLevel, TX, 118);
 
-  // Nom du serveur
-  ctx.fillStyle = '#3a3a5a';
-  ctx.font = '11px ' + FONT;
-  ctx.fillText(sanitize(member.guild?.name || 'Vortax'), TX, 22);
+  ctx.fillStyle = '#a7b0d1';
+  ctx.font = '24px ' + FONT;
+  ctx.fillText('Progression vers le niveau ' + (newLevel + 1), TX, 158);
 
-  // Titre
-  ctx.fillStyle = '#f5c842';
-  ctx.font = 'bold 24px ' + FONT;
-  ctx.fillText('Félicitations !', TX, 52);
-
-  // Pseudo
-  ctx.fillStyle = '#e8e8f5';
-  ctx.font = 'bold 16px ' + FONT;
-  ctx.fillText(truncate(ctx, member.user.username, TW * 0.7), TX, 75);
-
-  // "Niveau X → Y"
-  const nParts = [
-    { t: 'Niveau ', c: '#5a5a7a', b: false, s: 14 },
-    { t: String(oldLevel), c: '#e8e8f5', b: true, s: 14 },
-    { t: ' → ', c: '#5a5a7a', b: false, s: 14 },
-    { t: String(newLevel), c: '#7c5cfc', b: true, s: 18 },
-  ];
-  let xx = TX;
-  for (const p of nParts) {
-    ctx.fillStyle = p.c;
-    ctx.font = (p.b ? 'bold ' : '') + p.s + 'px ' + FONT;
-    ctx.fillText(p.t, xx, 100);
-    xx += ctx.measureText(p.t).width;
-  }
-
-  drawGoldLine(ctx, TX, 112, TW);
-
-  // Barre XP
   const { current, required } = progressOverride || expProgress(userData.exp);
   const xpPct = current / required;
 
-  ctx.fillStyle = '#5a5a7a';
-  ctx.font = '11px ' + FONT;
-  ctx.fillText('Progression vers le niveau ' + (newLevel + 1), TX, 128);
-  ctx.textAlign = 'right';
-  ctx.fillStyle = '#f5c842';
-  ctx.fillText(fmt(current) + ' / ' + fmt(required) + ' XP', TX + TW, 128);
-  ctx.textAlign = 'left';
+  ctx.fillStyle = '#8b93b8';
+  ctx.font = '17px ' + FONT;
+  ctx.fillText(fmt(current) + ' / ' + fmt(required) + ' XP  ·  ' + Math.round(xpPct * 1000) / 10 + '%', TX, 192);
 
-  drawBar(ctx, TX, 133, TW, 10, xpPct, '#7c5cfc');
+  drawBar(ctx, TX, 210, TW, 12, xpPct, accent);
 
-  ctx.fillStyle = '#a78bfa';
-  ctx.font = 'bold 11px ' + FONT;
-  ctx.fillText(Math.round(xpPct * 100) + '%', TX, 157);
-  ctx.textAlign = 'right';
-  ctx.fillStyle = '#3a3a5a';
-  ctx.font = '11px ' + FONT;
-  ctx.fillText('encore ' + fmt(required - current) + ' XP', TX + TW, 157);
-  ctx.textAlign = 'left';
-
-  ctx.fillStyle = '#2a2a42';
-  ctx.font = '10px ' + FONT;
-  ctx.textAlign = 'right';
-  ctx.fillText('Team Vortax • ' + new Date().toLocaleDateString('fr-FR'), TX + TW, H - 14);
-  ctx.textAlign = 'left';
+  ctx.fillStyle = '#565f80';
+  ctx.font = '14px ' + FONT;
+  ctx.fillText('Carte palier niveau — Team Vortax', TX, 252);
 
   return canvas.toBuffer('image/png');
 }
@@ -822,143 +875,105 @@ async function generateLevelUpCard(member, oldLevel, newLevel, userData, progres
 // ════════════════════════════════════════════════════════════
 // 6. RANK-UP CARD
 // ════════════════════════════════════════════════════════════
+const RANK_COLORS = {
+  'Plastique':     '#fdc6c6',
+  'Plastique 1':   '#ffffff',
+  'Plastique 2':   '#ffe3e3',
+  'Plastique 3':   '#e2a9b2',
+  'Carton':        '#ad7f3a',
+  'Carton 1':      '#faca83',
+  'Carton 2':      '#e6b162',
+  'Carton 3':      '#884b22',
+  'Bronze':        '#ff8a0c',
+  'Bronze 1':      '#e67e22',
+  'Bronze 2':      '#9c7104',
+  'Bronze 3':      '#a57316',
+  'Fer':           '#aabec9',
+  'Fer 1':         '#607d8b',
+  'Fer 2':         '#7b858a',
+  'Fer 3':         '#545b5f',
+  'Or':            '#e8ff00',
+  'Or 1':          '#fdf500',
+  'Or 2':          '#e7b900',
+  'Or 3':          '#f1a500',
+  'Diamant':       '#68addb',
+  'Diamant 1':     '#00bfff',
+  'Diamant 2':     '#1911fd',
+  'Diamant 3':     '#8708ee',
+  'Émeraude':      '#14af55',
+  'Émeraude 1':    '#009940',
+  'Émeraude 2':    '#1a9e51',
+  'Émeraude 3':    '#087e39',
+  'Rubis':         '#cf2729',
+  'Rubis 1':       '#d46565',
+  'Rubis 2':       '#e06e6e',
+  'Rubis 3':       '#e00c0c',
+  'Légendaire':    '#a9ff00',
+  'Légendaire 1':  '#99dd23',
+  'Légendaire 2':  '#7aff02',
+  'Légendaire 3':  '#ff0000',
+  'Mythique':      '#f32727',
+  'Mythique 1':    '#a00000',
+  'Mythique 2':    '#00b8fd',
+  'Mythique 3':    '#a768ff',
+  'GOAT':          '#3c40ff',
+};
+
 function rankAccentColor(rankName) {
-  if (!rankName) return '#7c5cfc';
-  const n = rankName.toLowerCase();
-  if (n.startsWith('goat'))         return '#f5c842';
-  if (n.startsWith('mythique'))     return '#ec4899';
-  if (n.startsWith('légendaire') || n.startsWith('legendaire')) return '#a855f7';
-  if (n.startsWith('rubis'))        return '#ef4444';
-  if (n.startsWith('émeraude') || n.startsWith('emeraude'))     return '#4ade80';
-  if (n.startsWith('diamant'))      return '#60a5fa';
-  if (n.startsWith('or'))           return '#f5c842';
-  if (n.startsWith('fer'))          return '#94a3b8';
-  if (n.startsWith('bronze'))       return '#cd7f32';
-  if (n.startsWith('carton'))       return '#a78966';
-  if (n.startsWith('plastique'))    return '#6b7280';
-  return '#7c5cfc';
+  return RANK_COLORS[rankName] || '#7c5cfc';
 }
 
 async function generateRankUpCard(member, newRank, nextRank, currentLevel, userData) {
-  const W = 700, H = 220;
-  const canvas = createCanvas(W, H);
-  const ctx    = canvas.getContext('2d');
+  const W = 1000, H = 320;
   const accent = rankAccentColor(newRank.name);
 
-  ctx.fillStyle = '#08080f';
-  ctx.fillRect(0, 0, W, H);
+  const canvas = createCanvas(W, H);
+  const ctx    = canvas.getContext('2d');
 
-  roundRect(ctx, 1, 1, W - 2, H - 2, 14);
-  ctx.fillStyle = '#0d0d20';
-  ctx.fill();
-  roundRect(ctx, 1, 1, W - 2, H - 2, 14);
-  ctx.strokeStyle = accent + '55';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+  drawGradientCard(ctx, W, H, accent);
 
-  // Halo coloré sur la zone contenu
-  const glowGrad = ctx.createLinearGradient(180, 0, W, 0);
-  glowGrad.addColorStop(0, accent + '12');
-  glowGrad.addColorStop(0.5, accent + '07');
-  glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-  roundRect(ctx, 1, 1, W - 2, H - 2, 14);
-  ctx.fillStyle = glowGrad;
-  ctx.fill();
-
-  // Barre gauche colorée selon le rang
-  roundRect(ctx, 0, 0, 5, H, 4);
-  ctx.fillStyle = accent;
-  ctx.fill();
-
-  // Avatar avec double anneau
   const sColor    = statusColor(member.presence);
   const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: 256, forceStatic: true });
-  const AV_R = 60, AV_CX = 35 + AV_R, AV_CY = H / 2;
-  await drawAvatar(ctx, avatarURL, AV_CX, AV_CY, AV_R, sColor);
+  const AV_R = 75, AV_CX = 60 + AV_R, AV_CY = H / 2;
+  await drawAvatar(ctx, avatarURL, AV_CX, AV_CY, AV_R, accent);
 
-  ctx.beginPath();
-  ctx.arc(AV_CX, AV_CY, AV_R + 8, 0, Math.PI * 2);
-  ctx.strokeStyle = accent + '40';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  const TX = AV_CX + AV_R + 55;
+  const TW = W - TX - 60;
 
-  // Badge niveau
-  const badgeCX = AV_CX + Math.round(AV_R * 0.72);
-  const badgeCY = AV_CY + Math.round(AV_R * 0.72);
-  ctx.beginPath(); ctx.arc(badgeCX, badgeCY, 18, 0, Math.PI * 2);
-  ctx.fillStyle = '#0d0d20'; ctx.fill();
-  ctx.beginPath(); ctx.arc(badgeCX, badgeCY, 18, 0, Math.PI * 2);
-  ctx.strokeStyle = accent; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.fillStyle = accent;
-  ctx.font = 'bold 13px ' + FONT;
-  ctx.textAlign = 'center';
-  ctx.fillText(String(currentLevel), badgeCX, badgeCY + 5);
-  ctx.textAlign = 'left';
+  ctx.fillStyle = '#f5f6fb';
+  ctx.font = 'bold 46px ' + FONT;
+  ctx.fillText('Rang ' + truncate(ctx, newRank.name, TW), TX, 118);
 
-  const TX = AV_CX + AV_R + 24;
-  const TW = W - TX - 20;
-
-  // Nom du serveur
-  ctx.fillStyle = '#3a3a5a';
-  ctx.font = '11px ' + FONT;
-  ctx.fillText(sanitize(member.guild?.name || 'Vortax'), TX, 22);
-
-  // Sous-titre
-  ctx.fillStyle = accent;
-  ctx.font = 'bold 18px ' + FONT;
-  ctx.fillText('Nouveau rang !', TX, 48);
-
-  // Nom du rang (grand)
-  ctx.fillStyle = accent;
-  ctx.font = 'bold 36px ' + FONT;
-  ctx.fillText(truncate(ctx, newRank.name, TW), TX, 92);
-
-  // Pseudo
-  ctx.fillStyle = '#9999bb';
-  ctx.font = '13px ' + FONT;
-  ctx.fillText(truncate(ctx, '@' + member.user.username, TW * 0.8), TX, 113);
-
-  drawGoldLine(ctx, TX, 122, TW);
-
-  // Progression vers le prochain rang
   if (nextRank) {
     const totalLevels = nextRank.level - newRank.level;
     const doneLevels  = Math.max(0, currentLevel - newRank.level);
-    const pct         = totalLevels > 0 ? Math.min(doneLevels / totalLevels, 1) : 1;
-    const levelsLeft  = nextRank.level - currentLevel;
+    const pct          = totalLevels > 0 ? Math.min(doneLevels / totalLevels, 1) : 1;
 
-    ctx.fillStyle = '#5a5a7a';
-    ctx.font = '11px ' + FONT;
-    ctx.fillText('Prochain rang : ' + nextRank.name + '  (niveau ' + nextRank.level + ')', TX, 138);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = accent;
-    ctx.fillText('niv. ' + currentLevel + ' / ' + nextRank.level, TX + TW, 138);
-    ctx.textAlign = 'left';
+    ctx.fillStyle = '#a7b0d1';
+    ctx.font = '20px ' + FONT;
+    ctx.fillText('Niveau ' + currentLevel + '  ·  prochain : ' + nextRank.name + ' (niveau ' + nextRank.level + ')', TX, 160);
 
-    drawBar(ctx, TX, 143, TW, 10, pct, accent);
+    drawBar(ctx, TX, 195, TW, 12, pct, accent);
 
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#3a3a5a';
-    ctx.font = '11px ' + FONT;
-    ctx.fillText('encore ' + levelsLeft + ' niveau' + (levelsLeft > 1 ? 'x' : ''), TX + TW, 167);
-    ctx.textAlign = 'left';
+    ctx.fillStyle = '#565f80';
+    ctx.font = '14px ' + FONT;
+    ctx.fillText('Progression vers le prochain palier de rang — ' + Math.round(pct * 1000) / 10 + '%', TX, 237);
   } else {
     ctx.fillStyle = accent;
-    ctx.font = 'bold 15px ' + FONT;
-    ctx.fillText('🏆 Rang maximum atteint !', TX, 150);
-  }
+    ctx.font = 'bold 20px ' + FONT;
+    ctx.fillText('🏆 Rang maximum atteint !', TX, 165);
 
-  ctx.fillStyle = '#2a2a42';
-  ctx.font = '10px ' + FONT;
-  ctx.textAlign = 'right';
-  ctx.fillText('Team Vortax • ' + new Date().toLocaleDateString('fr-FR'), TX + TW, H - 12);
-  ctx.textAlign = 'left';
+    ctx.fillStyle = '#565f80';
+    ctx.font = '14px ' + FONT;
+    ctx.fillText('Team Vortax', TX, 237);
+  }
 
   return canvas.toBuffer('image/png');
 }
 
 // ════════════════════════════════════════════════════════════
-// 7. QUÊTE TERMINÉE
+// 7. QUÊTE TERMINÉE (non utilisée par le nouveau système silencieux,
+//    conservée si tu veux t'en resservir ailleurs)
 // ════════════════════════════════════════════════════════════
 async function generateQuestCompleteCard(member, quest) {
   const W = 700, H = 190;
@@ -978,7 +993,6 @@ async function generateQuestCompleteCard(member, quest) {
 
   const accent = CAT_COLORS[quest.cat] || '#7c5cfc';
 
-  // Lueur dégradée à la couleur de la catégorie
   const leftGrad = ctx.createLinearGradient(0, 0, 180, 0);
   leftGrad.addColorStop(0, accent + '22');
   leftGrad.addColorStop(1, accent + '00');
@@ -986,18 +1000,15 @@ async function generateQuestCompleteCard(member, quest) {
   ctx.fillStyle = leftGrad;
   ctx.fill();
 
-  // Barre gauche
   roundRect(ctx, 0, 0, 5, H, 4);
   ctx.fillStyle = accent;
   ctx.fill();
 
-  // Avatar
   const sColor    = statusColor(member.presence);
   const avatarURL = member.user.displayAvatarURL({ extension: 'png', size: 256, forceStatic: true });
   const AV_R = 55, AV_CX = 35 + AV_R, AV_CY = H / 2;
   await drawAvatar(ctx, avatarURL, AV_CX, AV_CY, AV_R, sColor);
 
-  // Badge catégorie
   const badgeCX = AV_CX + Math.round(AV_R * 0.72);
   const badgeCY = AV_CY + Math.round(AV_R * 0.72);
   ctx.beginPath(); ctx.arc(badgeCX, badgeCY, 16, 0, Math.PI * 2);
@@ -1013,29 +1024,24 @@ async function generateQuestCompleteCard(member, quest) {
   const TX = AV_CX + AV_R + 24;
   const TW = W - TX - 20;
 
-  // Nom du serveur
   ctx.fillStyle = '#3a3a5a';
   ctx.font = '11px ' + FONT;
   ctx.fillText(sanitize(member.guild?.name || 'Vortax'), TX, 22);
 
-  // Titre
   ctx.fillStyle = '#22c55e';
   ctx.font = 'bold 22px ' + FONT;
   ctx.fillText('Quête terminée !', TX, 50);
 
-  // Pseudo + nom de la quête
   ctx.fillStyle = '#e8e8f5';
   ctx.font = 'bold 16px ' + FONT;
   ctx.fillText(truncate(ctx, '@' + member.user.username + '  —  ' + quest.label, TW), TX, 74);
 
-  // Description de la quête
   ctx.fillStyle = '#5a5a7a';
   ctx.font = '12px ' + FONT;
   ctx.fillText(truncate(ctx, quest.desc || '', TW), TX, 94);
 
   drawGoldLine(ctx, TX, 110, TW);
 
-  // Récompenses
   ctx.fillStyle = '#5a5a7a';
   ctx.font = '11px ' + FONT;
   ctx.fillText('Récompenses obtenues', TX, 130);

@@ -2,7 +2,7 @@
 const { EmbedBuilder } = require('discord.js');
 const { EXP, COINS } = require('./config');
 const { getUser, saveUser } = require('./db');
-const { addExp, addCoins, resetDailyStatsIfNeeded } = require('./levels');
+const { addExp, addCoins, resetDailyStatsIfNeeded, levelFromExp } = require('./levels');
 const { updateQuestProgress, generateDailyQuests } = require('./quests');
 const B = require('./buffs');
 const M = require('./maintenance');
@@ -49,6 +49,38 @@ module.exports = {
     else if (hour < 9)   await updateQuestProgress(guild, userId, 'morning', 1); // avant 9h  → Matinal
     if (hour >= 23)      await updateQuestProgress(guild, userId, 'night',   1); // après 23h → Noctambule
     if (hour === 0)      await updateQuestProgress(guild, userId, 'night',   1); // minuit    → Nuit blanche
+
+    // Diversité de salons (quêtes 'unique_channels')
+    await updateQuestProgress(guild, userId, 'unique_channels', 0, {
+      uniqueKey: message.channel.id,
+    });
+
+    // Pièce jointe / image postée (quêtes 'attachment')
+    if (message.attachments.size > 0) {
+      await updateQuestProgress(guild, userId, 'attachment', 1);
+    }
+
+    // Réponse à un membre → check son rang (quêtes 'reply_rank')
+    if (message.reference?.messageId) {
+      const refMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+      if (refMsg && !refMsg.author.bot && refMsg.author.id !== userId) {
+        const refUser = getUser(refMsg.author.id);
+        await updateQuestProgress(guild, userId, 'reply_rank', 1, {
+          targetLevel: levelFromExp(refUser.exp),
+        });
+      }
+    }
+
+    // Mention d'un membre → check son rang (quêtes 'mention_rank')
+    if (message.mentions.users.size > 0) {
+      for (const [, mentioned] of message.mentions.users) {
+        if (mentioned.bot || mentioned.id === userId) continue;
+        const mUser = getUser(mentioned.id);
+        await updateQuestProgress(guild, userId, 'mention_rank', 1, {
+          targetLevel: levelFromExp(mUser.exp),
+        });
+      }
+    }
 
     // ── Rappel ban casino dans le salon commandes ──────────
     const chanId = message.channelId;
