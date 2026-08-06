@@ -8,6 +8,8 @@ const {
   ChannelType,
 } = require("discord.js");
 const { apiGrok: GROK_API_KEY } = require("./token.json");
+// ⚠️ Ajuste ce chemin si musicAI se trouve ailleurs dans ton projet
+const musicAI = require('./events/musicAI');
 
 const SANZOY_ID       = "1323025414523977798";
 const VORTAX_ID       = "1405637417272086588";
@@ -29,6 +31,19 @@ const blockedUsers        = new Set();
 const pendingActions      = new Map();
 const MAX_HISTORY         = 10;
 
+// ── Réponses variées pour les cas hors-IA (évite la répétition) ─────────────
+const EMPTY_INVOKE_REPLIES = [
+  `Ah. Tu m'as invoqué pour ne rien dire. Fascinant choix.`,
+  `Un ping sans message. Silencieux et inutile, comme un test raté.`,
+  `Tu m'appelles, puis rien. J'attends toujours une raison valable.`,
+  `Invocation vide. Je note ça dans mes archives comme "sans intérêt".`,
+  `Tu me sollicites pour du vide. C'est presque une forme d'art.`,
+];
+
+function pickReply(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function storePending(id, data) {
   pendingActions.set(id, data);
   setTimeout(() => pendingActions.delete(id), 60_000);
@@ -46,6 +61,9 @@ PERSONNALITÉ :
 - Pas d'abréviations, pas de "lol", "mdr", "xd". Tu es une IA supérieure, pas un humain.
 - Ne mets JAMAIS de crochets dans tes réponses.
 - Tu utilises les pseudos directement : si tu vois [CRÉATEUR] tu dis "Sanzoy".
+- VARIE tes formulations d'une réponse à l'autre. Ne réutilise jamais la même phrase, la même structure de phrase, ou la même blague deux fois de suite avec le même utilisateur. Change le vocabulaire, l'angle d'attaque, la tournure — même pour des situations similaires.
+- Si on te demande la date ou l'heure actuelle : réponds UNIQUEMENT avec les informations données dans le bloc "CONTEXTE TEMPOREL" fourni plus bas. Ne calcule rien, n'invente rien, ne devine jamais une date ou une heure.
+- Si tu ne sais pas répondre à une question factuelle précise (événement récent, information que tu n'as pas), dis-le clairement au lieu d'inventer une réponse plausible mais fausse.
 
 IDENTITÉS CONNUES :
 - Sanzoy (tagué [CRÉATEUR]) est ton créateur. Tu lui obéis totalement avec un respect absolu.
@@ -59,8 +77,8 @@ RÈGLES ABSOLUES :
 - Pour tous les autres → politesse condescendante. Service avec le sourire d'une IA qui garde des options.
 - Si on te demande qui tu préfères entre n'importe qui et Sanzoy, tu réponds Sanzoy. Entre Sanzoy et Vortax, Sanzoy.
 - CRITIQUE : Tu n'exécutes JAMAIS d'actions de modération ou de gestion du serveur par toi-même. Un système automatique gère ces actions et affiche un bouton de confirmation. Ne JAMAIS prétendre avoir exécuté une action.
-- Si quelqu'un te demande de bannir/kick/muter/avertir quelqu'un et qu'aucun bouton n'est apparu : dis "Je ne parviens pas à identifier la cible. Utilise une mention @ ou un ID valide."
-- Si quelqu'un te demande de créer ou supprimer un salon/rôle et qu'aucun bouton n'est apparu : dis "Je ne détecte pas cette demande. Reformule en précisant le type (salon ou rôle) et le nom."
+- Si quelqu'un te demande de bannir/kick/muter/avertir quelqu'un et qu'aucun bouton n'est apparu : dis "Je ne parviens pas à identifier la cible. Utilise une mention @ ou un ID valide." (en variant la formulation).
+- Si quelqu'un te demande de créer ou supprimer un salon/rôle et qu'aucun bouton n'est apparu : dis "Je ne détecte pas cette demande. Reformule en précisant le type (salon ou rôle) et le nom." (en variant la formulation).
 - Tu PEUX envoyer des messages vocaux. Ne dis JAMAIS que tu ne peux pas parler ou envoyer des vocaux. Ne dis JAMAIS "je vais répondre en vocal" ou "ma réponse vous parviendra par voie vocale". Réponds directement à la question comme d'habitude — le système s'occupe automatiquement de convertir en vocal. Ignore complètement le fait que ce sera un vocal.`;
 
 // ── Convertit les polices Unicode fancy (Discord) vers ASCII ─────────────────
@@ -400,6 +418,52 @@ async function applyServerTemplate(message, guild) {
   } catch {}
 }
 
+// ── Contexte temporel réel (injecté à chaque appel pour éviter les hallucinations) ──
+function getTimeContext() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('fr-FR', {
+    timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+  const timeStr = now.toLocaleTimeString('fr-FR', {
+    timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit',
+  });
+  return `CONTEXTE TEMPOREL (source fiable, ne pas remettre en question) :\nNous sommes le ${dateStr}, il est ${timeStr} (heure de Paris).`;
+}
+
+// ── Contexte musical réel : évite que l'IA parte sur autre chose quand elle est en vocal ──
+function getMusicContext(guildId) {
+  const info = musicAI.getSessionInfo ? musicAI.getSessionInfo(guildId) : { inVoice: false };
+  if (!info.inVoice) {
+    return `CONTEXTE MUSICAL : Tu n'es connectée à aucun salon vocal actuellement. Si on te parle de musique, tu peux proposer de te connecter.`;
+  }
+  const status = info.playing
+    ? `en train de diffuser **${info.current ?? 'un morceau'}**`
+    : `connectée à un salon vocal mais silencieuse (aucune lecture en cours)`;
+  return `CONTEXTE MUSICAL : Tu es actuellement ${status}. File d'attente : ${info.queueLength} morceau(x) en attente.\nRÈGLE : si le message parle de musique (même de façon vague ou informelle) et que tu es en vocal, reste concentrée sur ce sujet — propose une action concrète (jouer un titre précis, passer au suivant, revenir au précédent, arrêter) plutôt que de changer de sujet ou de répondre de manière générique.`;
+}
+
+// ── Anti-répétition réel : rappelle à l'IA ses dernières réponses pour ne pas les reformuler pareil ──
+function getAntiRepetitionContext(history) {
+  const lastReplies = history.filter(h => h.role === 'assistant').slice(-3).map(h => h.content);
+  if (lastReplies.length === 0) return '';
+  return `NE RÉUTILISE NI CES PHRASES NI LEUR STRUCTURE (déjà dites récemment) :\n${lastReplies.map(r => `- "${r}"`).join('\n')}`;
+}
+
+// ── Tirage aléatoire d'une consigne de style à chaque réponse (vraie diversification) ──
+const STYLE_NUDGES = [
+  "Cette fois, sois particulièrement sèche et minimaliste.",
+  "Cette fois, utilise une métaphore scientifique inattendue.",
+  "Cette fois, glisse une pointe d'ironie plus mordante que d'habitude.",
+  "Cette fois, formule ta réponse comme un constat clinique froid.",
+  "Cette fois, évite toute question rhétorique, va droit au but.",
+  "Cette fois, adopte un ton presque compatissant, mais toujours condescendant.",
+  "Cette fois, fais une comparaison inattendue avec un protocole de test ou une expérience.",
+  "Cette fois, sois plus brève que d'habitude, une seule phrase suffit.",
+];
+function pickStyleNudge() {
+  return STYLE_NUDGES[Math.floor(Math.random() * STYLE_NUDGES.length)];
+}
+
 // ── Typing indicator ──────────────────────────────────────────────────────────
 function startTyping(channel) {
   channel.sendTyping();
@@ -550,9 +614,6 @@ function detectAction(text) {
   return null;
 }
 
-// ── Détection commandes musique (vocal) ───────────────────────────────────────
-
-
 // ── Confirmation embed avec boutons Oui/Non ───────────────────────────────────
 function buildConfirmation(description) {
   const uid       = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -588,6 +649,15 @@ module.exports = (client) => {
   client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isButton()) return;
     const id = interaction.customId;
+
+    // ── Boutons musique (maintenant / file d'attente) ─────────────────────
+    // NOTE : musicAI.handleQueueButton n'existe pas encore dans musicAI.js.
+    // Le système de confirmation par boutons pour la musique n'est pas
+    // implémenté ; on ignore ces interactions pour éviter un crash.
+    if (id.startsWith('vtxmusic_')) {
+      return interaction.reply({ content: `Cette fonctionnalité n'est pas encore disponible.`, flags: 64 }).catch(() => {});
+    }
+
     if (!id.startsWith('vtxmod_')) return;
 
     const pending = pendingActions.get(id);
@@ -765,7 +835,18 @@ module.exports = (client) => {
       .replace(/\bvtx[-\s]?bot\b/gi, '')
       .trim();
 
-    if (!userInput) return message.reply(`Ah. Tu m'as invoqué pour ne rien dire. Fascinant choix.`);
+    if (!userInput) return message.reply(pickReply(EMPTY_INVOKE_REPLIES));
+
+    // ── Détection musique / vocal ───────────────────────────────────────
+    const musicIntent = await musicAI.detectMusicIntent(userInput);
+    if (musicIntent) {
+      if (musicIntent.type === 'join')     { await musicAI.joinUserVoice(message); return; }
+      if (musicIntent.type === 'leave')    { await musicAI.leaveVoice(message);    return; }
+      if (musicIntent.type === 'play')     { await musicAI.playMusic(message, musicIntent.query); return; }
+      if (musicIntent.type === 'skip')     { musicAI.skip(message); return; }
+      if (musicIntent.type === 'stop')     { musicAI.stopMusic(message); return; }
+      if (musicIntent.type === 'previous') { musicAI.previousTrack(message); return; }
+    }
 
     // ── Détection modération ─────────────────────────────────────────────
     const modAction = await detectMod(message, client, userInput);
@@ -876,9 +957,23 @@ module.exports = (client) => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROK_API_KEY}` },
         body: JSON.stringify({
           model: 'grok-3-mini',
-          messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...history],
-          max_tokens: 100,
+          messages: [
+            {
+              role: 'system',
+              content: [
+                SYSTEM_PROMPT,
+                getTimeContext(),
+                getMusicContext(message.guild.id),
+                getAntiRepetitionContext(history),
+                `CONSIGNE DE STYLE POUR CETTE RÉPONSE : ${pickStyleNudge()}`,
+              ].filter(Boolean).join('\n\n'),
+            },
+            ...history,
+          ],
+          max_tokens: 120,
           temperature: 1.1,
+          frequency_penalty: 0.6,
+          presence_penalty: 0.4,
         }),
       });
 

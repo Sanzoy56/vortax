@@ -72,7 +72,7 @@ const clear = require('./commandes/clear.js');
 const clearSalon = require('./commandes/clear-salon.js');
 const grok  = require('./grok.js');
 const voiceAI = require('./events/voiceAI.js');
-
+const musicAI = require('./events/musicAI.js')
 // ── Youtube / giveaway ─────────────────────────────
 const { checkYoutube, CHECK_INTERVAL } = require('./youtube.js');
 const giveaway = require('./giveaway.js');
