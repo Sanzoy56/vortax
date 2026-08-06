@@ -236,7 +236,7 @@ async function playNext(guildId, channel) {
     channel.send(`🎵 Lecture : **${next.query}**`).catch(() => {});
   } catch (e) {
     console.error('[MusicAI] Erreur lecture:', e.message);
-    channel.send(`Échec de la lecture de **${next.query}**. Suivant.`).catch(() => {});
+    channel.send(`Échec de la lecture de **${next.query}**. Suivant.\n-# ⚠️ ${String(e.message).slice(0, 300)}`).catch(() => {});
     playNext(guildId, channel);
   }
 }
