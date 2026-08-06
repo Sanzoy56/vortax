@@ -75,6 +75,20 @@ function addToHistory(userId, text) {
   recentPhrases.set(userId, history.slice(-5));
 }
 
+// ── Détection du mot-clé d'invocation ("vtx-bot", "bot", etc.) ───────────────
+// Renvoie le texte APRÈS le mot-clé (peut être vide) si trouvé, sinon null.
+const WAKE_WORDS = [/\b\S*bots?\b/, /\b\S*bottes?\b/, /\b\S*bo[td]s?\b/, /\bv\s*t\s*x\b/];
+
+function detectWakeWord(transcript) {
+  const norm = transcript.normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const re of WAKE_WORDS) {
+    const m = norm.match(re);
+    if (m) return norm.slice(m.index + m[0].length).trim();
+  }
+  return null;
+}
+
 // ── Audio pipeline ───────────────────────────────────────────────────────────
 
 async function pcmToWav(pcmFile) {
@@ -91,6 +105,10 @@ async function stt(wavFile) {
   form.append('file', new Blob([fs.readFileSync(wavFile)]), 'audio.wav');
   form.append('model', 'whisper-large-v3-turbo');
   form.append('language', 'fr');
+  // Biaise la reconnaissance vers le mot inventé "VTX-BOT" — sans ça Whisper
+  // hallucine souvent un mot générique ("Merci.", "Sous-titres...") sur les
+  // extraits courts contenant un nom propre non standard.
+  form.append('prompt', 'VTX-BOT, Vortax, Sanzoy.');
   const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${GROQ_KEY}` },
@@ -128,6 +146,10 @@ async function speakGlados(session, text) {
   ensureTempDir();
   const tmpOgg = path.join(TEMP_DIR, `speak_${Date.now()}.ogg`);
   fs.writeFileSync(tmpOgg, ogg);
+
+  // Reprend la main sur la connexion pour parler (au cas où de la musique joue)
+  session.connection.subscribe(session.player);
+
   const resource = createAudioResource(tmpOgg);
   session.player.play(resource);
   await new Promise(resolve => {
@@ -141,6 +163,11 @@ async function speakGlados(session, text) {
     setTimeout(() => { session.player.off('stateChange', done); resolve(); }, 30000);
   });
   try { fs.unlinkSync(tmpOgg); } catch {}
+
+  // Redonne la main au lecteur de musique s'il y en a un (reprend la lecture)
+  if (session.musicPlayer) {
+    try { session.connection.subscribe(session.musicPlayer); } catch {}
+  }
 }
 
 // ── Gestion parole utilisateur ───────────────────────────────────────────────
@@ -183,8 +210,18 @@ function handleUserSpeech(session, userId, guild) {
       const wordCount = countWords(text);
       console.log(`[VoiceAI] ${guild.members.cache.get(userId)?.user?.username || userId} : "${text}" (${wordCount} mots)`);
 
-      if (wordCount < 2 || isHallucination(text) || isDuplicate(userId, text)) {
-        console.log(`[VoiceAI] Ignoré (${wordCount < 2 ? 'trop court' : isHallucination(text) ? 'hallucination' : 'doublon'})`);
+      if (isHallucination(text) || isDuplicate(userId, text)) {
+        console.log(`[VoiceAI] Ignoré (${isHallucination(text) ? 'hallucination' : 'doublon'})`);
+        session.isProcessing = false;
+        return;
+      }
+
+      // ── Ne répond que si le nom du bot est prononcé ──────────────────────
+      // Vérifié AVANT le filtre "trop court" : une invocation seule
+      // ("vtxbot") ne fait qu'un mot et ne doit pas être jetée pour ça.
+      const afterWake = detectWakeWord(text);
+      if (afterWake === null) {
+        console.log(`[VoiceAI] Ignoré (${wordCount < 2 ? 'trop court, ' : ''}pas d'invocation du bot)`);
         session.isProcessing = false;
         return;
       }
@@ -193,7 +230,8 @@ function handleUserSpeech(session, userId, guild) {
 
       const member = guild.members.cache.get(userId);
       const username = member?.user?.username || 'inconnu';
-      const reply = await ask(userId, username, text);
+      const question = afterWake.length > 0 ? afterWake : 'Bonjour';
+      const reply = await ask(userId, username, question);
 
       if (!reply?.trim()) { session.isProcessing = false; return; }
 
@@ -215,8 +253,74 @@ function handleUserSpeech(session, userId, guild) {
   });
 }
 
-// ── Session vocale ───────────────────────────────────────────────────────────
+// ── Écoute attachée à une connexion déjà ouverte (ex : par musicAI) ──────────
+// Ne crée PAS de nouvelle connexion — réutilise celle passée en paramètre.
+// musicPlayer (optionnel) : le player de musicAI, pour reprendre la lecture
+// après que GLaDOS ait parlé.
+function attachListening(guild, connection, musicPlayer = null) {
+  const guildId = guild.id;
+  if (sessions.has(guildId)) {
+    // Déjà à l'écoute — juste mettre à jour la référence au player musique
+    const existing = sessions.get(guildId);
+    existing.musicPlayer = musicPlayer;
+    return existing;
+  }
 
+  const player = createAudioPlayer(); // player dédié aux réponses vocales GLaDOS
+
+  const session = {
+    connection, player, guildId,
+    isProcessing: false,
+    activeStreams: new Map(),
+    cooldowns: new Map(),
+    musicPlayer,
+  };
+  sessions.set(guildId, session);
+
+  const receiver = connection.receiver;
+
+  receiver.speaking.on('start', (userId) => {
+    if (userId === guild.client.user.id) return;
+    if (!sessions.has(guildId)) return; // écoute arrêtée entre-temps
+    if (session.isProcessing) return;
+    if (session.activeStreams.has(userId)) return;
+    const now = Date.now();
+    if ((session.cooldowns.get(userId) || 0) + 4000 > now) return;
+    handleUserSpeech(session, userId, guild);
+  });
+
+  receiver.ssrcMap.on('update', (_, data) => {
+    const userId = data?.userId;
+    if (!userId || userId === guild.client.user.id) return;
+    if (!sessions.has(guildId)) return;
+    if (connection.state.status !== VoiceConnectionStatus.Ready) return;
+    if (session.isProcessing) return;
+    if (session.activeStreams.has(userId)) return;
+    const now = Date.now();
+    if ((session.cooldowns.get(userId) || 0) + 4000 > now) return;
+    handleUserSpeech(session, userId, guild);
+  });
+
+  console.log(`[VoiceAI] Écoute (mot-clé) activée dans ${voiceChannelName(guild, connection)}.`);
+  return session;
+}
+
+function voiceChannelName(guild, connection) {
+  const id = connection.joinConfig?.channelId;
+  return guild.channels.cache.get(id)?.name || guild.name;
+}
+
+function stopListening(guildId) {
+  const s = sessions.get(guildId);
+  if (!s) return;
+  for (const [, st] of s.activeStreams) { try { st.destroy(); } catch {} }
+  try { s.player.stop(); } catch {}
+  sessions.delete(guildId);
+  console.log(`[VoiceAI] Écoute (mot-clé) arrêtée (${guildId})`);
+}
+
+// ── Session autonome (join + écoute), sans musicAI ────────────────────────────
+// Gardée pour compat / usage manuel. Crée sa propre connexion.
 async function startSession(guild, voiceChannel) {
   const guildId = guild.id;
   if (sessions.has(guildId)) await stopSession(guildId);
@@ -229,18 +333,6 @@ async function startSession(guild, voiceChannel) {
     selfMute: false,
   });
 
-  const player = createAudioPlayer();
-  connection.subscribe(player);
-
-  const session = {
-    connection, player, guildId,
-    channelId: voiceChannel.id,
-    isProcessing: false,
-    activeStreams: new Map(),
-    cooldowns: new Map(),
-  };
-  sessions.set(guildId, session);
-
   connection.on('stateChange', (o, n) => {
     if (o.status !== n.status) console.log(`[VoiceAI] Connexion: ${o.status} -> ${n.status}`);
   });
@@ -251,32 +343,11 @@ async function startSession(guild, voiceChannel) {
     console.log(`[VoiceAI] Connecté dans ${voiceChannel.name}`);
   } catch {
     console.error('[VoiceAI] Connexion impossible après 30s.');
-    await stopSession(guildId);
+    try { connection.destroy(); } catch {}
     return false;
   }
 
-  // Écoute via speaking (classique) + ssrcMap (fallback DAVE)
-  const receiver = connection.receiver;
-
-  receiver.speaking.on('start', (userId) => {
-    if (userId === guild.client.user.id) return;
-    if (session.isProcessing) return;
-    if (session.activeStreams.has(userId)) return;
-    const now = Date.now();
-    if ((session.cooldowns.get(userId) || 0) + 4000 > now) return;
-    handleUserSpeech(session, userId, guild);
-  });
-
-  receiver.ssrcMap.on('update', (_, data) => {
-    const userId = data?.userId;
-    if (!userId || userId === guild.client.user.id) return;
-    if (connection.state.status !== VoiceConnectionStatus.Ready) return;
-    if (session.isProcessing) return;
-    if (session.activeStreams.has(userId)) return;
-    const now = Date.now();
-    if ((session.cooldowns.get(userId) || 0) + 4000 > now) return;
-    handleUserSpeech(session, userId, guild);
-  });
+  attachListening(guild, connection, null);
 
   connection.on(VoiceConnectionStatus.Disconnected, async () => {
     try {
@@ -286,7 +357,8 @@ async function startSession(guild, voiceChannel) {
       ]);
     } catch {
       console.log('[VoiceAI] Déconnexion définitive.');
-      await stopSession(guildId);
+      stopListening(guildId);
+      try { connection.destroy(); } catch {}
     }
   });
 
@@ -296,25 +368,8 @@ async function startSession(guild, voiceChannel) {
 async function stopSession(guildId) {
   const s = sessions.get(guildId);
   if (!s) return;
-  for (const [, st] of s.activeStreams) { try { st.destroy(); } catch {} }
-  try { s.player.stop(); } catch {}
   try { s.connection.destroy(); } catch {}
-  sessions.delete(guildId);
-  console.log(`[VoiceAI] Session arrêtée (${guildId})`);
-}
-
-// ── Voice messages (messages vocaux texte) ───────────────────────────────────
-
-const WAKE_WORDS = [/\b\S*bots?\b/, /\b\S*bottes?\b/, /\b\S*bo[td]s?\b/, /\bv\s*t\s*x\b/];
-
-function detectWakeWord(transcript) {
-  const norm = transcript.normalize('NFD').replace(/\p{Diacritic}/gu, '')
-    .toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-  for (const re of WAKE_WORDS) {
-    const m = norm.match(re);
-    if (m) return norm.slice(m.index + m[0].length).trim();
-  }
-  return null;
+  stopListening(guildId);
 }
 
 // ── Module export ────────────────────────────────────────────────────────────
@@ -340,6 +395,7 @@ module.exports = (client) => {
       form.append('file', new Blob([audioBuf]), attachment.name || 'voice.ogg');
       form.append('model', 'whisper-large-v3-turbo');
       form.append('language', 'fr');
+      form.append('prompt', 'VTX-BOT, Vortax, Sanzoy.');
       const sttRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
         method: 'POST', headers: { Authorization: `Bearer ${GROQ_KEY}` }, body: form,
       });
@@ -364,8 +420,10 @@ module.exports = (client) => {
     }
   });
 
-  // Auto-join vocal désactivé — bug DAVE @discordjs/voice #11419
-  // En attente du fix upstream pour réactiver.
-
-  console.log('[VoiceAI] ✅ IA vocale GLaDOS activée (messages vocaux 🎤).');
+  console.log('[VoiceAI] ✅ IA vocale GLaDOS activée (messages vocaux 🎤 + écoute mot-clé en vocal réel).');
 };
+
+module.exports.attachListening = attachListening;
+module.exports.stopListening = stopListening;
+module.exports.startSession = startSession;
+module.exports.stopSession = stopSession;

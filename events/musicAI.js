@@ -6,6 +6,9 @@
 // streaming réel, plus fiable que play-dl seul), et demander un lien direct
 // si la recherche ne trouve rien de convaincant.
 //
+// Depuis peu : branche aussi voiceAI.js sur la connexion pour que le bot
+// écoute et réponde en vocal quand on prononce son nom.
+//
 // Dépendances à installer :
 //   npm install play-dl yt-dlp-exec ffmpeg-static
 // ─────────────────────────────────────────────────────────────────────────
@@ -61,6 +64,7 @@ async function joinUserVoice(message) {
   if (existing) {
     try { existing.connection.destroy(); } catch {}
     try { existing.ffmpegProcess?.kill(); } catch {}
+    try { require('./voiceAI').stopListening(guild.id); } catch {}
     musicSessions.delete(guild.id);
   }
 
@@ -94,6 +98,14 @@ async function joinUserVoice(message) {
     return message.reply(`Impossible de me connecter à ce salon vocal. Anomalie réseau.`);
   }
 
+  // ── Branche l'écoute vocale (réponse quand on dit le nom du bot) ─────────
+  try {
+    const { attachListening } = require('./voiceAI');
+    attachListening(guild, connection, player);
+  } catch (e) {
+    console.error('[MusicAI] Écoute vocale (mot-clé) non démarrée:', e.message);
+  }
+
   connection.on(VoiceConnectionStatus.Disconnected, async () => {
     try {
       // Distingue une vraie déconnexion (kick manuel) d'une coupure réseau temporaire :
@@ -107,6 +119,7 @@ async function joinUserVoice(message) {
       // Vraie déconnexion (kick, salon supprimé, etc.) — on nettoie pour de bon.
       try { session.ffmpegProcess?.kill(); } catch {}
       try { connection.destroy(); } catch {}
+      try { require('./voiceAI').stopListening(guild.id); } catch {}
       musicSessions.delete(guild.id);
     }
   });
@@ -131,6 +144,7 @@ function leaveVoice(message) {
   const session = musicSessions.get(message.guild.id);
   if (!session) return message.reply(`Je ne suis dans aucun salon vocal.`);
   try { session.ffmpegProcess?.kill(); } catch {}
+  try { require('./voiceAI').stopListening(message.guild.id); } catch {}
   try { session.connection.destroy(); } catch {}
   musicSessions.delete(message.guild.id);
   return message.reply(`Je quitte le vocal. Enfin un peu de silence.`);
@@ -243,6 +257,10 @@ async function playNext(guildId, channel) {
     const resource = createAudioResource(ffmpegProcess.stdout, {
       inputType: StreamType.Raw,
     });
+
+    // S'assure que c'est bien le player musique qui a la main sur la connexion
+    // (au cas où GLaDOS venait de parler entre deux morceaux).
+    try { session.connection.subscribe(session.player); } catch {}
 
     session.player.play(resource);
     channel.send(`🎵 Lecture : **${next.query}**`).catch(() => {});

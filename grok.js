@@ -972,8 +972,6 @@ module.exports = (client) => {
           ],
           max_tokens: 120,
           temperature: 1.1,
-          frequency_penalty: 0.6,
-          presence_penalty: 0.4,
         }),
       });
 
