@@ -94,9 +94,21 @@ async function joinUserVoice(message) {
     return message.reply(`Impossible de me connecter à ce salon vocal. Anomalie réseau.`);
   }
 
-  connection.on(VoiceConnectionStatus.Disconnected, () => {
-    try { session.ffmpegProcess?.kill(); } catch {}
-    musicSessions.delete(guild.id);
+  connection.on(VoiceConnectionStatus.Disconnected, async () => {
+    try {
+      // Distingue une vraie déconnexion (kick manuel) d'une coupure réseau temporaire :
+      // si la connexion essaie de repasser en Signalling/Connecting, on la laisse faire.
+      await Promise.race([
+        entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+        entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+      ]);
+      // Reconnexion en cours (ex: changement de salon) — on ne touche à rien.
+    } catch {
+      // Vraie déconnexion (kick, salon supprimé, etc.) — on nettoie pour de bon.
+      try { session.ffmpegProcess?.kill(); } catch {}
+      try { connection.destroy(); } catch {}
+      musicSessions.delete(guild.id);
+    }
   });
 
   player.on(AudioPlayerStatus.Idle, () => {
@@ -236,7 +248,7 @@ async function playNext(guildId, channel) {
     channel.send(`🎵 Lecture : **${next.query}**`).catch(() => {});
   } catch (e) {
     console.error('[MusicAI] Erreur lecture:', e.message);
-    channel.send(`Échec de la lecture de **${next.query}**. Suivant.\n-# ⚠️ ${String(e.message).slice(0, 300)}`).catch(() => {});
+    channel.send(`Échec de la lecture de **${next.query}**. Suivant.\n\`\`\`\n${String(e.message).slice(0, 1500)}\n\`\`\``).catch(() => {});
     playNext(guildId, channel);
   }
 }
