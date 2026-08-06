@@ -70,7 +70,14 @@ module.exports = {
       const newAttachment = new AttachmentBuilder(newBuffer, { name: 'quetes.png' });
       const newComponents = buildComponents(freshUser);
 
-      await i.update({ files: [newAttachment], components: newComponents });
+      // IMPORTANT : "attachments: []" vide les anciennes pièces jointes du message
+      // avant d'ajouter la nouvelle image. Sans ça, Discord empile l'ancienne ET
+      // la nouvelle image au lieu de remplacer -> c'était la cause du "double d'image".
+      await i.update({
+        files: [newAttachment],
+        attachments: [],
+        components: newComponents,
+      });
     });
 
     collector.on('end', () => {

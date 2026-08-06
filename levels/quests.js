@@ -1,5 +1,6 @@
 'use strict';
 const { QUEST_POOL } = require('./ConfigQuests');
+const { CHANNELS } = require('./config');
 const { getUser, saveUser } = require('./db');
 const { levelFromExp, handleLevelUp } = require('./levels');
 
@@ -73,6 +74,13 @@ function generateDailyQuests(user) {
   ensureQuestSlots(user);
 }
 
+// Réinitialise complètement les 3 slots (utilisé par =resetquetes)
+function resetQuestSlots(user) {
+  user.quests = user.quests || {};
+  user.quests.slots   = freshSlots();
+  user.quests.tracked = {};
+}
+
 // Le joueur choisit une des 3 quêtes proposées pour le slot "à choix".
 function chooseQuest(user, slotIndex, questId) {
   ensureQuestSlots(user);
@@ -92,11 +100,43 @@ function matchQuest(q, type, meta) {
   return true;
 }
 
+// ── Envoie la carte "quête terminée" dans le salon quêtes ──────
+async function notifyQuestsCompleted(guild, userId, completedQuests) {
+  if (!guild || !completedQuests.length) return;
+  try {
+    const { generateQuestCompleteCard } = require('./canvas');
+    const { AttachmentBuilder } = require('discord.js');
+    const { getConfig } = require('../config');
+
+    const cfg          = await getConfig().catch(() => ({}));
+    const questChannel = guild.channels.cache.get(cfg.quetes) || guild.channels.cache.get(CHANNELS.QUETES);
+    if (!questChannel) return;
+
+    const member = await guild.members.fetch(userId).catch(() => null);
+    if (!member) return;
+
+    for (const quest of completedQuests) {
+      const buf   = await generateQuestCompleteCard(member, quest).catch(e => {
+        console.error('[Quests] Erreur génération carte quête :', e.message);
+        return null;
+      });
+      const files = buf ? [new AttachmentBuilder(buf, { name: 'quete.png' })] : [];
+      await questChannel.send({
+        content: `🎯 <@${userId}> a terminé la quête **${quest.label}** !`,
+        files,
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.error('[Quests] Erreur notifyQuestsCompleted :', e.message);
+  }
+}
+
 async function updateQuestProgress(guild, userId, type, amount = 1, meta = null) {
   const user = getUser(userId);
   ensureQuestSlots(user);
 
   const levelBefore = levelFromExp(user.exp);
+  const justCompleted = []; // quêtes qui viennent d'être terminées PENDANT cet appel
 
   for (const slot of user.quests.slots) {
     if (slot.status !== 'active') continue;
@@ -118,13 +158,15 @@ async function updateQuestProgress(guild, userId, type, amount = 1, meta = null)
       q.rewarded  = true;
       user.exp    += q.rewardExp   || 0;
       user.wallet += q.rewardCoins || 0;
+      justCompleted.push({ ...q });
     }
   }
 
   // Reset silencieux : dès que les 3 slots (quotidienne + hebdo + choix
   // sélectionnée) sont complétés, on retire 3 nouvelles quêtes. La quotidienne
   // et l'hebdo sont retirées automatiquement, le slot à choix repasse en mode
-  // sélection avec 3 nouvelles options. Aucun message envoyé.
+  // sélection avec 3 nouvelles options. Aucun message envoyé pour le RESET
+  // (mais chaque quête individuelle a déjà été notifiée ci-dessous).
   const [daily, weekly, choice] = user.quests.slots;
   const allDone =
     daily?.status === 'active'  && daily.quest.completed &&
@@ -140,6 +182,11 @@ async function updateQuestProgress(guild, userId, type, amount = 1, meta = null)
   const levelAfter = levelFromExp(user.exp);
   saveUser(user);
 
+  // ── Notif "quête terminée" dans le salon quêtes (style carte niveau/rang) ──
+  if (justCompleted.length) {
+    await notifyQuestsCompleted(guild, userId, justCompleted);
+  }
+
   if (levelAfter > levelBefore && guild) {
     try {
       const member = await guild.members.fetch(userId);
@@ -150,4 +197,6 @@ async function updateQuestProgress(guild, userId, type, amount = 1, meta = null)
   }
 }
 
-module.exports = { generateDailyQuests, ensureQuestSlots, chooseQuest, updateQuestProgress };
+module.exports = {
+  generateDailyQuests, ensureQuestSlots, resetQuestSlots, chooseQuest, updateQuestProgress,
+};

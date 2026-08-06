@@ -96,13 +96,20 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildBans,
     GatewayIntentBits.GuildPresences,
-    GatewayIntentBits.GuildInvites
+    GatewayIntentBits.GuildInvites,
+    GatewayIntentBits.GuildMessageReactions   // ← AJOUTÉ : sans ça, Discord n'envoie
+                                               //   jamais "messageReactionAdd" au bot,
+                                               //   c'est pour ça que les quêtes de
+                                               //   réactions ne progressaient jamais.
   ],
   partials: [
     Partials.Message,
     Partials.Channel,
     Partials.GuildMember,
-    Partials.User
+    Partials.User,
+    Partials.Reaction                          // ← AJOUTÉ : nécessaire pour recevoir
+                                                //   les réactions sur des messages qui
+                                                //   ne sont pas déjà en cache.
   ]
 });
 

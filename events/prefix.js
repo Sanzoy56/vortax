@@ -247,7 +247,7 @@ async function cmdTop(msg, args) {
       try {
         const newEntries = await buildTopEntries(msg.guild, mode);
         const newBuffer  = await generateLeaderboard(newEntries, mode);
-        await reply.edit({ files: [new AttachmentBuilder(newBuffer, { name: 'top.png' })], components: [topRow(mode)] });
+        await reply.edit({ files: [new AttachmentBuilder(newBuffer, { name: 'top.png' })], attachments: [], components: [topRow(mode)] });
       } catch(e) { console.error('[Top] bouton:', e.message); }
     });
     collector.on('end', () => reply.edit({ components: [] }).catch(() => {}));
@@ -319,7 +319,14 @@ async function cmdQuetes(msg) {
 
       const newBuffer     = await generateQuests(member, freshUser.quests.slots);
       const newComponents = buildQuestComponents(freshUser);
-      await i.update({ files: [new AttachmentBuilder(newBuffer, { name: 'quetes.png' })], components: newComponents });
+      // IMPORTANT : "attachments: []" vide l'ancienne pièce jointe avant d'ajouter
+      // la nouvelle image. Sans ça, Discord empile l'ancienne ET la nouvelle image
+      // au lieu de remplacer -> c'était la cause du "double d'image" sur =quetes.
+      await i.update({
+        files: [new AttachmentBuilder(newBuffer, { name: 'quetes.png' })],
+        attachments: [],
+        components: newComponents,
+      });
     });
 
     collector.on('end', () => reply.edit({ components: [] }).catch(() => {}));
@@ -575,6 +582,15 @@ const MAINT_CAT = {
   bancasino: 'staff', debancasino: 'staff', createroles: 'staff', testsaison: 'staff',
 };
 
+// Commandes exclues du comptage de la quête "commands" — mêmes exclusions que
+// pour les slash commands dans index.js (évite de faire progresser la quête
+// juste en spammant =aide/=quetes/=top, qui ne "jouent" pas vraiment).
+const QUEST_COMMAND_EXCLUDED = [
+  'quetes', 'profil', 'top', 'aide', 'resetquetes',
+  'createroles', 'bancasino', 'debancasino', 'testsaison',
+  'maintenance', 'finmaintenance',
+];
+
 module.exports = {
   init(client) {
     client.on('messageCreate', async msg => {
@@ -593,7 +609,26 @@ module.exports = {
         const { isActive, maintenanceReply } = require('../levels/maintenance');
         if (isActive(maintCat)) return msg.reply(maintenanceReply(maintCat));
       }
-      try { await handler(msg, args); } catch(e) { console.error('[Prefix]', e.message); }
+      try {
+        await handler(msg, args);
+
+        // ── Tracking quête "commands" pour les commandes préfixées ──────
+        // Avant ce fix, seules les slash commands (interactionCreate.js)
+        // faisaient progresser la quête "commands" — =dep, =rob, =work etc.
+        // ne comptaient jamais.
+        if (!QUEST_COMMAND_EXCLUDED.includes(name)) {
+          const { getUser, saveUser }             = require('../levels/db');
+          const { resetDailyStatsIfNeeded }        = require('../levels/levels');
+          const { generateDailyQuests, updateQuestProgress } = require('../levels/quests');
+
+          const user = getUser(msg.author.id);
+          generateDailyQuests(user);
+          resetDailyStatsIfNeeded(user);
+          user.dailyStats.commands++;
+          saveUser(user);
+          updateQuestProgress(msg.guild, msg.author.id, 'commands', 1).catch(() => {});
+        }
+      } catch(e) { console.error('[Prefix]', e.message); }
     });
     console.log('[Prefix] ✅ =dep =with =bal =donner =rob =work =profil =top =quetes =resetquetes =aide =bancasino =debancasino =testsaison =maintenance =finmaintenance');
   },
