@@ -185,8 +185,33 @@ function handleUserSpeech(session, userId, guild) {
 
   audioStream.pipe(decoder).pipe(writeStream);
 
-  writeStream.on('finish', async () => {
+  // FIX : garantit que activeStreams est nettoyé même si le flux plante ou
+  // est détruit avant sa fin normale (sinon l'utilisateur reste bloqué à vie
+  // — c'est ce qui causait "le bot ne répond qu'une fois").
+  audioStream.on('error', (e) => {
+    console.error('[VoiceAI] audioStream error:', e.message);
+    writeStream.destroy();
+  });
+  decoder.on('error', (e) => {
+    console.error('[VoiceAI] decoder error:', e.message);
+    writeStream.destroy();
+  });
+
+  let handled = false;
+  // FIX : 'close' se déclenche TOUJOURS (que ce soit après 'finish' normal,
+  // ou après une destruction/erreur), contrairement à 'finish' seul.
+  writeStream.on('close', async () => {
+    if (handled) return;
+    handled = true;
     session.activeStreams.delete(userId);
+
+    if (!writeStream.writableFinished) {
+      // Flux interrompu avant la fin normale : fichier probablement
+      // tronqué/inexploitable, on le jette sans traiter.
+      try { fs.unlinkSync(tempFile); } catch {}
+      return;
+    }
+
     let wavFile = null;
     try {
       const stats = fs.statSync(tempFile);
@@ -279,21 +304,19 @@ function attachListening(guild, connection, musicPlayer = null) {
 
   const receiver = connection.receiver;
 
+  // FIX : on ne garde QUE ce listener. L'ancien second listener
+  // (`receiver.ssrcMap.on('update', ...)`) a été supprimé : il se
+  // déclenchait quasi en même temps que 'speaking start' pour la même
+  // prise de parole, causant une double souscription au flux (race
+  // condition) sur le même userId. La deuxième souscription tuait
+  // silencieusement la première, qui ne déclenchait alors jamais son
+  // event de fin -> l'utilisateur restait bloqué dans activeStreams et
+  // ne pouvait plus jamais retrigger le bot. C'était la cause du "ne
+  // répond qu'une fois" et contribuait aussi au PCM corrompu (deux
+  // souscriptions concurrentes écrivant/renvoyant sur le même flux).
   receiver.speaking.on('start', (userId) => {
     if (userId === guild.client.user.id) return;
     if (!sessions.has(guildId)) return; // écoute arrêtée entre-temps
-    if (session.isProcessing) return;
-    if (session.activeStreams.has(userId)) return;
-    const now = Date.now();
-    if ((session.cooldowns.get(userId) || 0) + 4000 > now) return;
-    handleUserSpeech(session, userId, guild);
-  });
-
-  receiver.ssrcMap.on('update', (_, data) => {
-    const userId = data?.userId;
-    if (!userId || userId === guild.client.user.id) return;
-    if (!sessions.has(guildId)) return;
-    if (connection.state.status !== VoiceConnectionStatus.Ready) return;
     if (session.isProcessing) return;
     if (session.activeStreams.has(userId)) return;
     const now = Date.now();
