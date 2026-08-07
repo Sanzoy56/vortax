@@ -374,8 +374,17 @@ function detectMusicIntent(text) {
   const musicMatch = text.match(
     /\b(?:joue|mets?|lance|balance|play)\b(?:\s+(?:de\s+la\s+musique|la\s+chanson|un\s+son|de\s+la))?\s*[:\-]?\s*(.+)/i
   );
-  if (musicMatch && musicMatch[1] && musicMatch[1].trim().length > 1) {
-    return { type: 'play', query: musicMatch[1].trim() };
+  if (musicMatch && musicMatch[1]) {
+    const q = musicMatch[1].trim();
+    // Si après nettoyage il ne reste qu'un mot générique ("musique", "un son"...),
+    // l'utilisateur n'a pas précisé de titre — inutile de chercher ce mot tel quel.
+    const fillerOnly = /^(?:de\s+la\s+)?(?:musique|chanson|un\s+son|son|de\s+la)s?$/i.test(q);
+    if (q.length > 1 && !fillerOnly) {
+      return { type: 'play', query: q };
+    }
+    if (fillerOnly) {
+      return { type: 'play_unspecified' };
+    }
   }
 
   return null;
