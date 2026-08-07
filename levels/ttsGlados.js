@@ -18,9 +18,23 @@ const PIPER_MODEL = path.join(PIPER_DIR, 'fr_FR-glados-medium.onnx');
 
 let piperReady = false;
 
-// Releases Piper : archive Linux (tar.gz) et Windows (zip).
-const PIPER_URL_LINUX = 'https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz';
-const PIPER_URL_WINDOWS = 'https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_windows_amd64.zip';
+// Releases Piper : archive Linux (tar.gz, par archi) et Windows (zip).
+// FIX ARM : avant, l'URL Linux était en dur sur piper_linux_x86_64.tar.gz.
+// Ça marchait en local (PC x86_64) mais plantait silencieusement sur la
+// Freebox (Docker ARM64) — le binaire x86_64 ne peut pas s'exécuter sur
+// une archi ARM ("exec format error" au niveau kernel), et generateGladosAudio()
+// finissait juste par throw, catché plus haut sans que l'utilisateur ne
+// voie jamais l'erreur (juste : pas de réponse vocale).
+const PIPER_RELEASE_BASE = 'https://github.com/rhasspy/piper/releases/download/2023.11.14-2';
+
+function getPiperLinuxUrl() {
+  const arch = process.arch; // 'x64', 'arm64', 'arm', ...
+  if (arch === 'arm64') return `${PIPER_RELEASE_BASE}/piper_linux_aarch64.tar.gz`;
+  if (arch === 'arm') return `${PIPER_RELEASE_BASE}/piper_linux_armv7l.tar.gz`;
+  return `${PIPER_RELEASE_BASE}/piper_linux_x86_64.tar.gz`;
+}
+
+const PIPER_URL_WINDOWS = `${PIPER_RELEASE_BASE}/piper_windows_amd64.zip`;
 const MODEL_URL = 'https://raw.githubusercontent.com/TazzerMAN/piper-voice-glados-fr/main/models/fr_FR-glados-medium.tar.gz';
 
 // FIX : cette fonction téléchargeait Piper + le modèle mais generateGladosAudio()
@@ -56,21 +70,39 @@ async function ensurePiper() {
   } else {
     const linuxDir = path.join(PIPER_DIR, 'piper_linux');
 
-    // Vérifier si le binaire est un vrai ELF (pas corrompu par git)
+    // FIX ARM : le check ne se contente plus de vérifier que le fichier est
+    // un ELF valide (un binaire x86_64 EST un ELF valide, donc l'ancien check
+    // laissait passer un binaire de la mauvaise archi sans jamais le
+    // re-télécharger). On lit maintenant le champ e_machine de l'en-tête ELF
+    // (offset 18-19, little-endian) et on compare à l'archi attendue :
+    //   0x3E = x86_64, 0xB7 = AArch64 (ARM64), 0x28 = ARM 32 bits (armv7)
     let needDownload = false;
     try {
-      const header = Buffer.alloc(4);
+      const header = Buffer.alloc(20);
       const fd = fs.openSync(PIPER_EXE, 'r');
-      fs.readSync(fd, header, 0, 4, 0);
+      fs.readSync(fd, header, 0, 20, 0);
       fs.closeSync(fd);
-      needDownload = header.toString() !== '\x7fELF';
+
+      const isELF = header.toString('utf8', 0, 4) === '\x7fELF';
+      const machine = header.readUInt16LE(18);
+
+      const expectedMachine = { arm64: 0xb7, arm: 0x28 }[process.arch] ?? 0x3e; // défaut x86_64
+
+      needDownload = !isELF || machine !== expectedMachine;
+      if (isELF && machine !== expectedMachine) {
+        console.warn(
+          `[TTS] Binaire Piper présent mais mauvaise architecture ` +
+          `(trouvé: 0x${machine.toString(16)}, attendu: 0x${expectedMachine.toString(16)} pour ${process.arch}) — re-téléchargement.`
+        );
+      }
     } catch { needDownload = true; }
 
     if (needDownload) {
-      console.log('[TTS] Piper manquant ou corrompu — téléchargement...');
+      const url = getPiperLinuxUrl();
+      console.log(`[TTS] Piper manquant, corrompu ou mauvaise archi (${process.arch}) — téléchargement depuis ${url} ...`);
       try {
         fs.mkdirSync(linuxDir, { recursive: true });
-        const piperRes = await fetch(PIPER_URL_LINUX);
+        const piperRes = await fetch(url);
         if (!piperRes.ok) throw new Error(`Download piper: ${piperRes.status}`);
         const piperTar = path.join(TMP, 'piper_dl.tar.gz');
         fs.writeFileSync(piperTar, Buffer.from(await piperRes.arrayBuffer()));
@@ -90,7 +122,7 @@ async function ensurePiper() {
         const p = path.join(linuxDir, link);
         if (!fs.existsSync(p)) fs.symlinkSync(target, p);
       }
-      console.log('[TTS] Piper prêt (Linux)');
+      console.log(`[TTS] Piper prêt (Linux, archi: ${process.arch})`);
     } catch (e) { console.error('[TTS] Setup Linux échoué:', e.message); }
   }
 
