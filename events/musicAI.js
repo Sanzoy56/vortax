@@ -221,17 +221,31 @@ async function playNext(guildId, channel) {
       throw new Error("yt-dlp n'a renvoyé aucune URL de flux exploitable.");
     }
 
-    // ffmpeg convertit ce flux en PCM brut lisible par @discordjs/voice
+    // ffmpeg convertit ce flux en PCM brut lisible par @discordjs/voice.
+    // On télécharge le flux nous-mêmes via Node (fetch) et on le transmet à
+    // ffmpeg par stdin, plutôt que de laisser ffmpeg résoudre l'URL lui-même :
+    // certains environnements bloquent/cassent la résolution DNS interne de
+    // ffmpeg alors que Node y arrive très bien.
+    const streamResponse = await fetch(directUrl);
+    if (!streamResponse.ok || !streamResponse.body) {
+      throw new Error(`Téléchargement du flux audio échoué (HTTP ${streamResponse.status}).`);
+    }
+
     const ffmpegProcess = spawn(ffmpegPath, [
-      '-reconnect', '1',
-      '-reconnect_streamed', '1',
-      '-reconnect_delay_max', '5',
-      '-i', directUrl,
+      '-i', 'pipe:0',
       '-f', 's16le',
       '-ar', '48000',
       '-ac', '2',
       'pipe:1',
     ]);
+
+    const { Readable } = require('stream');
+    const sourceStream = Readable.fromWeb(streamResponse.body);
+    sourceStream.pipe(ffmpegProcess.stdin);
+    sourceStream.on('error', (err) => {
+      console.error('[MusicAI] Erreur téléchargement flux:', err.message);
+      try { ffmpegProcess.stdin.end(); } catch {}
+    });
 
     session.ffmpegProcess = ffmpegProcess;
 
