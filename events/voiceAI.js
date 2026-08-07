@@ -13,10 +13,21 @@ const { promisify } = require('util');
 const FFMPEG = require('ffmpeg-static');
 const execFileAsync = promisify(execFile);
 
-const { apiGroq: GROQ_KEY, apiGrok: GROK_KEY } = require('../token.json');
+const { apiGrok: GROK_KEY } = require('../token.json');
 const { sendVoiceReply } = require('../levels/ttsGlados');
 
 const TEMP_DIR = path.join(process.cwd(), 'temp');
+
+// Bornes de taille du fichier PCM brut (48kHz stéréo 16 bits = 192000 octets/s).
+// MIN filtre le bruit/micro-souffle ultra-court, MAX évite de traiter un
+// enregistrement anormalement long (silence non détecté, bug, etc.).
+const MIN_PCM_SIZE = 8000;      // ~0.04s
+const MAX_PCM_SIZE = 4800000;   // ~25s
+
+// Passe à true temporairement pour sauvegarder une copie de chaque WAV envoyé
+// au STT dans temp/DEBUG_*.wav — permet d'écouter exactement ce que le bot
+// capte et reçoit vraiment. Remets à false une fois le diagnostic fait.
+const DEBUG_SAVE_AUDIO = true;
 const sessions = new Map();
 const recentPhrases = new Map();
 
@@ -33,10 +44,16 @@ RÈGLES STRICTES :
 const MAX_HISTORY = 6;
 const conversations = new Map();
 
+// FIX : ajout des hallucinations Whisper/STT en anglais ("There is no
+// sound.", etc.) — le log montrait ce cas précis passer à travers le filtre
+// français uniquement.
 const HALLUCINATIONS = [
   'sous-titrage', 'radio-canada', 'merci.', 'merci !', 'bonjour.',
   'bonjour !', 'salut.', 'salut !', 'au revoir.', 'au revoir !',
   'd\'accord.', 'ok.', 'okay.', 'hmm', 'euh', 'hum', 'ah.', 'oh.',
+  'there is no sound', 'no sound', 'silence', '[silence]',
+  'thank you.', 'thanks for watching', 'thank you for watching',
+  'sous-titres réalisés', 'amara.org',
 ];
 
 // ── Utilitaires ──────────────────────────────────────────────────────────────
@@ -102,19 +119,18 @@ async function pcmToWav(pcmFile) {
 
 async function stt(wavFile) {
   const form = new FormData();
-  form.append('file', new Blob([fs.readFileSync(wavFile)]), 'audio.wav');
-  form.append('model', 'whisper-large-v3-turbo');
+  // NOTE : le paramètre "file" doit être ajouté EN DERNIER dans le form
+  // (exigence de l'API Grok STT pour le multipart).
   form.append('language', 'fr');
-  // Biaise la reconnaissance vers le mot inventé "VTX-BOT" — sans ça Whisper
-  // hallucine souvent un mot générique ("Merci.", "Sous-titres...") sur les
-  // extraits courts contenant un nom propre non standard.
-  form.append('prompt', 'VTX-BOT, Vortax, Sanzoy.');
-  const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+  form.append('keyterm', 'VTX-BOT');
+  form.append('format', 'true');
+  form.append('file', new Blob([fs.readFileSync(wavFile)]), 'audio.wav');
+  const res = await fetch('https://api.x.ai/v1/stt', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${GROQ_KEY}` },
+    headers: { Authorization: `Bearer ${GROK_KEY}` },
     body: form,
   });
-  if (!res.ok) throw new Error(`Whisper ${res.status}`);
+  if (!res.ok) throw new Error(`Grok STT ${res.status}`);
   return (await res.json()).text?.trim() || null;
 }
 
@@ -215,7 +231,9 @@ function handleUserSpeech(session, userId, guild) {
     let wavFile = null;
     try {
       const stats = fs.statSync(tempFile);
-      if (stats.size < 8000 || stats.size > 500000) {
+      console.log(`[VoiceAI DEBUG] PCM reçu pour ${userId} : ${stats.size} octets (fichier: ${tempFile})`);
+      if (stats.size < MIN_PCM_SIZE || stats.size > MAX_PCM_SIZE) {
+        console.log(`[VoiceAI DEBUG] Fichier rejeté — taille hors bornes (min ${MIN_PCM_SIZE}, max ${MAX_PCM_SIZE}).`);
         fs.unlinkSync(tempFile);
         return;
       }
@@ -223,10 +241,20 @@ function handleUserSpeech(session, userId, guild) {
       session.isProcessing = true;
       session.cooldowns.set(userId, Date.now());
 
+      const t0 = Date.now();
       wavFile = await pcmToWav(tempFile);
       fs.unlinkSync(tempFile);
+      console.log(`[VoiceAI TIMING] ffmpeg : ${Date.now() - t0}ms`);
 
+      if (DEBUG_SAVE_AUDIO) {
+        try {
+          fs.copyFileSync(wavFile, path.join(TEMP_DIR, `DEBUG_${Date.now()}.wav`));
+        } catch (e) { console.error('[VoiceAI] Debug save échoué:', e.message); }
+      }
+
+      const t1 = Date.now();
       const text = await stt(wavFile);
+      console.log(`[VoiceAI TIMING] STT : ${Date.now() - t1}ms`);
       fs.unlinkSync(wavFile);
       wavFile = null;
 
@@ -256,19 +284,32 @@ function handleUserSpeech(session, userId, guild) {
       const member = guild.members.cache.get(userId);
       const username = member?.user?.username || 'inconnu';
       const question = afterWake.length > 0 ? afterWake : 'Bonjour';
+      const t2 = Date.now();
       const reply = await ask(userId, username, question);
+      console.log(`[VoiceAI TIMING] LLM : ${Date.now() - t2}ms`);
 
-      if (!reply?.trim()) { session.isProcessing = false; return; }
+      // FIX : on libère isProcessing DÈS QUE le texte de réponse est prêt,
+      // AVANT le TTS + la lecture audio (qui prenaient 12-19s à eux seuls).
+      // Avant ce fix, `isProcessing` restait vrai pendant toute cette durée,
+      // donc `receiver.speaking.on('start', ...)` ignorait silencieusement
+      // (aucun PCM capturé) tout ce que l'utilisateur disait pendant que le
+      // bot parlait encore — c'était la cause précise de "je parle et il ne
+      // répond pas". Le cooldown de 4s (session.cooldowns) reste en place
+      // pour éviter que le bot ne se déclenche sur sa propre voix.
+      session.isProcessing = false;
+
+      if (!reply?.trim()) return;
 
       const clean = reply.replace(/<a?:\w+:\d+>/g, '').replace(/https?:\/\/\S+/g, '')
         .replace(/[*_`#>~]/g, '').replace(/\s+/g, ' ').trim();
 
       if (clean.length > 5) {
         console.log(`[VoiceAI] Réponse GLaDOS : "${clean}"`);
+        const t3 = Date.now();
         await speakGlados(session, clean);
+        console.log(`[VoiceAI TIMING] TTS+lecture : ${Date.now() - t3}ms`);
       }
-
-      session.isProcessing = false;
+      console.log(`[VoiceAI TIMING] TOTAL : ${Date.now() - t0}ms`);
     } catch (err) {
       console.error('[VoiceAI] Erreur traitement :', err.message);
       session.isProcessing = false;
@@ -317,6 +358,7 @@ function attachListening(guild, connection, musicPlayer = null) {
   receiver.speaking.on('start', (userId) => {
     if (userId === guild.client.user.id) return;
     if (!sessions.has(guildId)) return; // écoute arrêtée entre-temps
+    console.log(`[VoiceAI DEBUG] speaking.start détecté pour userId=${userId} (isProcessing=${session.isProcessing}, déjà actif=${session.activeStreams.has(userId)})`);
     if (session.isProcessing) return;
     if (session.activeStreams.has(userId)) return;
     const now = Date.now();
@@ -325,6 +367,7 @@ function attachListening(guild, connection, musicPlayer = null) {
   });
 
   console.log(`[VoiceAI] Écoute (mot-clé) activée dans ${voiceChannelName(guild, connection)}.`);
+  console.log(`[VoiceAI DEBUG] Dossier temp utilisé : ${path.resolve(TEMP_DIR)}`);
   return session;
 }
 
@@ -398,8 +441,8 @@ async function stopSession(guildId) {
 // ── Module export ────────────────────────────────────────────────────────────
 
 module.exports = (client) => {
-  if (!GROQ_KEY) {
-    console.warn('[VoiceAI] Clé apiGroq manquante — IA vocale désactivée.');
+  if (!GROK_KEY) {
+    console.warn('[VoiceAI] Clé apiGrok manquante — IA vocale désactivée.');
     return;
   }
 
@@ -415,12 +458,14 @@ module.exports = (client) => {
       if (!audioRes.ok) return;
       const audioBuf = Buffer.from(await audioRes.arrayBuffer());
       const form = new FormData();
-      form.append('file', new Blob([audioBuf]), attachment.name || 'voice.ogg');
-      form.append('model', 'whisper-large-v3-turbo');
+      // NOTE : "file" doit être ajouté EN DERNIER dans le form (exigence
+      // multipart de l'API Grok STT).
       form.append('language', 'fr');
-      form.append('prompt', 'VTX-BOT, Vortax, Sanzoy.');
-      const sttRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST', headers: { Authorization: `Bearer ${GROQ_KEY}` }, body: form,
+      form.append('keyterm', 'VTX-BOT');
+      form.append('format', 'true');
+      form.append('file', new Blob([audioBuf]), attachment.name || 'voice.ogg');
+      const sttRes = await fetch('https://api.x.ai/v1/stt', {
+        method: 'POST', headers: { Authorization: `Bearer ${GROK_KEY}` }, body: form,
       });
       if (!sttRes.ok) return;
       const transcript = (await sttRes.json()).text?.trim();

@@ -25,6 +25,11 @@ const ytdlp = require('yt-dlp-exec');
 const ffmpegPath = require('ffmpeg-static');
 const { spawn } = require('child_process');
 
+// ⚠️ Ajuste ce chemin si voiceAI.js se trouve ailleurs par rapport à ce fichier.
+// C'est ce module qui pose le listener 'speaking.start' sur la connexion —
+// sans cet appel, le bot ne reçoit jamais aucun audio (voir joinUserVoice ci-dessous).
+const voiceAI = require('./voiceAI');
+
 // ── Init token play-dl (utilisé uniquement pour la recherche) ─────────────
 (async () => {
   try {
@@ -61,6 +66,7 @@ async function joinUserVoice(message) {
   if (existing) {
     try { existing.connection.destroy(); } catch {}
     try { existing.ffmpegProcess?.kill(); } catch {}
+    voiceAI.stopListening(guild.id);
     musicSessions.delete(guild.id);
   }
 
@@ -94,6 +100,14 @@ async function joinUserVoice(message) {
     return message.reply(`Impossible de me connecter à ce salon vocal. Anomalie réseau.`);
   }
 
+  // ── Active l'écoute du mot-clé "VTX-BOT" sur cette connexion ──────────────
+  // C'est CETTE ligne qui manquait : sans elle, aucun listener 'speaking.start'
+  // n'est jamais posé, donc le bot ne capte jamais rien, même en étant connecté
+  // avec selfDeaf: false. On passe `player` (celui de la musique) pour que
+  // voiceAI puisse resouscrire la connexion à la musique une fois qu'il a fini
+  // de répondre en vocal (voir speakGlados dans voiceAI.js).
+  voiceAI.attachListening(guild, connection, player);
+
   connection.on(VoiceConnectionStatus.Disconnected, async () => {
     try {
       // Distingue une vraie déconnexion (kick manuel) d'une coupure réseau temporaire :
@@ -107,6 +121,7 @@ async function joinUserVoice(message) {
       // Vraie déconnexion (kick, salon supprimé, etc.) — on nettoie pour de bon.
       try { session.ffmpegProcess?.kill(); } catch {}
       try { connection.destroy(); } catch {}
+      voiceAI.stopListening(guild.id);
       musicSessions.delete(guild.id);
     }
   });
@@ -132,6 +147,7 @@ function leaveVoice(message) {
   if (!session) return message.reply(`Je ne suis dans aucun salon vocal.`);
   try { session.ffmpegProcess?.kill(); } catch {}
   try { session.connection.destroy(); } catch {}
+  voiceAI.stopListening(message.guild.id);
   musicSessions.delete(message.guild.id);
   return message.reply(`Je quitte le vocal. Enfin un peu de silence.`);
 }
