@@ -350,10 +350,12 @@ function detectMusicIntent(text) {
     return { type: 'leave' };
   }
 
-  // Arrêter la musique (sans quitter le vocal) : "stop", "stoppe", "coupe",
-  // ou "arrête" + mot lié à la musique (pour ne pas confondre avec "arrête-toi")
-  const stopBare = /\b(stop|stoppe|coupe)\b/;
-  const stopWithMusicWord = /\barr[êe]te(?:r)?\b/.test(n) && /\b(musique|chanson|morceau|le\s*son)\b/.test(n);
+  // Arrêter la musique (sans quitter le vocal) : "stop"/"stoppe" seuls suffisent,
+  // mais "arrête" ou "coupe" doivent être accompagnés d'un mot lié à la musique
+  // pour éviter les faux positifs (ex: "la coupe du monde", "arrête-toi").
+  const stopBare = /\b(stop|stoppe)\b/;
+  const hasMusicWord = /\b(musique|chanson|morceau|le\s*son)\b/.test(n);
+  const stopWithMusicWord = (/\barr[êe]te(?:r)?\b/.test(n) || /\bcoupe\b/.test(n)) && hasMusicWord;
   if (stopBare.test(n) || stopWithMusicWord) {
     return { type: 'stop' };
   }
