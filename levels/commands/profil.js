@@ -210,104 +210,122 @@ module.exports = {
     collector.on('collect', async i => {
       const freshUser = getUser(interaction.user.id);
 
-      // ── Navigation ──
-      if (i.customId === 'nav_profil') {
-        const buf = await generateProfile(member, buildProfileData(member, freshUser));
-        return i.update({
-          files: [new AttachmentBuilder(buf, { name: 'profil.png' })],
-          attachments: [],
-          components: [mainButtonsRow()],
-        });
-      }
+      // NOTE : deferUpdate() est fait au cas par cas, juste avant chaque
+      // génération de canvas — jamais avant les branches qui répondent par un
+      // message éphémère (i.reply), sinon ces réponses éphémères planteraient.
+      // Ça évite le "flash" / la disparition de l'image le temps que le
+      // canvas se génère : l'interaction est acquittée dès le deferUpdate(),
+      // donc plus de timeout Discord de 3s pendant l'attente.
 
-      if (i.customId === 'nav_quetes') {
-        const buf = await generateQuests(member, freshUser.quests.slots);
-        return i.update({
-          files: [new AttachmentBuilder(buf, { name: 'quetes.png' })],
-          attachments: [],
-          components: buildQuestComponents(freshUser, backRow()),
-        });
-      }
-
-      if (i.customId === 'nav_inventaire') {
-        const buf = await generateInventory(member, inventoryToItems(freshUser));
-        return i.update({
-          files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
-          attachments: [],
-          components: buildInventoryComponents(freshUser, backRow()),
-        });
-      }
-
-      if (i.customId === 'nav_arbre') {
-        const buf = await generateSkillTree(member, buildTreeData(freshUser));
-        return i.update({
-          files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
-          attachments: [],
-          components: [backRow()],
-        });
-      }
-
-      // ── Choix de quête (menu déroulant) ──
-      if (i.customId.startsWith('qc_') && i.isStringSelectMenu()) {
-        const slotIndex = parseInt(i.customId.split('_')[1], 10);
-        const questId = i.values[0];
-        const picked = chooseQuest(freshUser, slotIndex, questId);
-        if (!picked) return i.reply({ content: "Cette quête n'est plus disponible.", ephemeral: true }).catch(() => {});
-
-        const buf = await generateQuests(member, freshUser.quests.slots);
-        return i.update({
-          files: [new AttachmentBuilder(buf, { name: 'quetes.png' })],
-          attachments: [],
-          components: buildQuestComponents(freshUser, backRow()),
-        });
-      }
-
-      // ── Équiper un boost (inventaire) ──
-      if (i.customId.startsWith('equip_temp_')) {
-        const idx = parseInt(i.customId.replace('equip_temp_', ''), 10);
-        const items = freshUser.inventory.tempBoostItems || [];
-        if (!items[idx]) return i.reply({ content: '❌ Boost introuvable.', ephemeral: true });
-
-        const boost = items[idx];
-        freshUser.inventory.tempBoost = { ...boost, expiresAt: Date.now() + boost.duration * 60_000 };
-        items.splice(idx, 1);
-        freshUser.inventory.tempBoostItems = items;
-        saveUser(freshUser);
-
-        const buf = await generateInventory(member, inventoryToItems(freshUser));
-        return i.update({
-          files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
-          attachments: [],
-          components: buildInventoryComponents(freshUser, backRow()),
-        });
-      }
-
-      if (i.customId.startsWith('equip_role_')) {
-        const idx = parseInt(i.customId.replace('equip_role_', ''), 10);
-        const items = freshUser.inventory.roleBoostItems || [];
-        if (!items[idx]) return i.reply({ content: '❌ Boost introuvable.', ephemeral: true });
-
-        const boost = items[idx];
-        if (freshUser.inventory.roleBoost?.roleId) {
-          const oldRole = interaction.guild.roles.cache.get(freshUser.inventory.roleBoost.roleId);
-          if (oldRole) await member.roles.remove(oldRole).catch(() => {});
-        }
-        freshUser.inventory.roleBoost = { ...boost };
-        items.splice(idx, 1);
-        freshUser.inventory.roleBoostItems = items;
-        saveUser(freshUser);
-
-        if (boost.roleId) {
-          const newRole = interaction.guild.roles.cache.get(boost.roleId);
-          if (newRole) await member.roles.add(newRole).catch(() => {});
+      try {
+        // ── Navigation ──
+        if (i.customId === 'nav_profil') {
+          await i.deferUpdate();
+          const buf = await generateProfile(member, buildProfileData(member, freshUser));
+          return i.editReply({
+            files: [new AttachmentBuilder(buf, { name: 'profil.png' })],
+            attachments: [],
+            components: [mainButtonsRow()],
+          });
         }
 
-        const buf = await generateInventory(member, inventoryToItems(freshUser));
-        return i.update({
-          files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
-          attachments: [],
-          components: buildInventoryComponents(freshUser, backRow()),
-        });
+        if (i.customId === 'nav_quetes') {
+          await i.deferUpdate();
+          const buf = await generateQuests(member, freshUser.quests.slots);
+          return i.editReply({
+            files: [new AttachmentBuilder(buf, { name: 'quetes.png' })],
+            attachments: [],
+            components: buildQuestComponents(freshUser, backRow()),
+          });
+        }
+
+        if (i.customId === 'nav_inventaire') {
+          await i.deferUpdate();
+          const buf = await generateInventory(member, inventoryToItems(freshUser));
+          return i.editReply({
+            files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
+            attachments: [],
+            components: buildInventoryComponents(freshUser, backRow()),
+          });
+        }
+
+        if (i.customId === 'nav_arbre') {
+          await i.deferUpdate();
+          const buf = await generateSkillTree(member, buildTreeData(freshUser));
+          return i.editReply({
+            files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
+            attachments: [],
+            components: [backRow()],
+          });
+        }
+
+        // ── Choix de quête (menu déroulant) ──
+        if (i.customId.startsWith('qc_') && i.isStringSelectMenu()) {
+          const slotIndex = parseInt(i.customId.split('_')[1], 10);
+          const questId = i.values[0];
+          const picked = chooseQuest(freshUser, slotIndex, questId);
+          if (!picked) return i.reply({ content: "Cette quête n'est plus disponible.", ephemeral: true }).catch(() => {});
+
+          await i.deferUpdate();
+          const buf = await generateQuests(member, freshUser.quests.slots);
+          return i.editReply({
+            files: [new AttachmentBuilder(buf, { name: 'quetes.png' })],
+            attachments: [],
+            components: buildQuestComponents(freshUser, backRow()),
+          });
+        }
+
+        // ── Équiper un boost (inventaire) ──
+        if (i.customId.startsWith('equip_temp_')) {
+          const idx = parseInt(i.customId.replace('equip_temp_', ''), 10);
+          const items = freshUser.inventory.tempBoostItems || [];
+          if (!items[idx]) return i.reply({ content: '❌ Boost introuvable.', ephemeral: true }).catch(() => {});
+
+          await i.deferUpdate();
+          const boost = items[idx];
+          freshUser.inventory.tempBoost = { ...boost, expiresAt: Date.now() + boost.duration * 60_000 };
+          items.splice(idx, 1);
+          freshUser.inventory.tempBoostItems = items;
+          saveUser(freshUser);
+
+          const buf = await generateInventory(member, inventoryToItems(freshUser));
+          return i.editReply({
+            files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
+            attachments: [],
+            components: buildInventoryComponents(freshUser, backRow()),
+          });
+        }
+
+        if (i.customId.startsWith('equip_role_')) {
+          const idx = parseInt(i.customId.replace('equip_role_', ''), 10);
+          const items = freshUser.inventory.roleBoostItems || [];
+          if (!items[idx]) return i.reply({ content: '❌ Boost introuvable.', ephemeral: true }).catch(() => {});
+
+          await i.deferUpdate();
+          const boost = items[idx];
+          if (freshUser.inventory.roleBoost?.roleId) {
+            const oldRole = interaction.guild.roles.cache.get(freshUser.inventory.roleBoost.roleId);
+            if (oldRole) await member.roles.remove(oldRole).catch(() => {});
+          }
+          freshUser.inventory.roleBoost = { ...boost };
+          items.splice(idx, 1);
+          freshUser.inventory.roleBoostItems = items;
+          saveUser(freshUser);
+
+          if (boost.roleId) {
+            const newRole = interaction.guild.roles.cache.get(boost.roleId);
+            if (newRole) await member.roles.add(newRole).catch(() => {});
+          }
+
+          const buf = await generateInventory(member, inventoryToItems(freshUser));
+          return i.editReply({
+            files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
+            attachments: [],
+            components: buildInventoryComponents(freshUser, backRow()),
+          });
+        }
+      } catch (e) {
+        console.error('[Profil] collector:', e.message);
       }
     });
 

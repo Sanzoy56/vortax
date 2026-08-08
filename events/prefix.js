@@ -474,162 +474,184 @@ async function cmdProfil(msg) {
   collector.on('collect', async i => {
     const freshUser = getUser(msg.author.id);
 
-    if (i.customId === 'pnav_profil') {
-      const buf = await generateProfile(member, profilBuildProfileData(member, freshUser));
-      return i.update({
-        files: [new AttachmentBuilder(buf, { name: 'profil.png' })],
-        attachments: [],
-        components: [profilMainButtonsRow()],
-      });
-    }
+    // NOTE : le deferUpdate() est fait au cas par cas, juste avant chaque
+    // génération de canvas — jamais avant les branches qui répondent par un
+    // message éphémère (i.reply), sinon ces réponses éphémères planteraient.
+    // Ça évite le "flash" / la disparition de l'image : Discord considère
+    // l'interaction comme acquittée dès le deferUpdate(), donc plus jamais
+    // de timeout de 3s pendant la génération du canvas.
 
-    if (i.customId === 'pnav_quetes') {
-      const buf = await generateQuests(member, freshUser.quests.slots);
-      return i.update({
-        files: [new AttachmentBuilder(buf, { name: 'quetes.png' })],
-        attachments: [],
-        components: profilBuildQuestComponents(freshUser, profilBackRow()),
-      });
-    }
-
-    if (i.customId === 'pnav_inventaire') {
-      const buf = await generateInventory(member, profilInventoryToItems(freshUser));
-      return i.update({
-        files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
-        attachments: [],
-        components: profilBuildInventoryComponents(freshUser, profilBackRow()),
-      });
-    }
-
-    if (i.customId === 'pnav_arbre') {
-      profilArbreSelection = null;
-      const buf = await generateSkillTree(member, profilBuildTreeData(freshUser, null));
-      return i.update({
-        content: profilArbreContent(freshUser, null),
-        files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
-        attachments: [],
-        components: profilArbreComponents(freshUser, null),
-      });
-    }
-
-    // ── Arbre : choix d'une branche dans le select menu ──
-    if (i.customId === 'parbre_select' && i.isStringSelectMenu()) {
-      profilArbreSelection = i.values[0];
-      const buf = await generateSkillTree(member, profilBuildTreeData(freshUser, profilArbreSelection));
-      return i.update({
-        content: profilArbreContent(freshUser, profilArbreSelection),
-        files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
-        attachments: [],
-        components: profilArbreComponents(freshUser, profilArbreSelection),
-      });
-    }
-
-    // ── Arbre : bouton Rafraîchir (redessine sans rien changer) ──
-    if (i.customId === 'parbre_refresh') {
-      const buf = await generateSkillTree(member, profilBuildTreeData(freshUser, profilArbreSelection));
-      return i.update({
-        content: profilArbreContent(freshUser, profilArbreSelection),
-        files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
-        attachments: [],
-        components: profilArbreComponents(freshUser, profilArbreSelection),
-      });
-    }
-
-    // ── Arbre : bouton Débloquer (dépense les vtxcoins du wallet) ──
-    if (i.customId === 'parbre_unlock') {
-      if (!profilArbreSelection) {
-        return i.reply({ content: 'Choisis une branche dans le menu avant de débloquer.', ephemeral: true }).catch(() => {});
+    try {
+      if (i.customId === 'pnav_profil') {
+        await i.deferUpdate();
+        const buf = await generateProfile(member, profilBuildProfileData(member, freshUser));
+        return i.editReply({
+          files: [new AttachmentBuilder(buf, { name: 'profil.png' })],
+          attachments: [],
+          components: [profilMainButtonsRow()],
+        });
       }
 
-      const result = profilUnlockNextTier(freshUser, profilArbreSelection);
-      if (!result.ok) {
-        const msgByReason = {
-          maxed: `${result.branch.label} est déjà au palier maximum.`,
-          locked: `Ce palier de ${result.branch.label} est verrouillé.`,
-          not_enough: `Il te faut **${fmt(result.cost)}** vtxcoins ${COIN} pour ce palier (tu en as ${fmt(freshUser.wallet || 0)}).`,
-          branch_not_found: 'Branche introuvable.',
-        };
-        return i.reply({ content: msgByReason[result.reason] || 'Achat impossible.', ephemeral: true }).catch(() => {});
+      if (i.customId === 'pnav_quetes') {
+        await i.deferUpdate();
+        const buf = await generateQuests(member, freshUser.quests.slots);
+        return i.editReply({
+          files: [new AttachmentBuilder(buf, { name: 'quetes.png' })],
+          attachments: [],
+          components: profilBuildQuestComponents(freshUser, profilBackRow()),
+        });
       }
 
-      saveUser(freshUser);
-      const buf = await generateSkillTree(member, profilBuildTreeData(freshUser, profilArbreSelection));
-      return i.update({
-        content: profilArbreContent(freshUser, profilArbreSelection),
-        files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
-        attachments: [],
-        components: profilArbreComponents(freshUser, profilArbreSelection),
-      });
-    }
-
-    if (i.customId === 'pnav_bal') {
-      const buf = await generateBal(member, freshUser);
-      return i.update({
-        files: [new AttachmentBuilder(buf, { name: 'bal.png' })],
-        attachments: [],
-        components: [profilBackRow()],
-      });
-    }
-
-    if (i.customId.startsWith('pqc_') && i.isStringSelectMenu()) {
-      const slotIndex = parseInt(i.customId.split('_')[1], 10);
-      const questId = i.values[0];
-      const picked = chooseQuest(freshUser, slotIndex, questId);
-      if (!picked) return i.reply({ content: "Cette quête n'est plus disponible.", ephemeral: true }).catch(() => {});
-
-      const buf = await generateQuests(member, freshUser.quests.slots);
-      return i.update({
-        files: [new AttachmentBuilder(buf, { name: 'quetes.png' })],
-        attachments: [],
-        components: profilBuildQuestComponents(freshUser, profilBackRow()),
-      });
-    }
-
-    if (i.customId.startsWith('pequip_temp_')) {
-      const idx = parseInt(i.customId.replace('pequip_temp_', ''), 10);
-      const items = freshUser.inventory.tempBoostItems || [];
-      if (!items[idx]) return i.reply({ content: '❌ Boost introuvable.', ephemeral: true });
-
-      const boost = items[idx];
-      freshUser.inventory.tempBoost = { ...boost, expiresAt: Date.now() + boost.duration * 60_000 };
-      items.splice(idx, 1);
-      freshUser.inventory.tempBoostItems = items;
-      saveUser(freshUser);
-
-      const buf = await generateInventory(member, profilInventoryToItems(freshUser));
-      return i.update({
-        files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
-        attachments: [],
-        components: profilBuildInventoryComponents(freshUser, profilBackRow()),
-      });
-    }
-
-    if (i.customId.startsWith('pequip_role_')) {
-      const idx = parseInt(i.customId.replace('pequip_role_', ''), 10);
-      const items = freshUser.inventory.roleBoostItems || [];
-      if (!items[idx]) return i.reply({ content: '❌ Boost introuvable.', ephemeral: true });
-
-      const boost = items[idx];
-      if (freshUser.inventory.roleBoost?.roleId) {
-        const oldRole = msg.guild.roles.cache.get(freshUser.inventory.roleBoost.roleId);
-        if (oldRole) await member.roles.remove(oldRole).catch(() => {});
-      }
-      freshUser.inventory.roleBoost = { ...boost };
-      items.splice(idx, 1);
-      freshUser.inventory.roleBoostItems = items;
-      saveUser(freshUser);
-
-      if (boost.roleId) {
-        const newRole = msg.guild.roles.cache.get(boost.roleId);
-        if (newRole) await member.roles.add(newRole).catch(() => {});
+      if (i.customId === 'pnav_inventaire') {
+        await i.deferUpdate();
+        const buf = await generateInventory(member, profilInventoryToItems(freshUser));
+        return i.editReply({
+          files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
+          attachments: [],
+          components: profilBuildInventoryComponents(freshUser, profilBackRow()),
+        });
       }
 
-      const buf = await generateInventory(member, profilInventoryToItems(freshUser));
-      return i.update({
-        files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
-        attachments: [],
-        components: profilBuildInventoryComponents(freshUser, profilBackRow()),
-      });
+      if (i.customId === 'pnav_arbre') {
+        await i.deferUpdate();
+        profilArbreSelection = null;
+        const buf = await generateSkillTree(member, profilBuildTreeData(freshUser, null));
+        return i.editReply({
+          content: profilArbreContent(freshUser, null),
+          files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
+          attachments: [],
+          components: profilArbreComponents(freshUser, null),
+        });
+      }
+
+      // ── Arbre : choix d'une branche dans le select menu ──
+      if (i.customId === 'parbre_select' && i.isStringSelectMenu()) {
+        await i.deferUpdate();
+        profilArbreSelection = i.values[0];
+        const buf = await generateSkillTree(member, profilBuildTreeData(freshUser, profilArbreSelection));
+        return i.editReply({
+          content: profilArbreContent(freshUser, profilArbreSelection),
+          files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
+          attachments: [],
+          components: profilArbreComponents(freshUser, profilArbreSelection),
+        });
+      }
+
+      // ── Arbre : bouton Rafraîchir (redessine sans rien changer) ──
+      if (i.customId === 'parbre_refresh') {
+        await i.deferUpdate();
+        const buf = await generateSkillTree(member, profilBuildTreeData(freshUser, profilArbreSelection));
+        return i.editReply({
+          content: profilArbreContent(freshUser, profilArbreSelection),
+          files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
+          attachments: [],
+          components: profilArbreComponents(freshUser, profilArbreSelection),
+        });
+      }
+
+      // ── Arbre : bouton Débloquer (dépense les vtxcoins du wallet) ──
+      if (i.customId === 'parbre_unlock') {
+        if (!profilArbreSelection) {
+          return i.reply({ content: 'Choisis une branche dans le menu avant de débloquer.', ephemeral: true }).catch(() => {});
+        }
+
+        const result = profilUnlockNextTier(freshUser, profilArbreSelection);
+        if (!result.ok) {
+          const msgByReason = {
+            maxed: `${result.branch.label} est déjà au palier maximum.`,
+            locked: `Ce palier de ${result.branch.label} est verrouillé.`,
+            not_enough: `Il te faut **${fmt(result.cost)}** vtxcoins ${COIN} pour ce palier (tu en as ${fmt(freshUser.wallet || 0)}).`,
+            branch_not_found: 'Branche introuvable.',
+          };
+          return i.reply({ content: msgByReason[result.reason] || 'Achat impossible.', ephemeral: true }).catch(() => {});
+        }
+
+        await i.deferUpdate();
+        saveUser(freshUser);
+        const buf = await generateSkillTree(member, profilBuildTreeData(freshUser, profilArbreSelection));
+        return i.editReply({
+          content: profilArbreContent(freshUser, profilArbreSelection),
+          files: [new AttachmentBuilder(buf, { name: 'arbre.png' })],
+          attachments: [],
+          components: profilArbreComponents(freshUser, profilArbreSelection),
+        });
+      }
+
+      if (i.customId === 'pnav_bal') {
+        await i.deferUpdate();
+        const buf = await generateBal(member, freshUser);
+        return i.editReply({
+          files: [new AttachmentBuilder(buf, { name: 'bal.png' })],
+          attachments: [],
+          components: [profilBackRow()],
+        });
+      }
+
+      if (i.customId.startsWith('pqc_') && i.isStringSelectMenu()) {
+        const slotIndex = parseInt(i.customId.split('_')[1], 10);
+        const questId = i.values[0];
+        const picked = chooseQuest(freshUser, slotIndex, questId);
+        if (!picked) return i.reply({ content: "Cette quête n'est plus disponible.", ephemeral: true }).catch(() => {});
+
+        await i.deferUpdate();
+        const buf = await generateQuests(member, freshUser.quests.slots);
+        return i.editReply({
+          files: [new AttachmentBuilder(buf, { name: 'quetes.png' })],
+          attachments: [],
+          components: profilBuildQuestComponents(freshUser, profilBackRow()),
+        });
+      }
+
+      if (i.customId.startsWith('pequip_temp_')) {
+        const idx = parseInt(i.customId.replace('pequip_temp_', ''), 10);
+        const items = freshUser.inventory.tempBoostItems || [];
+        if (!items[idx]) return i.reply({ content: '❌ Boost introuvable.', ephemeral: true }).catch(() => {});
+
+        await i.deferUpdate();
+        const boost = items[idx];
+        freshUser.inventory.tempBoost = { ...boost, expiresAt: Date.now() + boost.duration * 60_000 };
+        items.splice(idx, 1);
+        freshUser.inventory.tempBoostItems = items;
+        saveUser(freshUser);
+
+        const buf = await generateInventory(member, profilInventoryToItems(freshUser));
+        return i.editReply({
+          files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
+          attachments: [],
+          components: profilBuildInventoryComponents(freshUser, profilBackRow()),
+        });
+      }
+
+      if (i.customId.startsWith('pequip_role_')) {
+        const idx = parseInt(i.customId.replace('pequip_role_', ''), 10);
+        const items = freshUser.inventory.roleBoostItems || [];
+        if (!items[idx]) return i.reply({ content: '❌ Boost introuvable.', ephemeral: true }).catch(() => {});
+
+        await i.deferUpdate();
+        const boost = items[idx];
+        if (freshUser.inventory.roleBoost?.roleId) {
+          const oldRole = msg.guild.roles.cache.get(freshUser.inventory.roleBoost.roleId);
+          if (oldRole) await member.roles.remove(oldRole).catch(() => {});
+        }
+        freshUser.inventory.roleBoost = { ...boost };
+        items.splice(idx, 1);
+        freshUser.inventory.roleBoostItems = items;
+        saveUser(freshUser);
+
+        if (boost.roleId) {
+          const newRole = msg.guild.roles.cache.get(boost.roleId);
+          if (newRole) await member.roles.add(newRole).catch(() => {});
+        }
+
+        const buf = await generateInventory(member, profilInventoryToItems(freshUser));
+        return i.editReply({
+          files: [new AttachmentBuilder(buf, { name: 'inventaire.png' })],
+          attachments: [],
+          components: profilBuildInventoryComponents(freshUser, profilBackRow()),
+        });
+      }
+    } catch (e) {
+      console.error('[Prefix] profil collector:', e.message);
     }
   });
 
@@ -760,9 +782,13 @@ async function cmdQuetes(msg) {
         return i.reply({ content: 'Cette quête n\'est plus disponible.', ephemeral: true }).catch(() => {});
       }
 
+      // Acquittement immédiat AVANT la génération du canvas, pour éviter le
+      // "flash" d'image si generateQuests met plus de 3s.
+      await i.deferUpdate();
+
       const newBuffer     = await generateQuests(member, freshUser.quests.slots);
       const newComponents = buildQuestComponents(freshUser);
-      await i.update({
+      await i.editReply({
         files: [new AttachmentBuilder(newBuffer, { name: 'quetes.png' })],
         attachments: [],
         components: newComponents,
