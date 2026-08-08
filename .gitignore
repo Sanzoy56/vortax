@@ -10,3 +10,4 @@ warn.json
 token.json
 assets/piper/piper/
 temp/
+Dockerfile
