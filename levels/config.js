@@ -82,23 +82,27 @@ module.exports = {
   },
 
   // ─── Boosts temporaires ──────────────────────────────────
+  // Prix en crescendo : 200K (le moins cher) → jusqu'à ~1,7M pour le meilleur
+  // temporaire, avant de passer aux boosts permanents (voir ROLE_BOOSTS).
   TEMP_BOOSTS: [
-    { id: 'boost_exp_25_30m', label: '+25% EXP - 30 min', expBoost: 0.25, duration: 30, price: 30000 },
-    { id: 'boost_exp_25_1h',  label: '+25% EXP - 1h',     expBoost: 0.25, duration: 60, price: 50000 },
-    { id: 'boost_exp_50_30m', label: '+50% EXP - 30 min', expBoost: 0.5,  duration: 30, price: 70000 },
-    { id: 'boost_exp_50_1h',  label: '+50% EXP - 1h',     expBoost: 0.5,  duration: 60, price: 120000 },
-    { id: 'boost_coin_25_1h', label: '+25% Coins - 1h',   coinBoost: 0.25, duration: 60, price: 40000 },
-    { id: 'boost_coin_50_1h', label: '+50% Coins - 1h',   coinBoost: 0.5,  duration: 60, price: 90000 },
+    { id: 'boost_exp_25_30m', label: '+25% EXP - 30 min', expBoost: 0.25, duration: 30, price: 200000 },
+    { id: 'boost_exp_25_1h',  label: '+25% EXP - 1h',     expBoost: 0.25, duration: 60, price: 350000 },
+    { id: 'boost_exp_50_30m', label: '+50% EXP - 30 min', expBoost: 0.5,  duration: 30, price: 550000 },
+    { id: 'boost_exp_50_1h',  label: '+50% EXP - 1h',     expBoost: 0.5,  duration: 60, price: 850000 },
+    { id: 'boost_coin_25_1h', label: '+25% Coins - 1h',   coinBoost: 0.25, duration: 60, price: 1200000 },
+    { id: 'boost_coin_50_1h', label: '+50% Coins - 1h',   coinBoost: 0.5,  duration: 60, price: 1700000 },
   ],
 
   // ─── Boosts permanents ───────────────────────────────────
+  // Suite de la crescendo : de 2,4M jusqu'au plafond de la boutique à 8M
+  // (role_coin_60, le boost le plus fort et le plus cher).
   ROLE_BOOSTS: [
-    { id: 'role_exp_30',  label: '+30% EXP permanent',   expBoost: 0.3,  price: 1000000 },
-    { id: 'role_exp_45',  label: '+45% EXP permanent',   expBoost: 0.45, price: 2500000 },
-    { id: 'role_exp_60',  label: '+60% EXP permanent',   expBoost: 0.6,  price: 5000000 },
-    { id: 'role_coin_30', label: '+30% Coins permanent', coinBoost: 0.3,  price: 1000000 },
-    { id: 'role_coin_45', label: '+45% Coins permanent', coinBoost: 0.45, price: 2500000 },
-    { id: 'role_coin_60', label: '+60% Coins permanent', coinBoost: 0.6,  price: 5000000 },
+    { id: 'role_exp_30',  label: '+30% EXP permanent',   expBoost: 0.3,  price: 2400000 },
+    { id: 'role_exp_45',  label: '+45% EXP permanent',   expBoost: 0.45, price: 3300000 },
+    { id: 'role_exp_60',  label: '+60% EXP permanent',   expBoost: 0.6,  price: 4400000 },
+    { id: 'role_coin_30', label: '+30% Coins permanent', coinBoost: 0.3,  price: 5700000 },
+    { id: 'role_coin_45', label: '+45% Coins permanent', coinBoost: 0.45, price: 7000000 },
+    { id: 'role_coin_60', label: '+60% Coins permanent', coinBoost: 0.6,  price: 8000000 },
   ],
 
   // ─── Quêtes ───────────────────────────────────────────────
@@ -114,6 +118,13 @@ module.exports = {
   ],
 
   QUESTS_PER_DAY: 3,
+
+  // ─── Arbre de compétences ─────────────────────────────────
+  // Coût VTX-Coins par palier (index 0 = palier 1, index 4 = palier 5),
+  // le même barème pour chacune des 5 branches.
+  SKILL_TREE: {
+    PALIER_COSTS: [200000, 900000, 2200000, 4500000, 8000000],
+  },
 
   // ─── Canvas ───────────────────────────────────────────────
   CANVAS: {
