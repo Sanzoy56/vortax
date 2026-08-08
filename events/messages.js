@@ -328,7 +328,7 @@ module.exports = (client) => {
             });
         } else {
             logBuf = await require('../levels/logCard').renderLogCard({
-                title: 'Message supprimés',
+                title: 'Message supprimé',
                 accent: '#ef4444',
                 avatarURL: authorAvatar,
                 rows: [
