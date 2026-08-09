@@ -77,8 +77,8 @@ module.exports = {
     MAX_PERCENT:    0.50,
     SUCCESS_RATE:   1.0,    // toujours réussi
     PENALTY_RATE:   0.03,
-    EMOJI_SUCCESS:  '<:592053verified:1510069208661098546>',
-    EMOJI_COIN:     '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>',
+    EMOJI_SUCCESS:  '<:592053verified:1535812474824163338>',
+    EMOJI_COIN:     '<:49c1a23b876841ce87e5aa7dbeacada9:1535810810796843158>',
   },
 
   // ─── Boosts temporaires ──────────────────────────────────

@@ -7,9 +7,10 @@ const PREFIX = '=';
 const SANZOY_ID = '1323025414523977798';
 
 // ─── Emojis custom du serveur (coins, succès, échec) ─────────
-const COIN  = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
-const CHECK = '<:592053verified:1510069208661098546>';
-const PERDU = '<:26643crossmark:1510067005066055690>';
+// APRÈS
+const COIN  = '<:49c1a23b876841ce87e5aa7dbeacada9:1535810810796843158>';
+const CHECK = '<:592053verified:1535812474824163338>';
+const PERDU = '<:26643crossmark:1535811905237553162>';
 
 const TIER_COLORS = { S: 0xf5c842, A: 0xa855f7, B: 0x38bdf8, C: 0x22c55e };
 const TIER_LABELS = {
