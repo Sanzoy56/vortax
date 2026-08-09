@@ -11,9 +11,9 @@ const { updateQuestProgress }              = require('../levels/quests');
 const { PROTECTED_USERS, ROB }             = require('../levels/config');
 const { getConfig }                        = require('../config');
 
-const COIN   = '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>';
-const PERDU  = '<:26643crossmark:1510067005066055690>';
-const CHECK  = '<:592053verified:1510069208661098546>';
+const COIN   = '<:49c1a23b876841ce87e5aa7dbeacada9:1535810810796843158>';
+const PERDU  = '<:26643crossmark:1535811905237553162>';
+const CHECK  = '<:592053verified:1535812474824163338>';
 const PREFIX = '=';
 const SANZOY_ID = '1323025414523977798';
 
