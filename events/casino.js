@@ -6,11 +6,11 @@ const { getConfig }         = require('../config');
 const PREFIX = '=';
 
 const EM = {
-  coin:    '<:49c1a23b876841ce87e5aa7dbeacada9:1510067105767227423>',
-  billet:  '<:fdfc6b7c937741879c66a369a1d2b635:1510067175246004234>',
-  barre:   '<:Capture_d_cran_20260529_213837re:1510067261845668011>',
-  jackpot: '<:jackpot:1510067147752214548>',
-  perdu:   '<:26643crossmark:1510067005066055690>',
+  coin:    '<:49c1a23b876841ce87e5aa7dbeacada9:1535810810796843158>',
+  billet:  '<:fdfc6b7c937741879c66a369a1d2b635:1535828448457654333>',
+  barre:   '<:Capture_d_cran_20260529_213837re:1535828274855542864>',
+  jackpot: '<:jackpot:1535828510352867339>',
+  perdu:   '<:26643crossmark:1535811905237553162>',
 };
 
 function fmt(n) {
